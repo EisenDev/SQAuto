@@ -1,0 +1,13 @@
+{
+  "name": "sqauto-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=@sqauto/web",
+    "dev:api": "uvicorn apps.api.main:app --reload",
+    "install:all": "npm install && pip install -r requirements.txt"
+  }
+}
