@@ -3,7 +3,7 @@ version: "3.9"
 services:
   api:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
       target: api
     container_name: sqauto_api
@@ -14,7 +14,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
       target: web
     container_name: sqauto_web
@@ -25,7 +25,7 @@ services:
 
   worker:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
       target: worker
     container_name: sqauto_worker
