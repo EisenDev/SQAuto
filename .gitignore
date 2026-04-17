@@ -38,3 +38,10 @@ yarn-error.log*
 
 # Workspace
 SQAuto.code-workspace
+
+# Large Data & Keys
+uploads/
+*.sql
+*.pem
+*.key
+SQAUTO_key.pem
