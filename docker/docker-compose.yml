@@ -21,7 +21,7 @@ services:
     env_file: .env
     ports:
       - "${WEB_PORT:-3000}:3000"
-    command: npm run dev -- --port 3000 --host 0.0.0.0
+    command: npm run dev:web -- --port 3000 --host 0.0.0.0
 
   worker:
     build:

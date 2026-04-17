@@ -36,8 +36,8 @@ server {
         proxy_cache_bypass \$http_upgrade;
     }
 
-    # API Health (/health)
-    location /health {
+    # API Health (/api/health)
+    location /api/health {
         proxy_pass http://localhost:8000/health;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
