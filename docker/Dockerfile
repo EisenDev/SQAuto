@@ -1,48 +1,44 @@
-# Dockerfile
+# docker/Dockerfile
 
-# ---- Stage 1: Backend (FastAPI) ----
-FROM python:3.12-slim AS api
+# --- Stage 1: Base Python ---
+FROM python:3.12-slim AS python-base
 WORKDIR /app
-
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# --- Stage 2: API ---
+FROM python-base AS api
 COPY . .
-
 EXPOSE 8000
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "apps.api.main:app", "--bind", "0.0.0.0:8000"]
 
-# ---- Stage 2: Frontend (Next.js) ----
+# --- Stage 3: Worker ---
+FROM python-base AS worker
+COPY . .
+CMD ["python", "-m", "workers.migration_worker.worker"]
+
+# --- Stage 4: Web Builder ---
+FROM node:20-alpine AS web-builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN npm ci
+COPY . .
+# Next.js standalone build
+RUN cd apps/web && npm run build
+
+# --- Stage 5: Web Production ---
 FROM node:20-alpine AS web
 WORKDIR /app
-
-# Install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci --silent
-
-# Copy source
-COPY . .
+ENV NODE_ENV production
+# Copy necessary files for standalone output
+COPY --from=web-builder /app/apps/web/public ./apps/web/public
+COPY --from=web-builder /app/apps/web/.next/standalone ./
+COPY --from=web-builder /app/apps/web/.next/static ./apps/web/.next/static
 
 EXPOSE 3000
-
-# ---- Stage 3: Worker (Python) ----
-FROM python:3.12-slim AS worker
-WORKDIR /app
-
-# Install postgresql-client for large dump restoration
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8001
-
-# Default target (none) – will be overridden in docker-compose
+CMD ["node", "apps/web/server.js"]

@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: actions/checkout@v4
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -28,6 +28,8 @@ jobs:
           target: api
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Web
         uses: docker/build-push-action@v5
@@ -37,6 +39,8 @@ jobs:
           target: web
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Worker
         uses: docker/build-push-action@v5
@@ -46,14 +50,13 @@ jobs:
           target: worker
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy to VM via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -61,14 +64,46 @@ jobs:
           username: azureuser
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
+            mkdir -p ~/sqauto
             cd ~/sqauto
             
-            # Update .env with Supabase URL and other secrets
-            echo "DATABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
-            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
-            echo "API_PORT=8000" >> .env
-            echo "WEB_PORT=3000" >> .env
+            # Setup .env from secrets
+            cat <<EOF > .env
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            REDIS_URL=redis://redis:6379/0
+            API_PORT=8000
+            WEB_PORT=3000
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
+            EOF
             
-            # Pull latest images and restart
-            sudo docker compose pull
-            sudo docker compose up -d
+            # Login to Docker Hub on VM (needed for private repos or just reliability)
+            echo "${{ secrets.DOCKER_HUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+            
+            # Get latest docker-compose.yml and nginx.conf
+            # Note: We assume the repo is already on the server or we use a temporary checkout
+            # A better way is to SCP the docker files, but for now we'll assume they are pushed to the server project dir
+            # Or we can just curl them from the raw github if it's public, or just keep them synced.
+            
+            # For simplicity in this demo, we assume the user has the repo pulled on the server.
+            # But in a real CI/CD, we'd scp the docker-compose and nginx.conf.
+            # I'll add a step to scp them.
+
+  # SCP step for docker configs
+  update-configs:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: SCP Docker Files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: azureuser
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "docker/docker-compose.yml,docker/nginx.conf"
+          target: "~/sqauto"
+          strip_components: 1

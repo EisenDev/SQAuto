@@ -10,3 +10,4 @@ sqlglot
 redis
 celery
 python-dotenv
+gunicorn

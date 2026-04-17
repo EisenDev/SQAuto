@@ -1,18 +1,31 @@
 #!/bin/bash
 # scripts/setup_vm.sh
-# This script sets up an Azure Ubuntu VM for the SQAuto application.
+# Comprehensive bootstrap script for SQAuto production VM.
 
 set -e
 
-echo "[+] Starting VM Setup for SQAuto..."
+echo "[+] Starting SQAuto VM Bootstrap..."
 
-# 1. Update and install basic dependencies
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg lsb-release
+# 1. Update system
+sudo apt-get update && sudo apt-get upgrade -y
 
-# 2. Install Docker
+# 2. Add Swap Space (2GB)
+if [ ! -f /swapfile ]; then
+    echo "[+] Creating 2GB Swap file..."
+    sudo fallocate -l 2G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    echo "[+] Swap setup complete."
+else
+    echo "[+] Swap file already exists."
+fi
+
+# 3. Install Docker
 if ! [ -x "$(command -v docker)" ]; then
-    echo "[+] Installing Docker..."
+    echo "[+] Installing Docker and Docker Compose..."
+    sudo apt-get install -y ca-certificates curl gnupg lsb-release
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     echo \
@@ -24,24 +37,15 @@ else
     echo "[+] Docker is already installed."
 fi
 
-# 3. Add current user to docker group
+# 4. Permissions
 sudo usermod -aG docker $USER
-echo "[!] You may need to log out and back in for docker group changes to take effect."
+echo "[!] User added to docker group. Please log out and back in for changes to take effect."
 
-# 4. Create project directory
+# 5. Project Directory
 mkdir -p ~/sqauto
 cd ~/sqauto
 
-# 5. Setup basic .env placeholder
-if [ ! -f .env ]; then
-    echo "[+] Creating .env placeholder..."
-    touch .env
-    echo "DATABASE_URL=placeholder" >> .env
-    echo "API_PORT=8000" >> .env
-    echo "WEB_PORT=3000" >> .env
-fi
-
-echo "[+] VM Setup Complete!"
-echo "[+] Next steps:"
-echo "    1. Open port 3000 and 8000 in your Azure Portal (NSG settings)."
-echo "    2. Configure your GitHub Secrets (VM_IP, VM_SSH_KEY, DOCKER_HUB_USER)."
+echo "[+] VM Bootstrap Finalized!"
+echo "[+] Remaining Manual Steps:"
+echo "    1. Add GitHub Secrets to your repository (VM_IP, VM_SSH_KEY, DOCKER_HUB_USERNAME, etc.)"
+echo "    2. Push your code to main to trigger the first deployment."
