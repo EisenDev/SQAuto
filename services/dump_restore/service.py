@@ -1,59 +1,77 @@
 # services/dump_restore/service.py
 """Service for restoring SQL dump files into the staging database.
-Implements a simple restore using SQLAlchemy to execute the dump content.
-The dump file is treated as read-only source; the restore happens only in the
-staging database defined by SETTINGS.DATABASE_URL.
+Optimized to handle large files (2GB+) by using the `psql` command-line tool
+instead of reading the entire file into memory.
 """
 
 import os
+import subprocess
 import logging
-from sqlalchemy import text
+from typing import Optional
 from sqlalchemy.orm import Session
-from apps.api.database import engine
+from configs.settings import settings
 
 logger = logging.getLogger("sqauto.dump_restore")
 
 class DumpRestoreService:
     """Handles restoring a SQL dump into the staging database.
 
-    The service reads the provided ``file_path`` (a .sql file) and executes its
-    content against the staging database using the SQLAlchemy engine. Errors are
-    logged and propagated to the caller so that the API layer can update the
-    ``Job`` status accordingly.
+    Uses the system's `psql` client to stream the dump file into the database.
+    This is much more memory-efficient than reading the file into Python.
     """
 
-    def __init__(self):
-        # No state is required; the engine is imported globally.
-        pass
-
-    def restore(self, *, job_id, file_path: str, db_session: Session) -> None:
-        """Restore the dump for ``job_id``.
+    def restore(self, *, job_id, file_path: str, db_session: Optional[Session] = None) -> None:
+        """Restore the dump using psql.
 
         Parameters
         ----------
         job_id: UUID
-            Identifier of the job – currently unused but kept for future
-            extensibility (e.g., logging, audit trails).
+            Identifier of the job.
         file_path: str
             Absolute path to the uploaded ``.sql`` dump file.
-        db_session: Session
-            A SQLAlchemy session – not used directly because we execute via the
-            engine connection, but the session is kept to satisfy the calling
-            signature and to allow future transactional handling.
+        db_session: Session, optional
+            A SQLAlchemy session (unused, kept for compatibility).
         """
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Dump file not found: {file_path}")
 
-        logger.info(f"Starting restore for job {job_id} from {file_path}")
-        # Read the entire dump file. For very large dumps this could be streamed,
-        # but for the MVP we keep it simple.
-        with open(file_path, "r", encoding="utf-8") as f:
-            sql_content = f.read()
+        logger.info(f"Starting optimized restore for job {job_id} from {file_path}")
 
-        # Execute the SQL content against the staging database.
-        # ``engine`` is bound to the staging DB URL defined in settings.
-        with engine.begin() as conn:
-            # ``text`` safely wraps the raw SQL string.
-            conn.execute(text(sql_content))
+        # Convert SQLAlchemy-style DATABASE_URL to a standard PSQL connection URI
+        # e.g., postgresql+psycopg://... -> postgresql://...
+        db_url = settings.DATABASE_URL
+        if "+psycopg" in db_url:
+            db_url = db_url.replace("+psycopg", "")
 
-        logger.info(f"Restore completed for job {job_id}")
+        try:
+            # Run psql as a subprocess. 
+            # -f: Read commands from file
+            # --quiet: Run quietly
+            # --set ON_ERROR_STOP=1: Stop if an error occurs
+            cmd = [
+                "psql",
+                db_url,
+                "-f", file_path,
+                "--set", "ON_ERROR_STOP=1",
+                "--quiet"
+            ]
+            
+            # Using env variables for password if not in URI is also possible, 
+            # but URI is most common here.
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            logger.info(f"Restore completed successfully for job {job_id}")
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"psql restore failed for job {job_id}: {e.stderr}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        except Exception as e:
+            error_msg = f"Unexpected error during restore for job {job_id}: {str(e)}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)

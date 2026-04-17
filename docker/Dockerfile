@@ -5,7 +5,10 @@ FROM python:3.12-slim AS api
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -32,6 +35,11 @@ EXPOSE 3000
 # ---- Stage 3: Worker (Python) ----
 FROM python:3.12-slim AS worker
 WORKDIR /app
+
+# Install postgresql-client for large dump restoration
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
