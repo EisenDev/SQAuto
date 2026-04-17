@@ -19,9 +19,11 @@ services:
       target: web
     container_name: sqauto_web
     env_file: .env
+    environment:
+      - HOSTNAME=0.0.0.0
     ports:
       - "${WEB_PORT:-3000}:3000"
-    command: npm run dev:web -- --port 3000 --host 0.0.0.0
+    command: npm run dev:web -- -p 3000 -H 0.0.0.0
 
   worker:
     build:
