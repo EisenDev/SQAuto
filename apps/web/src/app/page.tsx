@@ -8,6 +8,7 @@ import ExportPanel from '@/components/ExportPanel';
 import AdvancedTools from '@/components/AdvancedTools';
 import { useJob } from '@/components/JobProvider';
 import { getJob } from '@/lib/api';
+import Skeleton from '@/components/Skeleton';
 
 export default function Dashboard() {
   const { activeJob, setActiveJob, refreshJob } = useJob();
@@ -29,7 +30,7 @@ export default function Dashboard() {
           console.error("Polling error:", err);
           clearInterval(interval);
         }
-      }, 3000);
+      }, 3000); // Fluid 3-second poll
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -37,23 +38,74 @@ export default function Dashboard() {
   }, [activeJob?.id, activeJob?.job_id, activeJob?.status, setActiveJob]);
 
   // Derived counts
-  const tableCount = activeJob?.profile ? Object.keys(activeJob.profile).length : 0;
-  const readiness = activeJob?.status === 'completed' ? '100%' : activeJob?.status === 'analyzing' ? '80%' : activeJob?.status === 'restoring' ? '40%' : '0%';
+  const metadata = activeJob?.profile?.metadata || {
+    table_count: activeJob?.profile && !activeJob.profile.metadata ? Object.keys(activeJob.profile).length : 0,
+    total_rows: 0,
+    data_size_mb: 0,
+    data_processed_mb: 0,
+    duplicate_count: 0
+  };
+
+  const tables = activeJob?.profile?.tables || (activeJob?.profile && !activeJob.profile.metadata ? activeJob.profile : {});
+  
+  // Custom readiness calc based on job status and streaming progress
+  const getReadiness = () => {
+    if (!activeJob) return '0%';
+    const flavorStr = metadata.flavor ? ` (${metadata.flavor.toUpperCase()})` : '';
+    
+    if (activeJob.status === 'completed') return '100% - Ready';
+    if (activeJob.status === 'analyzing') return '85% - Profiling Data...';
+    if (activeJob.status === 'restoring') {
+      const mbProcessed = metadata.compressed_processed_mb || 0;
+      const totalMb = activeJob.file_size ? activeJob.file_size / (1024 * 1024) : 0;
+      const calcPercent = totalMb > 0 ? Math.min(80, Math.round((mbProcessed / totalMb) * 80)) : 45;
+      
+      const detail = totalMb > 0 
+        ? `(${Math.round(mbProcessed)} MB / ${Math.round(totalMb)} MB)`
+        : '';
+        
+      return `${calcPercent}% - Decompressing ${detail}${flavorStr}...`;
+    }
+    if (activeJob.status === 'uploaded') return '15% - Received';
+    if (activeJob.status === 'failed') return '⚠ Failed';
+    return '0%';
+  };
+  const readiness = getReadiness();
 
   return (
     <div className="space-y-6">
       {/* Upload Section */}
       <UploadCard />
 
-      {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SummaryCard title="Tables" value={tableCount.toString()} />
-        <SummaryCard title="Rows" value={activeJob ? "Detecting..." : "0"} />
-        <SummaryCard title="Readiness" value={readiness} />
+      {/* Industrial Dashboard Grid - 5 Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <SummaryCard 
+          title="TABLES" 
+          value={!activeJob ? <Skeleton className="h-8 w-12" /> : (metadata.table_count || 0)} 
+        />
+        <SummaryCard 
+          title="ROWS" 
+          value={!activeJob ? <Skeleton className="h-8 w-24" /> : (metadata.total_rows || 0).toLocaleString()} 
+        />
+        <SummaryCard 
+          title="DATA EXTRACTED" 
+          value={!activeJob ? <Skeleton className="h-8 w-20" /> : `${metadata.data_size_mb || metadata.data_processed_mb || 0} MB`} 
+        />
+        <SummaryCard 
+          title="DUPLICATE DATA" 
+          value={!activeJob ? <Skeleton className="h-8 w-12" /> : (metadata.duplicate_count || 0)} 
+        />
+        <SummaryCard 
+          title="READINESS" 
+          value={readiness} 
+        />
       </div>
 
       {/* Extracted Tables View */}
-      <TableView profile={activeJob?.profile} />
+      <TableView 
+        profile={tables} 
+        loading={activeJob?.status === 'analyzing' || activeJob?.status === 'restoring'} 
+      />
 
       {/* AI Explanation Panel */}
       <AIExplanationPanel />

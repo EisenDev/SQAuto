@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, String, DateTime, Enum, JSON, Text
+from sqlalchemy import Column, String, DateTime, Enum, JSON, Text, Boolean, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
 
 from apps.api.database import Base
@@ -25,6 +25,9 @@ class Job(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     filename = Column(String, nullable=False)
+    original_filename = Column(String, nullable=True)
+    is_compressed = Column(Boolean, default=False, nullable=False)
+    file_size = Column(BigInteger, nullable=True) 
     status = Column(Enum(JobStatus), nullable=False, default=JobStatus.UPLOADED)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

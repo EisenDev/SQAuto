@@ -33,13 +33,71 @@ export interface Job {
   updated_at?: string;
   log?: string;
   profile?: Record<string, any>;
+  file_size?: number;
 }
 
-/** Upload a SQL dump file */
-export async function uploadDump(file: File): Promise<Job> {
-  const formData = new FormData();
-  formData.append("file", file);
-  return apiFetch<Job>("/upload", { method: "POST", body: formData });
+/** 
+ * Upload a SQL dump file with real-time progress tracking.
+ * Uses chunked uploads to bypass Cloudflare/Proxy limits.
+ */
+export async function uploadDump(
+  file: File, 
+  onProgress?: (progress: { loaded: number; total: number }) => void
+): Promise<Job> {
+  const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const uploadId = Math.random().toString(36).substring(7); // Temporary tracking ID
+
+  let loadedTotal = 0;
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(file.size, start + CHUNK_SIZE);
+    const chunk = file.slice(start, end);
+
+    const formData = new FormData();
+    formData.append("chunk", chunk);
+    formData.append("filename", file.name);
+    formData.append("chunkIndex", i.toString());
+    formData.append("totalChunks", totalChunks.toString());
+    formData.append("uploadId", uploadId);
+
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE_URL}/upload/chunk`);
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const currentLoaded = loadedTotal + event.loaded;
+          onProgress({ loaded: currentLoaded, total: file.size });
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.responseText);
+        } else {
+          reject(new Error(`Chunk ${i} failed: ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error(`Network Error on chunk ${i}`));
+      xhr.send(formData);
+    });
+
+    loadedTotal += chunk.size;
+  }
+
+  // Finalize upload - trigger assembly and job creation
+  return apiFetch<Job>(`/upload/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uploadId,
+      filename: file.name,
+      totalChunks,
+      fileSize: file.size
+    })
+  });
 }
 
 /** List all jobs */

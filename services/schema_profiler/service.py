@@ -22,28 +22,54 @@ class SchemaProfilerService:
     def __init__(self):
         pass
 
-    def profile(self, *, job_id, db_session: Session) -> dict:
-        """Collect schema information for ``job_id``.
+        # Profile target schema: 'staging'
+        try:
+            inspector = inspect(engine)
+            table_names = inspector.get_table_names(schema="staging")
+            logger.info(f"Starting detailed scan for job {job_id} in 'staging'. Found {len(table_names)} tables.")
+        except Exception as e:
+            logger.error(f"Failed to inspect 'staging' schema for job {job_id}: {e}")
+            raise RuntimeError(f"Database inspection failed: {e}")
 
-        Parameters
-        ----------
-        job_id: UUID
-            Identifier of the job – currently unused but kept for future audit.
-        db_session: Session
-            A SQLAlchemy session; not used directly because inspection works via
-            the engine, but kept for signature compatibility.
-
-        Returns
-        -------
-        dict
-            A mapping of table names to lists of column definitions.
-        """
-        inspector = inspect(engine)
         schema_info = {}
-        for table_name in inspector.get_table_names():
+        total_rows = 0
+        total_size_bytes = 0
+        
+        # Get the job record
+        job = db_session.query(Job).filter(Job.id == job_id).first()
+
+        for table_name in table_names:
             columns = []
-            for col in inspector.get_columns(table_name):
-                columns.append({"name": col["name"], "type": str(col["type"])})
+            try:
+                # Use inspector with schema='staging'
+                for col in inspector.get_columns(table_name, schema="staging"):
+                    columns.append({"name": col["name"], "type": str(col["type"])})
+                
+                # Count rows
+                row_count = db_session.execute(text(f'SELECT COUNT(*) FROM staging."{table_name}"')).scalar()
+                total_rows += row_count or 0
+
+                # Data size (bytes)
+                size_bytes = db_session.execute(text(f'SELECT pg_total_relation_size(\'staging."{table_name}"\')')).scalar()
+                total_size_bytes += size_bytes or 0
+            except Exception as e:
+                logger.warning(f"Could not profile staging.\"{table_name}\": {e}")
+
             schema_info[table_name] = columns
-        logger.info(f"Schema profiling completed for job {job_id}")
-        return schema_info
+            
+            # Incremental Update to Database with metadata
+            if job:
+                job.profile = {
+                    "tables": schema_info,
+                    "metadata": {
+                        "total_rows": total_rows,
+                        "table_count": len(schema_info),
+                        "data_size_mb": round(total_size_bytes / (1024 * 1024), 2),
+                        "duplicate_count": 0, # Placeholder
+                        "status": "COMPLETED"
+                    }
+                }
+                db_session.commit()
+                
+        logger.info(f"Schema profiling completed for job {job_id}. Total Rows: {total_rows}")
+        return job.profile

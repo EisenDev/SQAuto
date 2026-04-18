@@ -38,6 +38,11 @@ services:
       - uploads:/app/uploads
     depends_on:
       - redis
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   web:
@@ -46,6 +51,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: web
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://sqauto.zeraynce.com/api}
     container_name: sqauto_web
     env_file: ../.env
     environment:
@@ -54,21 +61,6 @@ services:
       - "3000"
     restart: always
 
-  worker:
-    image: ${DOCKER_HUB_USERNAME:-sqauto}/sqauto-worker:latest
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: worker
-    container_name: sqauto_worker
-    env_file: ../.env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - redis
-    volumes:
-      - uploads:/app/uploads
-    restart: always
 
 volumes:
   uploads:

@@ -8,7 +8,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from configs.settings import settings
 
 # Create engine; echo can be turned off for production
-engine = create_engine(settings.DATABASE_URL, echo=False, future=True)
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args={"connect_timeout": 10},
+    echo=False,
+    future=True
+)
 
 # SessionLocal class for dependency injection
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)

@@ -3,7 +3,7 @@ import React from 'react';
 
 interface SummaryCardProps {
   title: string;
-  value: string;
+  value: React.ReactNode;
 }
 
 export default function SummaryCard({ title, value }: SummaryCardProps) {
