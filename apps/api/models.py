@@ -22,6 +22,7 @@ class JobStatus(str, enum.Enum):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     filename = Column(String, nullable=False)

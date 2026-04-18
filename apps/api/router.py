@@ -192,7 +192,7 @@ async def upload_dump(file: UploadFile = File(...), db: Session = Depends(get_db
 @api_router.get("/jobs", tags=["jobs"], summary="List all jobs")
 async def list_jobs(db: Session = Depends(get_db)):
     jobs = db.query(Job).order_by(Job.created_at.desc()).all()
-    return [{"id": str(j.id), "filename": j.filename, "status": j.status.value, "created_at": j.created_at} for j in jobs]
+    return [{"id": str(j.id), "filename": j.filename, "status": j.status.value, "file_size": j.file_size, "created_at": j.created_at} for j in jobs]
 
 @api_router.get("/jobs/{job_id}", tags=["jobs"], summary="Get job details")
 async def job_detail(job_id: str, db: Session = Depends(get_db)):
@@ -203,6 +203,7 @@ async def job_detail(job_id: str, db: Session = Depends(get_db)):
         "id": str(job.id),
         "filename": job.filename,
         "status": job.status.value,
+        "file_size": job.file_size,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
         "log": job.log,

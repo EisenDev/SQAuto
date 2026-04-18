@@ -51,22 +51,15 @@ export default function Dashboard() {
   // Custom readiness calc based on job status and streaming progress
   const getReadiness = () => {
     if (!activeJob) return '0%';
-    const flavorStr = metadata.flavor ? ` (${metadata.flavor.toUpperCase()})` : '';
-    
-    if (activeJob.status === 'completed') return '100% - Ready';
-    if (activeJob.status === 'analyzing') return '85% - Profiling Data...';
+    if (activeJob.status === 'completed') return '100%';
+    if (activeJob.status === 'analyzing') return '85%';
     if (activeJob.status === 'restoring') {
       const mbProcessed = metadata.compressed_processed_mb || 0;
       const totalMb = activeJob.file_size ? activeJob.file_size / (1024 * 1024) : 0;
-      const calcPercent = totalMb > 0 ? Math.min(80, Math.round((mbProcessed / totalMb) * 80)) : 45;
-      
-      const detail = totalMb > 0 
-        ? `(${Math.round(mbProcessed)} MB / ${Math.round(totalMb)} MB)`
-        : '';
-        
-      return `${calcPercent}% - Decompressing ${detail}${flavorStr}...`;
+      const calcPercent = totalMb > 0 ? Math.min(80, Math.round((mbProcessed / totalMb) * 80)) : 0;
+      return `${calcPercent}%`;
     }
-    if (activeJob.status === 'uploaded') return '15% - Received';
+    if (activeJob.status === 'uploaded') return '15%';
     if (activeJob.status === 'failed') return '⚠ Failed';
     return '0%';
   };
@@ -115,6 +108,13 @@ export default function Dashboard() {
 
       {/* Advanced Tools (collapsed) */}
       <AdvancedTools />
+
+      {/* Industrial Versioning (Cache Buster) */}
+      <div className="pt-8 pb-4 text-center">
+        <p className="text-[10px] text-gray-400 font-mono uppercase tracking-[0.2em] opacity-50">
+          SQAuto Industrial v2.1.1-EMERGENCY-FIX | Build: {new Date().toISOString()} | Status: RELIABLE-PIPELINE-ACTIVE
+        </p>
+      </div>
     </div>
   );
 }

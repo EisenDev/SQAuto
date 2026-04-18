@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { uploadDump, restoreJob, profileJob } from '@/lib/api';
 import { useJob } from '@/components/JobProvider';
+import { Terminal, Activity, HardDrive, Database, CheckCircle, AlertCircle, Table, Layers } from 'lucide-react';
 
 export default function UploadCard() {
   const { activeJob, setActiveJob } = useJob();
@@ -10,6 +11,12 @@ export default function UploadCard() {
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [showDebugger, setShowDebugger] = useState(false);
+  const [currentTime, setCurrentTime] = useState("");
+
+  React.useEffect(() => {
+    setCurrentTime(new Date().toLocaleTimeString());
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -155,13 +162,100 @@ export default function UploadCard() {
         )}
 
         {activeJob && (
-          <div className="mt-4 text-sm text-teal-700 space-y-2">
+          <div className="mt-4 text-sm text-teal-700 space-y-4">
             <div className="flex items-center justify-center space-x-2">
               <span className="font-medium">Job ID:</span>
               <span className="font-mono bg-white px-2 py-0.5 rounded border border-teal-100 italic">
                 {activeJob.id || activeJob.job_id}
               </span>
             </div>
+
+            {/* Industrial Restoration Progress Bar */}
+            {activeJob.status === 'restoring' && (
+              <div className="max-w-md mx-auto p-4 bg-teal-50/50 rounded-xl border border-teal-100 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex justify-between text-[11px] font-bold text-teal-700 mb-2 uppercase tracking-widest">
+                  <span>Extracting Stream</span>
+                  <span>
+                    {activeJob.profile?.metadata?.compressed_processed_mb && activeJob.file_size 
+                      ? `${Math.round((activeJob.profile.metadata.compressed_processed_mb / (activeJob.file_size / (1024 * 1024))) * 100)}%`
+                      : '0%'}
+                  </span>
+                </div>
+                
+                <div className="w-full bg-white rounded-full h-4 mb-2 overflow-hidden border border-teal-100 p-0.5">
+                  <div 
+                    className="bg-gradient-to-r from-teal-400 to-teal-600 h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
+                    style={{ 
+                      width: `${activeJob.profile?.metadata?.compressed_processed_mb && activeJob.file_size 
+                        ? Math.min(100, Math.round((activeJob.profile.metadata.compressed_processed_mb / (activeJob.file_size / (1024 * 1024))) * 100)) 
+                        : 0}%` 
+                    }}
+                  />
+                </div>
+                
+                <div className="flex justify-between items-center text-[10px] text-teal-600/80 font-medium">
+                  <div className="flex items-center">
+                    <span className="w-2 h-2 bg-teal-500 rounded-full mr-2 animate-ping" />
+                    {activeJob.profile?.metadata?.compressed_processed_mb || 0} MB / {Math.round((activeJob.file_size || 0) / (1024 * 1024))} MB
+                  </div>
+                  <div>
+                    {(() => {
+                      const metadata = activeJob.profile?.metadata;
+                      const startTime = activeJob.profile?.restore_start_time;
+                      const fileSizeMb = (activeJob.file_size || 0) / (1024 * 1024);
+                      const processedMb = metadata?.compressed_processed_mb || 0;
+                      
+                      if (startTime && processedMb > 1 && fileSizeMb > 0) {
+                        const elapsedSeconds = Date.now() / 1000 - startTime;
+                        const speed = processedMb / elapsedSeconds; // MB/s
+                        const remainingMb = fileSizeMb - processedMb;
+                        const remainingSeconds = Math.ceil(remainingMb / speed);
+                        
+                        if (remainingSeconds > 0 && remainingSeconds < 3600) {
+                          const mins = Math.floor(remainingSeconds / 60);
+                          const secs = remainingSeconds % 60;
+                          return `⚡ ETA: ${mins}m ${secs}s`;
+                        }
+                      }
+                      return "⚡ Estimating Time...";
+                    })()}
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <button 
+                    onClick={() => setShowDebugger(!showDebugger)}
+                    className="px-4 py-2 bg-teal-600/10 text-teal-700 rounded-lg text-[10px] font-bold border border-teal-200 hover:bg-teal-600 hover:text-white transition-all flex items-center mx-auto shadow-sm"
+                  >
+                    <Activity className="w-3 h-3 mr-2 animate-pulse" />
+                    {showDebugger ? "Close Live Insight" : "Open Live Console"}
+                  </button>
+                </div>
+
+                {showDebugger && (
+                  <div className="mt-4 text-left bg-[#0d1117] rounded-xl p-4 border border-teal-900/30 shadow-2xl overflow-hidden max-w-2xl mx-auto animate-in zoom-in-95 duration-300">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2">
+                      <div className="flex space-x-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500/30" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-teal-500/10" />
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest flex items-center">
+                        <Activity className="w-3 h-3 mr-1 text-teal-500" /> Industrial Live Pipeline Insight
+                      </span>
+                    </div>
+                    <pre className="text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                      <span className="text-gray-600">[$]</span> tail -f /var/log/restoration.log{"\n"}
+                      <span className="text-gray-600">[{currentTime || '...'}]</span> <span className="text-teal-400">Stream Status:</span>{"\n"}
+                      <span className="text-white mt-1 block bg-teal-900/20 p-2 rounded border border-teal-900/30">
+                        {activeJob.profile?.metadata?.status_message || "Industrial stream active and processing chunks..."}
+                      </span>
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeJob.status === 'completed' ? (
               <button 
                 onClick={() => {setFile(null); setActiveJob(null); window.location.reload();}} 
@@ -169,7 +263,44 @@ export default function UploadCard() {
               >
                 Upload another file
               </button>
-            ) : (
+            ) : activeJob.status === 'failed' ? (
+              <div className="mt-4 animate-in fade-in duration-700">
+                <button 
+                  onClick={() => setShowDebugger(!showDebugger)}
+                  className="px-4 py-2 bg-red-50 text-red-700 rounded-lg text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors flex items-center mx-auto"
+                >
+                  <span className="mr-2">🔍</span> 
+                  {showDebugger ? "Hide Diagnostic Console" : "View Restoration Logs"}
+                </button>
+                
+                {showDebugger && (
+                  <div className="mt-4 text-left bg-gray-900 rounded-xl p-4 border border-gray-800 shadow-2xl overflow-hidden max-w-2xl mx-auto">
+                    <div className="flex items-center justify-between mb-3 border-b border-gray-800 pb-2">
+                      <div className="flex space-x-1.5">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
+                      </div>
+                      <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Postgres Diagnostic Console (Post-Mortem)</span>
+                    </div>
+                    <pre className="text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                      <span className="text-gray-600">[$]</span> tail -f /var/log/restoration.log{"\n"}
+                      <span className="text-gray-600">[{currentTime || '...'}]</span> <span className="text-red-400">Restoration Failed:</span>{"\n"}
+                      <span className="text-white mt-1 block bg-red-900/20 p-2 rounded border border-red-900/30">
+                        {activeJob.log || "No detailed logs provided by database. Check server connectivity."}
+                      </span>
+                    </pre>
+                  </div>
+                )}
+                
+                <button 
+                  onClick={() => {setFile(null); setActiveJob(null); window.location.reload();}} 
+                  className="mt-6 text-gray-400 text-xs hover:text-gray-600 underline underline-offset-4 block mx-auto"
+                >
+                  Discard and try again
+                </button>
+              </div>
+            ) : activeJob.status !== 'restoring' && (
               <div className="mt-2 text-xs text-gray-400">
                 Profiling and reconciliation in progress... 
                 {file && <span className="italic block mt-1">Remaining: ~{Math.max(1, Math.ceil(file.size / (40 * 1024 * 1024)))}m</span>}
