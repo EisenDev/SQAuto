@@ -255,6 +255,10 @@ api_router.include_router(explorer.router, prefix="/explorer", tags=["jobs", "ex
 from apps.api.routers import migration
 api_router.include_router(migration.router, prefix="/migration", tags=["migration"])
 
+# Register analysis routes (Phase 2: Data Intelligence)
+from apps.api.routers import analysis
+api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
+
 
 class LayoutRequest(BaseModel):
     positions: list

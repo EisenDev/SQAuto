@@ -195,6 +195,38 @@ Provide reusable, isolated logic for each domain area:
 - All steps are logged with severity (info/warning/error)
 - No data is written to the target database
 
+### 10. Data Intelligence (Phase 2)
+- Integrity checks scan staging tables for migration blockers:
+  - Duplicate primary keys (GROUP BY + HAVING)
+  - Tables without primary keys (metadata inspection)
+  - Orphan foreign keys (LEFT JOIN detection)
+  - High NULL density columns (sampled, >50% threshold)
+- SQL dialect is detected on upload via keyword heuristics
+- Schema mapping allows manual source→target column mapping
+- Enhanced reconciliation detects missing/extra IDs between staging and target
+- All heavy queries use LIMIT clauses to prevent performance issues
+
+## COMPONENT: DATA INTELLIGENCE ENGINE (Phase 2)
+
+The Data Intelligence Engine is a service-layer module that runs analyses on
+the staging database to detect data quality issues and prepare for migration.
+
+**Submodules:**
+- `integrity_checker.py` — Scans for PKs, FKs, NULLs, duplicates
+- `dialect_detector.py` — Heuristic SQL dialect detection
+- `reconciliation_engine.py` — Enhanced ID-level comparison
+
+**Data Flow:**
+```
+Upload → Extract → Restore → Profile → Analyze (Integrity) → Detect Issues → Map Schema → Validate (Reconciliation)
+```
+
+**Safety Rules:**
+- Integrity checks run ONLY against staging schema
+- Reconciliation uses SELECT-only against target
+- All heavy queries are LIMIT-capped
+- No data modification in any phase
+
 ## DATABASE LAYER
 
 The system uses PostgreSQL and is logically split into:
@@ -247,3 +279,6 @@ Every state transition must be logged with:
 8. Every meaningful action must be auditable.
 9. The migration engine must never execute destructive commands against target databases in Phase 1.
 10. Target database credentials must never be exposed in API responses, frontend logs, or backend logs.
+11. Data intelligence checks must only run against the staging schema, never against source files or target DBs directly.
+12. All analytical queries must use LIMIT or sampling to prevent full-table scans on large datasets.
+13. Dialect detection is heuristic-only and must never alter or re-interpret source data.

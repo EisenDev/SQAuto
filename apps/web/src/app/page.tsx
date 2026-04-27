@@ -207,7 +207,7 @@ export default function Dashboard() {
       {/* Industrial Versioning (Cache Buster) */}
       <div className="pt-8 pb-4 text-center">
         <p className="text-[10px] text-gray-400 font-mono uppercase tracking-[0.2em] opacity-50">
-          SQAuto Industrial v4.0.0-MIGRATION-ENGINE | Build: {new Date().toISOString()} | Status: SECURE-BROWSER-ACTIVE
+          SQAuto Industrial v4.1.0-DATA-INTELLIGENCE | Build: {new Date().toISOString()} | Status: SECURE-BROWSER-ACTIVE
         </p>
       </div>
     </div>

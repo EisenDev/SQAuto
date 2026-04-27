@@ -36,11 +36,7 @@ SQAuto/
 │   │   └── core/
 │   └── web/
 │       ├── app/
-│       ├── components/
-│       │   ├── SchemaVisualizer.tsx
-│       │   ├── SourceTruthExplorer.tsx
-│       │   ├── MigrationControlCenter.tsx
-│       │   └── ...
+│       ├── components/\n│       │   ├── SchemaVisualizer.tsx\n│       │   ├── SourceTruthExplorer.tsx\n│       │   ├── MigrationControlCenter.tsx\n│       │   ├── IntegrityIssuesPanel.tsx    # Phase 2: Data integrity detection UI\n│       │   ├── SchemaMappingPanel.tsx      # Phase 2: Schema mapping editor UI\n│       │   └── ...
 │       ├── hooks/
 │       ├── lib/
 │       │   └── api.ts
@@ -97,6 +93,11 @@ SQAuto/
 │   ├── migration_engine/
 │   │   ├── __init__.py
 │   │   └── service.py
+│   ├── data_intelligence/         # Phase 2: Data Intelligence Engine
+│   │   ├── __init__.py
+│   │   ├── integrity_checker.py      # Duplicate PKs, orphan FKs, missing PKs, NULL risks
+│   │   ├── dialect_detector.py       # SQL dialect heuristic detection
+│   │   └── reconciliation_engine.py  # Enhanced ID-level reconciliation
 │   ├── relationship_repair/
 │   │   ├── __init__.py
 │   │   ├── service.py

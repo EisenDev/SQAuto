@@ -14,6 +14,7 @@ export default function UploadCard() {
   const [showDebugger, setShowDebugger] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
   const [debugLogs, setDebugLogs] = useState({ restoration: "", trace: "" });
+  const [detectedDialect, setDetectedDialect] = useState<{ dialect: string; confidence: number } | null>(null);
 
   React.useEffect(() => {
     setCurrentTime(new Date().toLocaleTimeString());
@@ -80,7 +81,20 @@ export default function UploadCard() {
       const jobId = result.job_id || result.id;
       setActiveJob(result);
 
-      // 2. Trigger Background Pipeline (Restore + Profile)
+      // 2. Detect SQL Dialect (lightweight, non-blocking)
+      try {
+        const dialectRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/analysis/dialect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_id: jobId })
+        });
+        const dialectData = await dialectRes.json();
+        if (dialectData.dialect && dialectData.dialect !== 'unknown') {
+          setDetectedDialect({ dialect: dialectData.dialect, confidence: dialectData.confidence });
+        }
+      } catch (e) { console.error('Dialect detection skipped:', e); }
+
+      // 3. Trigger Background Pipeline (Restore + Profile)
       await restoreJob(jobId);
       
     } catch (err: any) {
@@ -101,11 +115,18 @@ export default function UploadCard() {
     <div className="border rounded-xl p-6 bg-white shadow-lg transition-all hover:shadow-xl">
       <div className="flex justify-between items-start mb-4">
         <h2 className="text-xl font-semibold text-gray-800">Upload SQL Dump</h2>
-        {currentStatus && (
-          <span className="text-xs font-bold uppercase py-1 px-2 rounded bg-teal-100 text-teal-800 animate-pulse">
-            {currentStatus}
-          </span>
-        )}
+        <div className="flex items-center space-x-2">
+          {detectedDialect && (
+            <span className="text-[10px] font-black uppercase py-1 px-2.5 rounded-full bg-indigo-100 text-indigo-800 tracking-wider">
+              {detectedDialect.dialect === 'postgresql' ? '🐘' : detectedDialect.dialect === 'mysql' ? '🐬' : '📄'} {detectedDialect.dialect} ({Math.round(detectedDialect.confidence * 100)}%)
+            </span>
+          )}
+          {currentStatus && (
+            <span className="text-xs font-bold uppercase py-1 px-2 rounded bg-teal-100 text-teal-800 animate-pulse">
+              {currentStatus}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className={`border-dashed border-2 rounded-lg p-8 text-center transition-colors ${

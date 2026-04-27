@@ -87,3 +87,14 @@ Manual review is required when:
 2. Target database passwords must **never** appear in application logs or frontend console output.
 3. Target database passwords must **never** be displayed in full in the frontend UI (use masked input fields).
 4. If secure credential storage is not implemented, document explicitly that password persistence requires future hardening.
+
+## DATA INTELLIGENCE SAFETY (Phase 2)
+
+1. All integrity checks must run **only against the staging schema**. Source files and target databases must not be directly analyzed for integrity.
+2. All analytical queries must use `LIMIT` clauses or sampling to prevent full-table scans on large datasets.
+3. NULL risk analysis must be capped at a configurable sample size (default: 10,000 rows per table).
+4. Orphan FK detection must not perform cross-database joins — only queries within the staging schema are permitted.
+5. SQL dialect detection is **heuristic-only** — it must never alter, transform, or re-interpret source data.
+6. Schema mapping configurations are user-controlled and must never be auto-applied without explicit operator confirmation.
+7. Enhanced reconciliation queries against the target database are **read-only** (`SELECT` only) and must use sampling (`LIMIT`) to prevent performance degradation.
+8. Passwords in reconciliation error messages must be scrubbed before logging or returning to the API.

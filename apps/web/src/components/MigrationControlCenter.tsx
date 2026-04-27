@@ -530,9 +530,13 @@ export default function MigrationControlCenter() {
     );
   }
 
+  // Lazy import Phase 2 components
+  const IntegrityIssuesPanel = require('@/components/IntegrityIssuesPanel').default;
+  const SchemaMappingPanel = require('@/components/SchemaMappingPanel').default;
+
   return (
     <div className="space-y-6 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Connection Panel */}
+      {/* Phase 1: Connection Panel */}
       <ConnectionPanel onTargetSaved={fetchTargets} />
 
       {/* Saved Targets */}
@@ -543,17 +547,24 @@ export default function MigrationControlCenter() {
         selectedId={selectedTargetId} 
       />
 
-      {/* Dry-Run Panel */}
+      {/* Phase 1: Dry-Run Panel */}
       <DryRunPanel 
         selectedTargetId={selectedTargetId} 
         onRunCreated={() => { fetchRuns(); }} 
       />
 
-      {/* Reconciliation Summary */}
+      {/* Phase 2: Data Integrity Detection */}
+      <IntegrityIssuesPanel />
+
+      {/* Phase 2: Schema Mapping Layer */}
+      <SchemaMappingPanel />
+
+      {/* Phase 1: Reconciliation Summary */}
       <ReconciliationPanel run={activeRun} />
 
-      {/* Migration Logs */}
+      {/* Phase 1: Migration Logs */}
       <LogsPanel logs={logs} />
     </div>
   );
 }
+

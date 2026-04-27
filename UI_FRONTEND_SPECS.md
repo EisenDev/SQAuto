@@ -18,7 +18,10 @@
 7. **AI Explanation Panel** – Collapsible panel displaying AI‑generated schema explanations and suggestions.
 8. **Export Panel** – Buttons for Excel, Clean SQL, Translated SQL, each with status tooltip.
 9. **Migration Control Center** – Target DB connection, dry‑run validation, reconciliation summary, migration logs.
-10. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
+10. **Integrity Issues Panel** – Expandable sections showing duplicate PKs, orphan FKs, missing PKs, and high‐NULL columns.
+11. **Schema Mapping Panel** – Editable mapping table (source column → target column) with type match indicators.
+12. **Dialect Detection Badge** – Small badge on upload card showing detected SQL dialect (e.g., "🐘 PostgreSQL 92%").
+13. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
 
 ## Main Pages
 - **Dashboard** – Home view containing the layout above.
@@ -26,6 +29,8 @@
 - **Table Details** – Focused view for a specific table, showing raw vs cleaned data and AI notes.
 - **Export Page** – Final export options and download links.
 - **Migration Control Center** – Target database connection management, dry‑run execution, reconciliation results, and migration logs.
+- **Integrity Issues Panel** – Data quality scan results with expandable issue sections, sample data, and counts per category.
+- **Schema Mapping Panel** – Per-table column mapping editor with source/target columns, type match, and status indicators.
 - **Settings Page** – Global configuration (environment variables, API keys) – admin only.
 
 ## UX Rules
@@ -56,3 +61,6 @@
 - **Graph Nodes**: Custom React Flow nodes showing Table Name, PKs, and FKs.
 - **Empty States**: Friendly illustration with a short call‑to‑action.
 - **Error States**: Inline error message with retry button.
+- **Integrity Issues**: Expandable `IssueSection` component with icon, count badge, and collapsible content area.
+- **Schema Mapping Table**: Sortable mapping rows with editable target column input and type‐match toggle button.
+- **Dialect Badge**: Pill‐shaped badge component showing emoji + dialect name + confidence percentage.

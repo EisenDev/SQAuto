@@ -126,7 +126,7 @@ The MVP is complete. SQAuto currently supports SQL dump upload, extraction pipel
 
 The platform is evolving from a data extraction/exploration tool into a **full operational data migration platform**.
 
-### Phase 1: Migration Execution Foundation (Current)
+### Phase 1: Migration Execution Foundation (Complete ✓)
 - Connect to a target PostgreSQL database
 - Test target DB connectivity
 - Execute dry-run migration validation (read-only)
@@ -135,13 +135,48 @@ The platform is evolving from a data extraction/exploration tool into a **full o
 - Log all migration events
 - Migration Control Center UI
 
-### Phase 2: Data Validation & Reconciliation Layer
-- Compare source/staging data against target database in depth
-- Compare table row counts
-- Detect missing records
-- Detect extra records
-- Detect mismatched values when primary keys are available
-- Generate validation summaries per table
+### Phase 2: Data Intelligence Layer (Current)
+Transform the platform from "shows problems" to "understands and helps fix problems."
+
+#### Data Integrity Detection Engine
+Detects migration blockers in the staging database:
+- **Duplicate Primary Keys**: Tables with repeated PK values
+- **Missing Primary Keys**: Tables with no PK defined
+- **Orphan Foreign Keys**: Child rows referencing non-existent parent records
+- **High NULL Density**: Columns where >50% of values are NULL
+
+Example output:
+```json
+{
+  "tables_scanned": 45,
+  "total_issues": 12,
+  "duplicate_keys": [{"table": "users", "count": 54, "pk_columns": ["id"]}],
+  "missing_primary_keys": ["logs", "temp_data"],
+  "orphan_foreign_keys": [{"table": "documents", "column": "user_id", "references": "users.id", "count": 231}],
+  "null_risks": [{"table": "documents", "column": "description", "null_percentage": 78}]
+}
+```
+
+UI displays a scannable summary with expandable sections per issue type, sample values, and action recommendations.
+
+#### Schema Mapping Layer
+Provides controlled column-to-column mapping between source and target schemas:
+- Editable target column names per source column
+- Type match toggling (OK / Mismatch)
+- Per-table mapping view with dropdown navigation
+- Mapping config saved to local storage (backend persistence in Phase 3+)
+
+#### SQL Dialect Detection
+Lightweight heuristic detection on upload:
+- Supports: PostgreSQL, MySQL, SQL Server, SQLite
+- Uses keyword scoring with confidence percentage
+- Displays as a badge on the upload card: "🐘 PostgreSQL (92%)"
+
+#### Enhanced Reconciliation Engine
+Extends Phase 1 row-count comparison with:
+- Missing IDs: records in staging but not in target
+- Extra IDs: records in target but not in staging
+- Sampled with LIMIT clauses for performance safety
 
 ### Phase 3: Error Logs & Diagnostics UI
 - Show failed operations with table name, row id, error message, severity, timestamp
