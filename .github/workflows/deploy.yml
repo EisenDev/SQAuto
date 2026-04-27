@@ -1,0 +1,80 @@
+name: Deploy SQAuto to Azure VM
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: api
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-api:latest
+
+      - name: Build and push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: web
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-web:latest
+
+      - name: Build and push Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: worker
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/sqauto-worker:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: azureuser
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+             mkdir -p ~/sqauto
+             cd ~/sqauto
+             
+             # Fetch the latest compose and nginx configs from main branch
+             curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L https://raw.githubusercontent.com/EisenDev/SQAuto/main/docker/docker-compose.yml -o docker-compose.yml
+             curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L https://raw.githubusercontent.com/EisenDev/SQAuto/main/docker/nginx.conf -o nginx.conf
+            
+             # Update .env with Supabase URL and other secrets
+             echo "DATABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+             echo "DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}" >> .env
+             echo "NEXT_PUBLIC_API_URL=http://api.sqauto.zeraynce.com" >> .env
+            
+             # Pull latest images and restart
+             sudo docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} -p ${{ secrets.DOCKER_HUB_TOKEN }}
+             sudo docker compose pull
+             sudo docker compose up -d
