@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Skeleton from './Skeleton';
 import { Database, AlertTriangle, RefreshCw, Layers, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { safeFetch } from '@/lib/api_client';
 
 interface SourceTruthExplorerProps {
   jobId: string;
@@ -38,18 +39,16 @@ export default function SourceTruthExplorer({ jobId, profile }: SourceTruthExplo
     const offset = (page - 1) * itemsPerPage;
     const searchParam = rowSearch ? `&q=${encodeURIComponent(rowSearch)}` : "";
     
-    fetch(`${API_URL}/explorer/${jobId}/table/${selectedTable}/data?limit=${itemsPerPage}&offset=${offset}${searchParam}`)
-      .then(async res => {
-        const data = await res.json();
-        if (!res.ok) throw { detail: data.detail || "API Failure", code: res.status };
-        return data;
-      })
-      .then(data => setTableData(data))
-      .catch(err => {
-        setError({ detail: err.detail || "Industrial Databank Connection Error", code: err.code || 500 });
-        setTableData(null);
-      })
-      .finally(() => setLoading(false));
+    safeFetch(`${API_URL}/explorer/${jobId}/table/${selectedTable}/data?limit=${itemsPerPage}&offset=${offset}${searchParam}`)
+      .then(result => {
+        if (result.success) {
+          setTableData(result.data);
+        } else {
+          setError({ detail: result.error, code: result.status || 500 });
+          setTableData(null);
+        }
+        setLoading(false);
+      });
       
   }, [selectedTable, jobId, API_URL, page, rowSearch]);
 

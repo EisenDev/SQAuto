@@ -17,7 +17,8 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Database, Key, Link as LinkIcon, Info, Save, RotateCcw } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from "sonner";
+import { safeFetch } from "@/lib/api_client";
 
 // Custom Table Node Component
 const TableNode = ({ data }: NodeProps) => {
@@ -139,25 +140,22 @@ export default function SchemaVisualizer({ jobId, graph }: SchemaVisualizerProps
       }));
 
       // Update the backend profile with persistent positions
-      const response = await fetch(`${API_URL}/jobs/${jobId}/layout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positions: nodePositions })
-      });
+    const result = await safeFetch(`${API_URL}/jobs/${jobId}/layout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positions: nodePositions })
+    });
 
-      if (!response.ok) throw new Error("Industrial Sync Failed");
-      
+    if (result.success) {
       toast.success("Industrial Layout Synchronized", {
         description: "Your custom table arrangement has been persisted to the server storage."
       });
-    } catch (err) {
-      console.error("Layout Sync Error:", err);
+    } else {
       toast.error("Communication Failure", {
-        description: "Could not persist the arrangement to the staging memory."
+        description: result.error
       });
-    } finally {
-      setIsSaving(false);
     }
+    setIsSaving(false);
   };
 
   if (!graph || (graph.nodes.length === 0)) {

@@ -79,17 +79,14 @@ export default function UploadCard() {
       setActiveJob(result);
 
       // 2. Detect SQL Dialect (lightweight, non-blocking)
-      try {
-        const dialectRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/analysis/dialect`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ job_id: jobId })
-        });
-        const dialectData = await dialectRes.json();
-        if (dialectData.dialect && dialectData.dialect !== 'unknown') {
-          setDetectedDialect({ dialect: dialectData.dialect, confidence: dialectData.confidence });
-        }
-      } catch (e) { console.error('Dialect detection skipped:', e); }
+      const dialectRes = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/analysis/dialect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: jobId })
+      });
+      if (dialectRes.success && dialectRes.data?.dialect && dialectRes.data.dialect !== 'unknown') {
+        setDetectedDialect({ dialect: dialectRes.data.dialect, confidence: dialectRes.data.confidence });
+      }
 
       // 3. Trigger Background Pipeline (Restore + Profile)
       await restoreJob(jobId);

@@ -291,20 +291,17 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
     if (!jobId || !selectedTargetId) return;
     setRunning(true);
     setError(null);
-    try {
-      const res = await fetch(`${API_URL}/migration/runs/dry-run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Dry-run failed");
+    const result = await safeFetch(`${API_URL}/migration/runs/dry-run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId })
+    });
+    if (result.success) {
       onRunCreated();
-    } catch (e: any) {
-      setError(e.message || "Unknown error");
-    } finally {
-      setRunning(false);
+    } else {
+      setError(result.error);
     }
+    setRunning(false);
   };
 
   return (

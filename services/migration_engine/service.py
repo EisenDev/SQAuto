@@ -243,9 +243,13 @@ class MigrationEngineService:
             # Detect timeouts in background task too
             if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower():
                 if any(x in target_config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
-                    err_msg = "[ConnectionTimeout] Local/LAN IP detected on deployed server. SQAuto cannot reach this host."
+                    err_msg = (
+                        "Connection timed out. The SQAuto server cannot reach this database host/port. "
+                        "If SQAuto is deployed on Azure, local/LAN IPs like 127.0.0.1 or 192.168.x.x will not work "
+                        "unless exposed through VPN/tunnel/firewall."
+                    )
                 else:
-                    err_msg = f"[ConnectionTimeout] {err_msg}"
+                    err_msg = f"Connection timed out. Ensure the database host is reachable from SQAuto server."
 
             if target_config.get("password"):
                 err_msg = err_msg.replace(target_config["password"], "***")
