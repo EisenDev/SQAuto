@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useJob } from '@/lib/context';
+import { useJob } from '@/components/JobProvider';
 import { Play, AlertTriangle, ShieldCheck, Loader2, PlayCircle, ShieldAlert, FileJson, XCircle } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
