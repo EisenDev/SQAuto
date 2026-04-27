@@ -15,11 +15,20 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   });
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(errorBody.detail || `API error: ${res.status}`);
+  
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.detail || data.message || `API error: ${res.status}`);
+    }
+    return data;
+  } else {
+    // Non-JSON error (likely 500 HTML)
+    const text = await res.text();
+    const shortText = text.substring(0, 100).replace(/<[^>]*>?/gm, '');
+    throw new Error(`Server returned non-JSON response (${res.status}). ${shortText ? `Snippet: "${shortText}..."` : "Check API logs."}`);
   }
-  return res.json();
 }
 
 export type JobStatus = 'uploaded' | 'restoring' | 'analyzing' | 'failed' | 'completed';

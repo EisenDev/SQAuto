@@ -4,6 +4,7 @@ import { AlertTriangle, Wrench, ShieldAlert, ChevronRight, Eye, RefreshCw, XCirc
 import FixPreviewPanel from './FixPreviewPanel';
 import Tooltip from './Tooltip';
 import { GUIDANCE } from '@/lib/guidance';
+import { safeFetch } from '@/lib/api_client';
 
 interface Suggestion {
   id: string;
@@ -27,19 +28,15 @@ export default function FixSuggestionsPanel() {
   const fetchSuggestions = async () => {
     if (!jobId) return;
     setLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/fixes/suggestions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_job_id: jobId })
-      });
-      const data = await res.json();
-      setSuggestions(data.suggestions || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const result = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/fixes/suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId })
+    });
+    if (result.success) {
+      setSuggestions(result.data.suggestions || []);
     }
+    setLoading(false);
   };
 
   useEffect(() => {

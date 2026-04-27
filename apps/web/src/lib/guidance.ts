@@ -33,5 +33,8 @@ export const GUIDANCE = {
     PREVIEW_TITLE: "Fix Preview Projection",
     PREVIEW_HELP: "Shows a conceptual 'Before vs After' projection of the proposed fix action based on sampled data.",
     SAFE_LIMIT: "Action is bounded by safe limits to prevent excessive data scanning.",
+  },
+  REACHABILITY: {
+    HELP: "Destination connections are established from the SQAuto server, not your local machine. Ensure your database allows traffic from cloud addresses and non-local IPs."
   }
 };

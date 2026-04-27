@@ -5,6 +5,7 @@ import {
   AlertTriangle, Shield, RefreshCw, Key, Link2, Ban, 
   ChevronDown, ChevronUp, Search
 } from 'lucide-react';
+import { safeFetch } from '@/lib/api_client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -79,22 +80,17 @@ export default function IntegrityIssuesPanel() {
 
   const runCheck = async () => {
     if (!jobId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_URL}/analysis/integrity`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_job_id: jobId })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Check failed");
-      setReport(data);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+    const result = await safeFetch(`${API_URL}/analysis/integrity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId })
+    });
+    if (result.success) {
+      setReport(result.data);
+    } else {
+      setError(result.error);
     }
+    setLoading(false);
   };
 
   return (

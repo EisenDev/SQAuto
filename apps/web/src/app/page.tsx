@@ -13,6 +13,7 @@ import { useJob } from '@/components/JobProvider';
 import { getJob } from '@/lib/api';
 import Skeleton from '@/components/Skeleton';
 import PipelineFlow from '@/components/PipelineFlow';
+import { safeFetch } from '@/lib/api_client';
 
 export default function Dashboard() {
   const { activeJob, setActiveJob } = useJob();
@@ -47,14 +48,11 @@ export default function Dashboard() {
 
   // Fetch job history once on mount
   useEffect(() => {
-    fetch(`${API_URL}/jobs`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setJobHistory(data);
-        }
-      })
-      .catch(console.error);
+    safeFetch(`${API_URL}/jobs`).then(result => {
+      if (result.success && Array.isArray(result.data)) {
+        setJobHistory(result.data);
+      }
+    });
   }, [API_URL]);
 
   // Derived counts

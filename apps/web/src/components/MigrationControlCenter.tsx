@@ -8,8 +8,17 @@ import DestinationConnectionModal from './DestinationConnectionModal';
 import { GUIDANCE } from '@/lib/guidance';
 import { 
   Database, Server, Play, RefreshCw, AlertTriangle, CheckCircle2, 
-  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit
+  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit, Globe
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { safeFetch } from '@/lib/api_client';
+
+// Dynamic imports for heavy panels
+const IntegrityIssuesPanel = dynamic(() => import('./IntegrityIssuesPanel'), { ssr: false });
+const SchemaMappingPanel = dynamic(() => import('./SchemaMappingPanel'), { ssr: false });
+const MigrationPlanPanel = dynamic(() => import('./MigrationPlanPanel'), { ssr: false });
+const FixSuggestionsPanel = dynamic(() => import('./FixSuggestionsPanel'), { ssr: false });
+const MappingSuggestionsPanel = dynamic(() => import('./MappingSuggestionsPanel'), { ssr: false });
 
 // ... (skipping some lines for brevity here, wait, I can't skip within replacement chunks unless I target correctly)
 
@@ -87,41 +96,35 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
-    try {
-      const res = await fetch(`${API_URL}/migration/targets/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          host: form.host, port: parseInt(form.port), database_name: form.database_name,
-          username: form.username, password: form.password, ssl_mode: form.ssl_mode
-        })
-      });
-      const data = await res.json();
-      setTestResult(data);
-    } catch (e) {
-      setTestResult({ success: false, error: "Network error" });
-    } finally {
-      setTesting(false);
-    }
+    const result = await safeFetch(`${API_URL}/migration/targets/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host: form.host, port: parseInt(form.port), database_name: form.database_name,
+        username: form.username, password: form.password, ssl_mode: form.ssl_mode
+      })
+    });
+    setTestResult(result.success ? result.data : { success: false, error: result.error });
+    setTesting(false);
   };
 
   const handleSave = async () => {
     if (!form.name || !form.host || !form.database_name || !form.username || !form.password) return;
     setSaving(true);
-    try {
-      await fetch(`${API_URL}/migration/targets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, port: parseInt(form.port) })
-      });
+    const result = await safeFetch(`${API_URL}/migration/targets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, port: parseInt(form.port) })
+    });
+    
+    if (result.success) {
       setForm({ name: '', host: '', port: '5432', database_name: '', username: '', password: '', ssl_mode: 'prefer', db_type: 'postgresql' });
       setTestResult(null);
       onTargetSaved();
-    } catch (e) {
-      console.error("Save failed:", e);
-    } finally {
-      setSaving(false);
+    } else {
+      setTestResult({ success: false, error: result.error });
     }
+    setSaving(false);
   };
 
   const fields = [
@@ -144,6 +147,20 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
       </div>
       <div className="p-6">
         <DatabasePresetSelector selectedPreset={selectedPreset} onSelect={handlePresetSelect} />
+
+        {/* Reachability Warning */}
+        {form.host && (form.host.startsWith('127.') || form.host === 'localhost' || form.host.startsWith('192.168.')) && typeof window !== 'undefined' && window.location.hostname !== 'localhost' && (
+          <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs px-4 py-3 rounded-xl flex items-start shadow-sm animate-in slide-in-from-top-2 duration-300">
+            <Globe className="w-4 h-4 mr-3 text-rose-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold mb-1">REACHABILITY WARNING</p>
+              <p className="opacity-90 leading-relaxed">
+                You are using a local/LAN IP ({form.host}). Since SQAuto is deployed on a remote server, it <strong>cannot reach</strong> your local machine. 
+                Use a public IP, Cloud DB host, or VPN tunnel.
+              </p>
+            </div>
+          </div>
+        )}
 
         {selectedPreset && selectedPreset !== 'postgresql' && (
           <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-800 text-xs px-3 py-2 rounded-xl flex items-center shadow-inner font-mono">
@@ -542,11 +559,10 @@ export default function MigrationControlCenter() {
   const jobId = activeJob?.id || activeJob?.job_id || "";
 
   const fetchTargets = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/migration/targets`);
-      const data = await res.json();
-      if (Array.isArray(data)) setTargets(data);
-    } catch (e) { console.error("Failed to fetch targets:", e); }
+    const result = await safeFetch(`${API_URL}/migration/targets`);
+    if (result.success && Array.isArray(result.data)) {
+      setTargets(result.data);
+    }
   }, []);
 
   const fetchRuns = useCallback(async () => {
@@ -556,62 +572,56 @@ export default function MigrationControlCenter() {
       setLogs([]);
       return;
     }
-    try {
-      const res = await fetch(`${API_URL}/migration/runs?source_job_id=${jobId}`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setRuns(data);
-        // Auto-select the most recent run
-        if (data.length > 0) {
-          const latest = data[0];
-          setActiveRun(latest);
-          fetchLogs(latest.id);
-        } else {
-          setActiveRun(null);
-          setLogs([]);
-        }
+    const result = await safeFetch(`${API_URL}/migration/runs?source_job_id=${jobId}`);
+    if (result.success && Array.isArray(result.data)) {
+      setRuns(result.data);
+      // Auto-select the most recent run
+      if (result.data.length > 0) {
+        const latest = result.data[0];
+        setActiveRun(latest);
+        fetchLogs(latest.id);
+      } else {
+        setActiveRun(null);
+        setLogs([]);
       }
-    } catch (e) { console.error("Failed to fetch runs:", e); }
+    }
   }, [jobId]);
 
   const fetchLogs = async (runId: string) => {
-    try {
-      const res = await fetch(`${API_URL}/migration/runs/${runId}/logs`);
-      const data = await res.json();
-      if (Array.isArray(data)) setLogs(data);
-    } catch (e) { console.error("Failed to fetch logs:", e); }
+    const result = await safeFetch(`${API_URL}/migration/runs/${runId}/logs`);
+    if (result.success && Array.isArray(result.data)) {
+      setLogs(result.data);
+    }
   };
 
   const deleteTarget = async (id: string) => {
-    try {
-      await fetch(`${API_URL}/migration/targets/${id}`, { method: 'DELETE' });
-      fetchTargets();
+    const result = await safeFetch(`${API_URL}/migration/targets/${id}`, { method: 'DELETE' });
+    if (result.success) {
       if (selectedTargetId === id) setSelectedTargetId('');
-    } catch (e) { console.error("Delete failed:", e); }
+      fetchTargets();
+    }
   };
 
   const handleEditTargetSave = async (id: string, updates: any) => {
-    const res = await fetch(`${API_URL}/migration/targets/${id}`, {
+    const result = await safeFetch(`${API_URL}/migration/targets/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to update target');
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update target');
     }
     fetchTargets();
   };
 
   const handleEditTargetTest = async (id: string, updates: any) => {
-    const res = await fetch(`${API_URL}/migration/targets/test`, {
+    const result = await safeFetch(`${API_URL}/migration/targets/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
     });
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Connection failed');
+    if (!result.success || !result.data?.success) {
+      throw new Error(result.error || result.data?.error || 'Connection failed');
     }
   };
 
@@ -625,15 +635,16 @@ export default function MigrationControlCenter() {
     if (!activeRun || activeRun.status === 'completed' || activeRun.status === 'failed') return;
     
     const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_URL}/migration/runs/${activeRun.id}`);
-        const data = await res.json();
-        setActiveRun(data);
-        fetchLogs(data.id);
-        if (data.status === 'completed' || data.status === 'failed') {
+      const result = await safeFetch(`${API_URL}/migration/runs/${activeRun.id}`);
+      if (result.success) {
+        setActiveRun(result.data);
+        fetchLogs(result.data.id);
+        if (result.data.status === 'completed' || result.data.status === 'failed') {
           clearInterval(interval);
         }
-      } catch (e) { clearInterval(interval); }
+      } else {
+        clearInterval(interval);
+      }
     }, 2000);
     
     return () => clearInterval(interval);
@@ -651,13 +662,6 @@ export default function MigrationControlCenter() {
       </div>
     );
   }
-
-  // Lazy import new components
-  const IntegrityIssuesPanel = require('@/components/IntegrityIssuesPanel').default;
-  const SchemaMappingPanel = require('@/components/SchemaMappingPanel').default;
-  const MigrationPlanPanel = require('@/components/MigrationPlanPanel').default;
-  const FixSuggestionsPanel = require('@/components/FixSuggestionsPanel').default;
-  const MappingSuggestionsPanel = require('@/components/MappingSuggestionsPanel').default;
 
   return (
     <div className="space-y-6 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">

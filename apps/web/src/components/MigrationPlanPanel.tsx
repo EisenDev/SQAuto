@@ -5,6 +5,7 @@ import { Play, AlertTriangle, ShieldCheck, Loader2, PlayCircle, ShieldAlert, Fil
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 import Tooltip from './Tooltip';
+import { safeFetch } from '@/lib/api_client';
 
 type MigrationTablePlan = {
   name: string;
@@ -42,20 +43,17 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
     if (!jobId || !selectedTargetId) return;
     setLoadingPlan(true);
     setError(null);
-    try {
-      const res = await fetch(`${API_URL}/migration/plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed to generate plan");
-      setPlan(data);
-    } catch (e: any) {
-      setError(e.message || "Unknown error generating plan");
-    } finally {
-      setLoadingPlan(false);
+    const result = await safeFetch(`${API_URL}/migration/plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId })
+    });
+    if (result.success) {
+      setPlan(result.data);
+    } else {
+      setError(result.error);
     }
+    setLoadingPlan(false);
   };
 
   const handleExecute = async (mode: 'preview' | 'execute') => {
@@ -63,20 +61,17 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
     setExecuting(true);
     setShowConfirm(false);
     setError(null);
-    try {
-      const res = await fetch(`${API_URL}/migration/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId, mode })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || `Failed to start ${mode}`);
+    const result = await safeFetch(`${API_URL}/migration/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId, mode })
+    });
+    if (result.success) {
       onRunCreated();
-    } catch (e: any) {
-      setError(e.message || "Unknown error starting execution");
-    } finally {
-      setExecuting(false);
+    } else {
+      setError(result.error);
     }
+    setExecuting(false);
   };
 
   if (!selectedTargetId) return null;
@@ -206,9 +201,11 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
               <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 shadow-inner">
                 <AlertTriangle className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-black text-center text-gray-800 mb-2">CONFIRM DESTINATION EXECUTION</h2>
-              <p className="text-center text-sm text-gray-600 font-medium mb-6">
+              <h2 className="text-xl font-black text-center text-gray-800 mb-2">CONFIRM & COMMIT MIGRATION PLAN</h2>
+              <p className="text-center text-xs text-gray-600 font-medium mb-6 leading-relaxed">
                 You are about to modify the destination database. This operation will be wrapped in a transaction and automatically rolled back on error.
+                <br/><br/>
+                <span className="text-amber-600 font-bold uppercase tracking-widest text-[9px]">Important:</span> This does not translate SQL dialects. It executes the migration plan directly. Use <strong>SQL Translation Studio</strong> when available for dialect conversion.
               </p>
               
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-6">
@@ -235,7 +232,7 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
                   onClick={() => handleExecute('execute')}
                   className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow hover:shadow-lg flex items-center justify-center"
                 >
-                  Confirm & Commit
+                  Confirm & Commit Migration Plan
                 </button>
               </div>
             </div>

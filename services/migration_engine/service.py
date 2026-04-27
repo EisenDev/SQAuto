@@ -58,6 +58,20 @@ class MigrationEngineService:
             }
         except Exception as e:
             err_msg = str(e)
+            
+            # Detect timeouts and provide guidance
+            error_type = "connection_failed"
+            if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower():
+                error_type = "connection_timeout"
+                if any(x in config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
+                    err_msg = (
+                        "Connection timed out. The SQAuto server cannot reach this database host/port. "
+                        "If SQAuto is deployed on Azure, local/LAN IPs like 127.0.0.1 or 192.168.x.x will not work "
+                        "unless exposed through VPN/tunnel/firewall."
+                    )
+                else:
+                    err_msg = "Connection timed out. Ensure the database host is reachable and firewall allows traffic from SQAuto server."
+
             # Scrub password from error messages
             if config.get("password"):
                 err_msg = err_msg.replace(config["password"], "***")
@@ -67,7 +81,8 @@ class MigrationEngineService:
                 "success": False,
                 "db_type": "postgresql",
                 "db_version": None,
-                "error": err_msg
+                "error": err_msg,
+                "error_type": error_type
             }
 
     def run_dry_run(self, run_id: uuid.UUID, source_job_id: uuid.UUID, target_config: dict, db_session: Session):
@@ -224,6 +239,14 @@ class MigrationEngineService:
             
         except Exception as e:
             err_msg = str(e)
+            
+            # Detect timeouts in background task too
+            if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower():
+                if any(x in target_config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
+                    err_msg = "[ConnectionTimeout] Local/LAN IP detected on deployed server. SQAuto cannot reach this host."
+                else:
+                    err_msg = f"[ConnectionTimeout] {err_msg}"
+
             if target_config.get("password"):
                 err_msg = err_msg.replace(target_config["password"], "***")
                 
@@ -232,7 +255,7 @@ class MigrationEngineService:
             
             run.status = MigrationRunStatus.FAILED
             run.finished_at = datetime.utcnow()
-            run.summary = {"status": "failed", "error": err_msg}
+            run.summary = {"status": "failed", "error": err_msg, "error_type": "connection_timeout" if "timeout" in err_msg.lower() else "execution_error"}
             db_session.commit()
 
     def _log(self, db_session: Session, run_id: uuid.UUID, level, table_name: str, message: str, context: dict = None):

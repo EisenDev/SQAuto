@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { uploadDump, restoreJob, profileJob } from '@/lib/api';
 import { useJob } from '@/components/JobProvider';
 import { Terminal, Activity, HardDrive, Database, CheckCircle, AlertCircle, Table, Layers } from 'lucide-react';
+import { safeFetch } from '@/lib/api_client';
 
 export default function UploadCard() {
   const { activeJob, setActiveJob } = useJob();
@@ -22,16 +23,12 @@ export default function UploadCard() {
     let debugInterval: NodeJS.Timeout;
     if (showDebugger && activeJob?.status === 'restoring') {
       debugInterval = setInterval(async () => {
-        try {
-          const resLog = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/restoration-log`).then(r => r.json());
-          const traceLog = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/pipe-trace`).then(r => r.json());
-          setDebugLogs({
-            restoration: resLog.log || "No activity yet...",
-            trace: traceLog.log || "No trace yet..."
-          });
-        } catch (e) {
-          console.error("Debug poll failed", e);
-        }
+        const resLog = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/restoration-log`);
+        const traceLog = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/pipe-trace`);
+        setDebugLogs({
+          restoration: resLog.success ? resLog.data.log : "No activity yet...",
+          trace: traceLog.success ? traceLog.data.log : "No trace yet..."
+        });
       }, 2000);
     }
     return () => clearInterval(debugInterval);

@@ -3,6 +3,7 @@ import { useJob } from '@/components/JobProvider';
 import { Network, Search, Check, X, Info } from 'lucide-react';
 import Tooltip from './Tooltip';
 import { GUIDANCE } from '@/lib/guidance';
+import { safeFetch } from '@/lib/api_client';
 
 interface MappingSuggestion {
   source_column: string;
@@ -28,19 +29,15 @@ export default function MappingSuggestionsPanel({ targetId }: { targetId: string
     async function loadSuggestions() {
       if (!jobId || !targetId) return;
       setLoading(true);
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/migration/mapping/suggest`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source_job_id: jobId, target_id: targetId })
-        });
-        const data = await res.json();
-        setTableSuggestions(data.suggestions || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+      const result = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/migration/mapping/suggest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source_job_id: jobId, target_id: targetId })
+      });
+      if (result.success) {
+        setTableSuggestions(result.data.suggestions || []);
       }
+      setLoading(false);
     }
     loadSuggestions();
   }, [jobId, targetId]);

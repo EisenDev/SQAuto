@@ -21,10 +21,10 @@ export default function DatabasePresetSelector({ selectedPreset, onSelect }: Dat
           key={preset.id}
           type="button"
           onClick={() => onSelect(preset.id)}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-xl border text-xs font-bold uppercase tracking-widest transition-all ${
+          className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
             selectedPreset === preset.id
-              ? 'bg-teal-50 border-teal-500 text-teal-800 shadow-sm'
-              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-teal-200 hover:text-teal-600'
+              ? 'bg-teal-50 border-teal-500 text-teal-800 shadow-lg scale-105'
+              : 'bg-white border-gray-100 text-gray-400 hover:border-teal-200 hover:text-teal-600 hover:bg-gray-50'
           }`}
         >
           <span className="text-sm">{preset.icon}</span>

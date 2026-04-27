@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, ShieldAlert, X, Activity, Info } from 'lucide-react';
 import Tooltip from './Tooltip';
 import { GUIDANCE } from '@/lib/guidance';
+import { safeFetch } from '@/lib/api_client';
 
 interface FixPreviewPanelProps {
   jobId: string;
@@ -16,24 +17,20 @@ export default function FixPreviewPanel({ jobId, suggestionId, action, onClose }
 
   useEffect(() => {
     async function loadPreview() {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/fixes/preview`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            source_job_id: jobId,
-            suggestion_id: suggestionId,
-            selected_action: action,
-            options: {}
-          })
-        });
-        const data = await res.json();
-        setPreview(data);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+      const result = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/fixes/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_job_id: jobId,
+          suggestion_id: suggestionId,
+          selected_action: action,
+          options: {}
+        })
+      });
+      if (result.success) {
+        setPreview(result.data);
       }
+      setLoading(false);
     }
     loadPreview();
   }, [jobId, suggestionId, action]);
