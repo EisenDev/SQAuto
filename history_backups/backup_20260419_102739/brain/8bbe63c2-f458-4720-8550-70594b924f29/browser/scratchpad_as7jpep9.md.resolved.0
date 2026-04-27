@@ -1,0 +1,13 @@
+# Task Plan: Phase 7 Verification
+
+- [ ] Navigate to http://localhost:49100
+- [ ] Upload data sources:
+    - [ ] Excel: /home/eisen/Downloads/Otumisyon/mock_data/input.xlsx
+    - [ ] Legacy SQL: /home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql
+    - [ ] Current SQL: /home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql
+- [ ] Click 'Upload Data Sources' and wait for success message
+- [ ] Click 'Run Reconciliation Engine'
+- [ ] Verify results (Total Checked: 205, Safe Updates: 84)
+- [ ] Go to '3. SQL Patch & Export' tab
+- [ ] Verify SQL preview contains 'UPDATE employees'
+- [ ] Summarize findings

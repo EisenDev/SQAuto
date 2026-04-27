@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Summary of Bot Mode Separation & Multi-Window Support: Fixed Calibration Wizard crash, added a standalone 'Configure Bot Mode' tool, and implemented per-action window targeting for complex automation loops.",
+  "updatedAt": "2026-04-16T07:52:45.283501181Z"
+}

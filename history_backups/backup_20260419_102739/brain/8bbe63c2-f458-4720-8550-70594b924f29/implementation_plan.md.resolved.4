@@ -1,0 +1,66 @@
+# Phase 8A Implementation Plan: Source Adapter Architecture
+
+This phase refactors the backend from a monolithic "SQL Restore" flow to a modular **Source Adapter** architecture. This establishes the structural foundation for Phase 8B (Real DB connections) and Phase 9 (Legacy Agent) without breaking the current V1 SQL dump functionality.
+
+## Proposed Changes
+
+### 1. New Source Adapter Layer
+Create a dedicated package `app/services/source_adapters/` to house all ingestion logic.
+
+#### [NEW] [base.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/base.py)
+- Define `BaseSourceAdapter` (ABC).
+- Method: `fetch_data(target_table: str, match_key: str, target_column: str, keys: list) -> pd.DataFrame`.
+
+#### [NEW] [sql_dump.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/sql_dump.py)
+- Implements `BaseSourceAdapter`.
+- Relies on the already restored temporary PostgreSQL schemas (`old_snapshot`, `new_snapshot`).
+- Encapsulates the logic currently in `reconciliation.py:fetch_snapshot_data`.
+
+#### [NEW] [placeholder_adapters.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/placeholder_adapters.py)
+- Implements `MySQLAdapter`, `PostgresAdapter`, and `LegacyAppAdapter`.
+- These will raise `NotImplementedError` with a message pointing to future phases.
+
+#### [NEW] [factory.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/factory.py)
+- `get_adapter(source_type: str, session_id: str, role: str) -> BaseSourceAdapter`.
+- Role helps differentiate between `old_snapshot` and `new_snapshot` schemas for the SQL Dump adapter.
+
+---
+
+### 2. Normalization Service
+
+#### [NEW] [normalization.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/normalization.py)
+- Utility to perform consistent sanitation on DataFrames before comparison.
+- Logic: String stripping, null normalization (`''`, `'None'`, `'nan'` -> `None`), and type stability for keys.
+
+---
+
+### 3. Refactor Core Services
+
+#### [MODIFY] [reconciliation.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/reconciliation.py)
+- Remove `fetch_snapshot_data` (it's moved to the adapter).
+- Refactor `compare_datasets` to use the `AdapterFactory`.
+- Integrate the new `normalization.py` service.
+- **Goal**: The engine should not care *how* the DataFrames are retrieved, only that they are normalized.
+
+#### [MODIFY] [session_store.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/session_store.py)
+- Ensure it stores and correctly retrieves `old_source_type` and `new_source_type` (already partially implemented in Ph 7.5).
+
+---
+
+### 4. Verification & Testing
+
+#### [NEW] [test_source_adapters.py](file:///home/eisen/Downloads/Otumisyon/backend/tests/test_source_adapters.py)
+- Test 1: Factory returns `SQLDumpAdapter` for `sql_dump` type.
+- Test 2: Factory raises/returns placeholder for `mysql_connection`.
+- Test 3: `normalization.py` correctly handles messy strings and various null formats.
+- Test 4: E2E check (simulate upload + reconcile) to ensure the refactored V1 path still passes.
+
+---
+
+## Technical Considerations
+- **Backward Compatibility**: The UI still defaults to `sql_dump`. The backend will use these values to select the `SQLDumpAdapter`, ensuring no functional regression.
+- **Column Standardization**: Adapters will currently aim for the hardcoded column set (`full_name, department_code, status`) to match the V1 expectations. Phase 8B will make this dynamic.
+
+## Open Questions
+- Should the `SQLDumpAdapter` handle the `restore_dump_to_schema` call? 
+    - *Decision*: No, keep restoration in the `upload` route. The adapter should only handle data *retrieval* and extraction once the data exists.

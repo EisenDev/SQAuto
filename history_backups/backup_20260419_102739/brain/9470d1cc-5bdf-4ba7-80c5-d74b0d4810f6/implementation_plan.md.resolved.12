@@ -1,0 +1,41 @@
+# Implementation Plan - Industrial Pipeline Force-Fix
+
+The user is experiencing a complete stall (0% progress) and seeing a 'Phantom UI' with stale labels. This indicates a high-level port conflict on the Azure VM and a potential deadlock in the decompression streaming logic. I am transitioning to an 'Aggressive Fix' mode to take total control of the environment.
+
+## User Review Required
+
+> [!CAUTION]
+> **Host Service Interference:** Port 80 is currently occupied by a host-level Apache service. I will attempt to stop it non-interactively to allow SQAuto to take over the primary domain. If you have other sites running on this VM, they may be temporarily affected.
+
+> [!IMPORTANT]
+> **Cloudflare/Proxy Cache:** If you are using Cloudflare, please ensure you 'Purge Cache' after this update, as you may be seeing a cached version of the dashboard.
+
+## Proposed Changes
+
+### 1. High-Precision Port Takeover (Infrastructure)
+I will force the environment to prioritize SQAuto on the standard production ports.
+- **Stop Host Services:** Attempt `sudo -n service apache2 stop` and `sudo -n service nginx stop`.
+- **Port Reversion:** Revert SQAuto Nginx to map host port `80:80` (removing the 8082 workaround since it was blocked by the firewall).
+
+### 2. Resilient Stream Architecture (The 0% Fix)
+The 0% stall suggests the `gunzip | psql` pipe is deadlocking or the rewrite logic is hanging.
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Direct File Tracking:** I will implement a secondary tracking system that logs progress to a local file (`/app/uploads/industrial_trace.log`).
+- **Buffer Optimization:** Shift from a 1MB chunk to a more stable streaming buffer with proper flushing.
+- **Fail-Fast Pipe:** Add a timeout and logic to detect if `psql` is actually receiving data.
+
+### 3. UI Integrity & Cache Busting
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Add a unique version timestamp to the dashboard footer to help the user confirm they are seeing the *latest* deployment.
+- Re-verify the removal of "RECEIVED" and "DECOMPRESSING" strings.
+
+## Verification Plan
+
+### Automated Verification
+- `docker logs -f sqauto_api`: Watch for the new "INDUSTRIAL STREAM START" log.
+- `netstat -tulpn | grep :80`: Confirm SQAuto Nginx has finally claimed port 80 on the host.
+
+### Manual Verification
+1. Prompt the user to perform a **Hard Reload (Ctrl+Shift+R)**.
+2. Verify the "Readiness" card shows only the percentage.
+3. Open the "Live Pipeline Insight" and check for activity in the log stream.

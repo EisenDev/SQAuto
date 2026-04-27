@@ -1,0 +1,31 @@
+# Verification Plan: SQAuto Dashboard Fixes
+
+- [x] Navigate to http://sqauto.zeraynce.com/
+- [ ] Select active job (2eaa...) - **BLOCKED: UI NOT FOUND**
+- [ ] Verify READINESS card:
+    - [ ] Percentage (>= 45%)
+    - [ ] Label 'Streaming...'
+- [ ] Verify TABLES and ROWS cards:
+    - [ ] No gray skeletons
+    - [ ] Numbers displayed
+- [ ] Observe for 10 seconds:
+    - [ ] Confirm values increment
+
+## Observations
+- Job ID: 2eaa... (searching)
+- Initial Readiness: 0% (on landing page)
+- Initial Tables/Rows: Skeletons/Empty (on landing page)
+- Final Readiness:
+- Final Tables/Rows:
+
+### Current Issues
+- Cannot find the job selection interface. The landing page shows "STANDBY" and 0% readiness.
+- Common paths like `/dashboard`, `/jobs`, `/history` are 404.
+- "Show Advanced Tools" does not reveal any job list.
+- Tabbing through the page does not reveal any hidden links.
+
+### Plan Update
+- Try to interact with the "STANDBY" badge more.
+- Try to find if there's any dropdown in the header I missed.
+- Check if the page is still loading some JS that will reveal the jobs.
+- **NEW: Try direct URL navigation with the job ID (e.g., /?job_id=2eaa...)**

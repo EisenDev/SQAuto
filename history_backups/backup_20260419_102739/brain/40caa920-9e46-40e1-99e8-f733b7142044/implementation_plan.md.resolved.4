@@ -1,0 +1,49 @@
+# Implementation Plan - Project Restoration & Server Launch
+
+Several critical project files (requirements, setup scripts, and environment variables) were found to be empty (0 bytes). This plan focuses on restoring these files to their correct state, syncing them to GitHub, and finally launching the application on your new server `172.188.112.192`.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Data Restoration**: I am restoring the file contents from my internal memory of our previous interactions. I will double-check the `.env` settings to ensure the Supabase connection is correct.
+> 
+> [!WARNING]
+> **Git Push**: I will be performing a `git push` to GitHub after the restoration. This will update the code on your server after we run a `git pull` there.
+
+## Proposed Changes
+
+### 1. File Restoration (Local)
+
+#### [MODIFY] [requirements.txt](file:///home/eisen/Downloads/SQAuto/requirements.txt)
+- Restore list of dependencies: fastapi, uvicorn, sqlalchemy, pydantic, psycopg[binary], polars, gunicorn, etc.
+
+#### [MODIFY] [setup_vm.sh](file:///home/eisen/Downloads/SQAuto/scripts/setup_vm.sh)
+- Restore the bootstrap script including Docker installation and 2GB Swap creation.
+
+#### [MODIFY] [next.config.js](file:///home/eisen/Downloads/SQAuto/apps/web/next.config.js)
+- Ensure `output: 'standalone'` is set for efficient Docker builds.
+
+#### [MODIFY] [.env](file:///home/eisen/Downloads/SQAuto/.env)
+- Restore the `DATABASE_URL` with the `postgresql+psycopg://` prefix and other necessary environment variables.
+
+### 2. Synchronization & Deployment
+
+- **Git Sync**: Add, commit, and push the restored files to GitHub.
+- **Server Pull**: Execute `git pull origin main` on the new server.
+- **Bootstrap**: Re-run `scripts/setup_vm.sh` on the server to ensure Docker and Swap are correctly configured with the now-contentful script.
+- **Launch**: Execute `docker compose -f docker/docker-compose.yml up -d --build`.
+
+## Open Questions
+
+- **Supabase Password**: Does the password `SqAuTO2556hkeygen` look correct to you? It's what I have in my records for the `.env` file.
+- **Subdomain Deployment**: I will proceed with `admin.zeraynce.com` in the Nginx config as you indicated it's ready in Cloudflare.
+
+## Verification Plan
+
+### Automated Tests
+- `python3 -m pip install -r requirements.txt` locally (optional check).
+- `docker ps` on the server after launch.
+- `curl -I http://admin.zeraynce.com/` to verify life.
+
+### Manual Verification
+- Use the **Browser Subagent** to navigate to the new server and confirm the dashboard loads.

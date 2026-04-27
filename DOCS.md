@@ -109,6 +109,74 @@ Responsible for:
 - Explaining relation repair suggestions
 - Generating operator-friendly summaries
 
+### 10. Migration Control Center (Phase 1)
+Responsible for:
+- Registering and testing target database connections
+- Executing dry-run migration validations
+- Comparing staging schema and row counts against target databases
+- Generating reconciliation summaries
+- Logging all migration events with severity and context
+- Providing a visual control panel for migration operations
+
+---
+
+## ROADMAP
+
+The MVP is complete. SQAuto currently supports SQL dump upload, extraction pipeline diagnostics, table/column/row exploration, schema visualization, source-of-truth data exploration, and basic export delivery.
+
+The platform is evolving from a data extraction/exploration tool into a **full operational data migration platform**.
+
+### Phase 1: Migration Execution Foundation (Current)
+- Connect to a target PostgreSQL database
+- Test target DB connectivity
+- Execute dry-run migration validation (read-only)
+- Compare source/staging schema and row counts against target
+- Generate reconciliation summaries
+- Log all migration events
+- Migration Control Center UI
+
+### Phase 2: Data Validation & Reconciliation Layer
+- Compare source/staging data against target database in depth
+- Compare table row counts
+- Detect missing records
+- Detect extra records
+- Detect mismatched values when primary keys are available
+- Generate validation summaries per table
+
+### Phase 3: Error Logs & Diagnostics UI
+- Show failed operations with table name, row id, error message, severity, timestamp
+- Allow export of failed rows/logs
+
+### Phase 4: Transformation Layer
+- Allow mapping old columns to new columns
+- Allow simple transformation rules (e.g., `committee_name` → `committee_id`)
+- Column mapping editor UI
+
+### Phase 5: SQL Dialect Translation Studio
+- Detect source SQL dialect from uploaded `.sql` file
+- Display dialect detection message (e.g., "PostgreSQL detected on this file")
+- Translate SQL to another dialect
+- Show old SQL vs translated SQL comparison
+- Export Translated File button
+- Opens in a new page/view while preserving current scanned data state
+
+### Phase 6: Data Integrity Detection Tools
+- Detect duplicate primary keys
+- Detect orphan foreign keys
+- Detect broken relationships
+- Detect nullable/required-field risks
+- Surface warnings: "We detected broken relations or duplicated data. Clean it using the tools."
+
+### Phase 7: Analytics Dashboard
+- Charts based on meaningful migration metrics (not random data)
+- Migration risk assessment:
+  - Largest tables
+  - Row count distribution
+  - Duplicate data count
+  - Broken relationship count
+  - Table complexity score
+  - Migration readiness score
+
 ---
 
 ## UI STRUCTURE
@@ -161,6 +229,13 @@ Allows export to:
 - Translated SQL
 - Validation report
 
+### Migration Control Center
+Contains:
+- Target database connection panel (host, port, database, username, password, test, save)
+- Dry-run migration panel (source job selector, target selector, run button, status display)
+- Reconciliation summary panel (tables checked, missing tables, row mismatches, warnings)
+- Migration logs panel (timestamp, level, table, message)
+
 ### Advanced Tools
 Collapsed by default.
 Contains:
@@ -182,6 +257,10 @@ Contains:
 7. Validate outputs using Validation Engine
 8. Review unresolved records in Exception Queue
 9. Export outputs using Export System
+10. Configure target database connection
+11. Run dry-run migration validation
+12. Review reconciliation summary
+13. Review migration logs
 
 ---
 

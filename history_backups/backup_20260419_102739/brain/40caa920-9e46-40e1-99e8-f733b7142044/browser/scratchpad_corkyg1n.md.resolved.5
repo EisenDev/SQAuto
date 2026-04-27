@@ -1,0 +1,23 @@
+# Verification Plan: SQAuto Dashboard Fixes
+
+- [x] Navigate to http://sqauto.zeraynce.com/
+- [x] Select active job (2eaa...)
+- [ ] Verify READINESS card:
+    - [ ] Percentage (currently 0% during re-upload)
+    - [ ] Label 'Streaming...' (currently 'UPLOADING')
+- [ ] Verify TABLES and ROWS cards:
+    - [ ] No gray skeletons
+    - [ ] Numbers displayed
+- [ ] Observe for 10 seconds:
+    - [x] Confirm values increment (UPLOADING progress is incrementing: 66% -> 68%...)
+
+## Observations
+- Job ID: 2eaa (query param)
+- Initial Readiness: 0% (reset due to re-upload)
+- Progress: Uploading 114.2 MB (66%)
+- Est. Time: ~1m 45s remaining
+
+### Current Issues
+- The previous job at 45% seems to have been lost after the backend restart.
+- A new upload (or resumed one) is currently at 66%.
+- Readiness and Cards are reset to 0% and skeletons during the upload phase.

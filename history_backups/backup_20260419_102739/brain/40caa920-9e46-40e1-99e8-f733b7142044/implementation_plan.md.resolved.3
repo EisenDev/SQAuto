@@ -1,0 +1,38 @@
+# Implementation Plan - New Server Launch
+
+Your new VM at `172.188.112.192` is ready and the code is cloned. Now I will automate the bootstrap process to install Docker, stabilize the system with Swap, and launch the application.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Cloudflare / DNS**: I noticed `admin.zeraynce.com` points to the new server, but `sqauto.zeraynce.com` still points to the old IP. Do you want me to update the Nginx configuration to support `admin.zeraynce.com` for now?
+> 
+> [!WARNING]
+> **Docker Hub**: I will use local builds on the server for the first launch to ensure everything works before relying on the CI/CD pipeline.
+
+## Proposed Changes
+
+### 1. Server Bootstrap (Phase 1)
+- **Run `scripts/setup_vm.sh`**: This will install Docker, Docker Compose, and create a 2GB swap file to prevent memory-related crashes.
+
+### 2. Configuration (Phase 2)
+- **Setup `.env`**: I will copy your local `.env` settings (excluding local development overrides) to the server to ensure Supabase and Redis are correctly connected.
+- **Update Nginx**: If you approve, I will add `admin.zeraynce.com` to the `docker/nginx.conf` so the server recognizes the subdomain you set up in Cloudflare.
+
+### 3. Deployment (Phase 3)
+- **Launch**: Run `docker compose -f docker/docker-compose.yml up -d --build`.
+- **Verify Stats**: Check `docker stats` and `free -m` to ensure the server is healthy.
+
+## Open Questions
+
+- **Nginx Domain**: Should I add `admin.zeraynce.com` to the allowed domains in Nginx?
+- **Supabase Logs**: Are you okay with me running a quick database connectivity check once the API is up?
+
+## Verification Plan
+
+### Automated Tests
+- `curl -I https://admin.zeraynce.com/api/health` (once setup) to check for 200 OK.
+- `docker ps` to ensure all 5 containers (nginx, api, web, redis, worker) are healthy.
+
+### Manual Verification
+- I will use the **Browser Subagent** to navigate to the new dashboard and confirm everything is working live.

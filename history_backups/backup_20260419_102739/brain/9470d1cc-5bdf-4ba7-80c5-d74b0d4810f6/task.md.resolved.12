@@ -1,0 +1,6 @@
+- [ ] Implement the sliding-window rewriter in `DumpRestoreService.py`
+- [ ] Add 4KB overlap buffer for token-safety on massive SQL lines
+- [ ] Fix the `last_sync_bytes` scope one last time
+- [ ] Sync the final industrial rewriter to the Azure VM via rsync
+- [ ] Force recreate containers with `--build --force-recreate` on the server
+- [ ] Verify the 1.8GB uncompressed stream flow

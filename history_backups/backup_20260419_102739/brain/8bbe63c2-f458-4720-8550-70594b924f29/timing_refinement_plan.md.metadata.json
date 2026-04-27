@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Implementation plan for Bot Mode timing refinements, including universal base waits and random jitter (random delay).",
+  "updatedAt": "2026-04-16T07:42:23.068672648Z",
+  "requestFeedback": true
+}

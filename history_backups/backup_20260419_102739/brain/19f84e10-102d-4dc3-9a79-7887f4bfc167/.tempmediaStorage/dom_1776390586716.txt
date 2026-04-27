@@ -1,0 +1,18 @@
+SQ
+SQAuto
+STANDBY
+Upload SQL Dump
+[0] (500,243)<input class='block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50' />
+* SQL dumps are processed in a staging sandbox. Your source file remains read-only.
+Tables
+0
+Rows
+0
+Readiness
+0%
+Extracted Tables
+0
+Tables Detected
+No tables loaded yet. Upload a SQL dump to begin profiling.
+AI Explanation
+AI generated insights will appear here.

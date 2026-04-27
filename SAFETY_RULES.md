@@ -71,3 +71,19 @@ Manual review is required when:
 - Never hide destructive or exclusionary actions
 - Never ignore unresolved relationships
 - Never silently continue after critical validation failure
+
+## TARGET DATABASE SAFETY (Phase 1)
+
+1. During Phase 1, the migration engine operates in **dry-run mode only**.
+2. Only `SELECT`, `information_schema`, and `pg_catalog` metadata queries may be executed against the target database.
+3. `INSERT`, `UPDATE`, `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, and `CREATE` commands are **strictly prohibited** against the target database.
+4. The migration engine creates its own temporary connection to the target database. It must never share or interfere with the staging database engine.
+5. All dry-run results must be stored in the system database, not in the target database.
+6. Target database connections must be validated before any dry-run operation.
+
+## CREDENTIAL HANDLING
+
+1. Target database passwords must **never** be returned in API responses.
+2. Target database passwords must **never** appear in application logs or frontend console output.
+3. Target database passwords must **never** be displayed in full in the frontend UI (use masked input fields).
+4. If secure credential storage is not implemented, document explicitly that password persistence requires future hardening.

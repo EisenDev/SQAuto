@@ -1,0 +1,26 @@
+# Verification Plan: SQAuto Dashboard Fixes
+
+- [x] Navigate to http://sqauto.zeraynce.com/
+- [x] Select active job (2eaa...)
+- [ ] Verify READINESS card:
+    - [x] Percentage (45%)
+    - [ ] Label 'Streaming...' (STUCK AT 'Initializing...')
+- [ ] Verify TABLES and ROWS cards:
+    - [X] No gray skeletons (FAILED: Skeletons ARE visible)
+    - [ ] Numbers displayed (FAILED: No numbers displayed)
+- [ ] Observe for 10 seconds:
+    - [ ] Confirm values increment (FAILED: No increments observed in 2 mins)
+
+## Observations
+- Job ID: 2eaa2353-5633-488a-a62f-778bf7319971
+- Initial Readiness: 45% - Initializing...
+- Initial Tables/Rows: Skeletons visible
+- Final Readiness: 45% - Initializing... (after 2 mins)
+- Final Tables/Rows: Skeletons visible (after 2 mins)
+
+### Current Issues
+- Dashboard loads and active job is selected.
+- READINESS is stuck at "45% - Initializing...".
+- TABLES and ROWS cards still show gray skeletons.
+- No data increments observed over a 2-minute period.
+- Remaining time is displayed as "~ 3m" but did not decrement.

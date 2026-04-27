@@ -1,0 +1,6 @@
+- [ ] Implement line-buffered streaming and rewriting in `DumpRestoreService.py`
+- [ ] Fix the `I/O on closed file` exception to permit clean database error reporting
+- [ ] Add `SET default_table_access_method` and other production settings to the filter list
+- [ ] Sync the final stabilization code to the Azure VM via rsync
+- [ ] Rebuild Docker containers on the server
+- [ ] Verify the 114MB restore flow with line-buffered isolation

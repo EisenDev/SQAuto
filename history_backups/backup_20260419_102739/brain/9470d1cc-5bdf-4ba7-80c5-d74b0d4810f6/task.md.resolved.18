@@ -1,0 +1,15 @@
+# Task Progress: Industrial Pipeline Force-Fix
+
+- [/] **Infrastructure: Port 80 Domain Takeover**
+    - [ ] Attempt non-interactive stop of host Apache/Nginx.
+    - [ ] Revert `docker-compose.yml` to port `80:80`.
+- [ ] **Backend: Resilient Decompression Rewrite**
+    - [ ] Simplify `industrial_rewrite` for performance.
+    - [ ] Implement file-based trace logging (`industrial_trace.log`).
+    - [ ] Add `psql` timeout and pipe robustness.
+- [ ] **Frontend: UI Integrity & Cache Busting**
+    - [ ] Add version timestamp to `page.tsx`.
+    - [ ] Re-verify absolute removal of "RECEIVED"/"DECOMPRESSING" strings.
+- [ ] **Deployment & Verification**
+    - [ ] Force rebuild with no-cache for the web stage.
+    - [ ] Verify port 80 binding and log activity.

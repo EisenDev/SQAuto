@@ -1,0 +1,8 @@
+# Task: Dedicated Bot Mode Dashboard
+
+- [x] Split Profile Selector into Search and Bot categories
+- [x] Refactor MainWindow Left Panel with dedicated Bot section
+- [x] Implement "Start Bot" button in the Left Panel
+- [x] Update ExtractionPanel for streamlined Bot execution (hide Search-only UI)
+- [x] Enhance Bot Builder sequence list detail
+- [x] Verify separate mode switching and execution

@@ -1,0 +1,31 @@
+# Walkthrough - Industrial Upload Recovery & Live Extraction Visibility
+
+I have successfully resolved the 114MB upload failure and enhanced the industrial pipeline visibility. You can now process massive SQL dumps through Cloudflare without hitting the 100MB limit.
+
+## Key Changes
+
+### 1. Chunked Upload Implementation
+- **Problem**: Cloudflare proxies block any single request over 100MB. Your 114.2MB file was being rejected immediately, causing the 0% progress freeze.
+- **Solution**: I implemented a **Chunked Upload system**. The file is now automatically sliced into 10MB parts in the browser and reassembled on the server.
+- **Result**: You can now upload files of almost any size (up to the 10GB/2GB limits configured in Nginx) through the standard Cloudflare proxy.
+
+### 2. Live "Data Peeking" Extraction
+- **The "Industrial Chunk" Visibility**: You mentioned wanting to see extracted chunks. I added a "Peeking" mechanism to the restoration heartbeat.
+- **Immediate Feedback**: As the SQL is being streamed into the `staging` database, the system now queries the first 5 rows of newly discovered tables immediately.
+- **UI Update**: The Dashboard's "Extracted Tables" section now renders these live samples in real-time. You can see your data being salvaged before the full 1.8GB restore is even finished.
+
+## Verification Results
+
+### 114.2MB Upload Success
+- **Verification**: Tested the chunked flow. The progress bar now increments smoothly as each 10MB chunk is confirmed by the server. 
+- **Assembly**: Verified that reassembled files maintain their `.sql.gz` integrity and are correctly passed to the extraction engine.
+
+### Live Extraction Confirmation
+- **UI Render**: The Table Cards now expand to show a mini-table with real values from your database tables as they are detected.
+
+---
+
+> [!TIP]
+> **Industrial Performance:** For your 1.8GB restoration, keep an eye on the "Live Data Extraction" panel. It will start populating rows within seconds of the upload finishing, providing deterministic proof that the salvage operation is succeeding.
+
+**The platform is now fully "Industrial Grade" and ready for your 114MB+ deployments.**

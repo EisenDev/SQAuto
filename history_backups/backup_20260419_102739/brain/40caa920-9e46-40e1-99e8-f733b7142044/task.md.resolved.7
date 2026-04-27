@@ -1,0 +1,16 @@
+# Tasks: Final Stabilization (Database & Networking)
+
+- [ ] Phase 1: Connectivity Verification
+    - [ ] Test outbound connectivity to Supabase (port 6543) from the VM
+    - [ ] Inspect full `api` logs on the server for startup errors
+- [ ] Phase 2: Configuration & Routing Fixes
+    - [ ] Update `docker/nginx.conf` (Add `admin.zeraynce.com`, fix health routes)
+    - [ ] Update `docker/docker-compose.yml` (Add api healthcheck)
+    - [ ] Sync fixed files to the server
+- [ ] Phase 3: Deployment & Verification
+    - [ ] Restart containers: `docker compose up -d`
+    - [ ] Verify `sqauto_api` health via internal curl
+    - [ ] Verify `sqauto_web` health via internal curl
+- [ ] Phase 4: Final Handover
+    - [ ] Confirm frontend accessibility via browser
+    - [ ] Create Walkthrough

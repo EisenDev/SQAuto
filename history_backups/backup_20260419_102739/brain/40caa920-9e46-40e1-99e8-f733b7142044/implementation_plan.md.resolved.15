@@ -1,0 +1,39 @@
+# Implementation Plan - Industrial Feedback (Real-time Upload)
+
+The "Initializing Pipeline" message currently stays for a long time because it is **uploading** the 1.8GB file. This plan adds a real-time progress bar to the upload phase so you can see exactly how fast the data is reaching the server.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Visibility Gap Identified**: Currently, the system shows "Initializing" while the 1.8GB file is actually being *transferred* to the server over the network. The "Real-time Processing" (Tables/Rows) can only start **after** the file reaches the disk.
+> 
+> **The Solution**: I will add a **Live Progress Bar** that shows: "Uploading: 420MB / 1.8GB (25%)". This way, you know the system is perfectly healthy and moving as fast as your internet connection allows.
+
+## Proposed Changes
+
+### 1. UI - The "Live" Pipeline Client
+
+#### [MODIFY] [api.ts](file:///home/eisen/Downloads/SQAuto/apps/web/src/lib/api.ts)
+- Replace `fetch` with `XMLHttpRequest` for the `uploadDump` function. This is the only way to track upload progress in the browser.
+- Add an optional `onProgress` callback to the `uploadDump` function.
+
+### 2. UI - The Industrial Progress Bar
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Implement a new `progress` state to track the uploaded percentage.
+- Add a visual progress bar that displays when `uploading` is true.
+- Display "Transferred: X.X GB / Total: Y.Y GB" for clarity during massive 1.8GB+ uploads.
+
+## Open Questions
+
+- **UI Style**: Would you prefer a simple percentage (e.g., 25%) or a detailed progress bar with "Estimated Time Remaining"?
+- **Nginx Buffer**: If the upload is slow, we might want to tweak the Nginx bit rate, but currently, it will go as fast as your connection allows.
+
+## Verification Plan
+
+### Automated Tests
+- Upload a sample 100MB file and verify the progress bar increments from 0% to 100%.
+- Check the browser console for "Upload Progress: X%".
+
+### Manual Verification
+- I will start an upload and provide a walkthrough showing the progress bar "filling up" in real-time.

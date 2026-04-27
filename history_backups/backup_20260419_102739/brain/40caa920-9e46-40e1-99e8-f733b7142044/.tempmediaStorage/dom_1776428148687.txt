@@ -1,0 +1,21 @@
+SQ
+SQAuto
+STANDBY
+Upload SQL Dump
+[0] (500,243)<input class='block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 disabled:opacity-50' />
+Selected:
+lts_davoro_prod-backup-2026-04-15-020001.sql
+[1] (500,341)<button class='px-6 py-2 bg-teal-600 text-white rounded-full font-medium hover:bg-teal-700 transition-colors disabled:opacity-50'>Upload & Start Pipeline />
+⚠️
+Network Error: Could not reach backend. Please ensure the API is running and check your DB connection log.
+* SQL dumps are processed in a staging sandbox. Your source file remains read-only.
+Tables
+0
+Rows
+0
+Readiness
+0%
+Extracted Tables
+0
+Tables Detected
+No tables loaded yet. Upload a SQL dump to begin profiling.

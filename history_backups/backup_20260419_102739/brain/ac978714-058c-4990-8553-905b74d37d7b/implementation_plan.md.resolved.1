@@ -1,0 +1,53 @@
+# Fix Deployment Stability and Supabase Initialization
+
+The "502 Bad Gateway" continues because the FastAPI backend is likely crashing on startup due to a missing Redis service and incorrect networking (`localhost` instead of container names). Additionally, the Supabase database has not been initialized with the required tables.
+
+## Proposed Changes
+
+### 1. Add Redis to Docker-Compose
+The application requires Redis for worker coordination/caching, but it was missing from the Docker setup.
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Add a `redis:alpine` service.
+- Update `api` and `worker` to `depends_on: [redis]`.
+- Inject `REDIS_URL=redis://redis:6379/0` into the containers (overriding the `.env` value which is used for local development).
+
+### 2. Standalone Database Initialization Script
+Create a script to manually trigger the table creation in Supabase. This helps debug connection issues and ensures the database is ready even if the backend is struggling to stay up.
+
+#### [NEW] [init_db.py](file:///home/eisen/Downloads/SQAuto/scripts/init_db.py)
+- A Python script that uses the existing SQLAlchemy models to create tables.
+- Includes logging to confirm if the Supabase connection is successful.
+
+### 3. Update Environment Configuration
+Ensure `.env` handles the distinction between local and Docker environments clearly.
+
+#### [MODIFY] [.env](file:///home/eisen/Downloads/SQAuto/.env)
+- Update `REDIS_URL` to include a comment about Docker networking.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Docker Networking**: Inside Docker, containers cannot use `localhost` to talk to each other. I will update your `docker-compose.yml` to automatically redirect the app to a new `redis` container.
+
+> [!WARNING]
+> **Supabase Connection**: If the initialization script fails, it usually means your `DATABASE_URL` is blocked by a firewall or is incorrect. Please ensure your Supabase project allows connections from your Azure IP.
+
+## Open Questions
+- Do you have `redis-server` installed on the host machine, or would you prefer everything to run inside Docker? (I recommend Docker for consistency).
+
+## Verification Plan
+
+### Automated Tests
+- I'll verify that the `init_db.py` script correctly imports the models and uses the `engine` from the codebase.
+- I'll validate the `docker-compose.yml` syntax.
+
+### Manual Verification (User Action)
+- On the server, you will run:
+  ```bash
+  # 1. Initialize DB
+  python3 scripts/init_db.py
+  
+  # 2. Restart everything
+  docker compose -f docker/docker-compose.yml up -d --build
+  ```

@@ -1,0 +1,9 @@
+# Task List: Phase 8 Two-Column Layout & Data Filtering
+
+- [ ] `src/ui/app_window.py`: Refactor layout to use a master `QHBoxLayout` separating Controls/Mapping (Left) and Database Query (Right).
+- [ ] `src/ui/app_window.py`: Add `Exclude Filter Target` Toolbars (Column and Exact Match Value) inside Data Mapping.
+- [ ] `src/core/excel_loader.py`: Revamp numeric cleaning engine inside `_clean()` to aggressively drop `NaN` IDs and cast floats ending in `.0` strictly into integers.
+- [ ] `src/core/excel_loader.py`: Add runtime exclusion logic targeting `exclude_col` holding matching `exclude_val` inside the `load()` method.
+- [ ] `src/ui/workers.py`: Add `exclude_col/val` arguments handling inside `OrchestratorThread`.
+- [ ] `src/main.py`: Update AuditorApp signal relay fetching the exclusion components from ControlHub.
+- [ ] Verify application boot cleanly in new format.

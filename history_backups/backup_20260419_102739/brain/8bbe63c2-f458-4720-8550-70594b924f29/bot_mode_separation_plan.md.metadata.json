@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Complete separation of Bot Mode into a standalone dialog with multi-window support and a dedicated button in the Main UI. Fixes the Calibration Wizard crash.",
+  "updatedAt": "2026-04-16T07:49:08.122702734Z",
+  "requestFeedback": true
+}

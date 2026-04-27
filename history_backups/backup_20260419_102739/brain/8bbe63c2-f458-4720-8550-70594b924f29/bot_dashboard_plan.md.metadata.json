@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Refactoring the Desktop Helper UI to clearly separate Search Mode (Extraction) from Bot Mode (Automation). This includes dedicated profile selectors and start buttons for each mode in the left panel.",
+  "updatedAt": "2026-04-16T08:01:01.226637415Z",
+  "requestFeedback": true
+}

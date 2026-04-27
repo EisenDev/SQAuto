@@ -1,0 +1,16 @@
+# Phase 7.5: Architecture & UI Alignment Task List
+
+- [ ] **Backend: Source-Aware Session Store**
+    - [ ] Update `session_store.py` to track `old_source_type` and `new_source_type`.
+    - [ ] Update `upload.py` route to accept and persist these types.
+- [ ] **Frontend: UI Copy & Logic Refinement**
+    - [ ] Update source subtitles to "Previous/Current system data".
+    - [ ] Tweak Legacy Application agent wording.
+    - [ ] Implement strict button disabling logic for unimplemented source types.
+    - [ ] Include source types in `/upload` payload.
+- [ ] **Documentation: Roadmap & Architecture Evolution**
+    - [ ] Update `FUTURE_ROADMAP.md` with Phase 8A/8B split.
+    - [ ] Update `ARCHITECTURE.md` with Source Adapter design pattern.
+- [ ] **Verification**
+    - [ ] Verify V1 SQL Dump flow still works.
+    - [ ] Confirm backend correctly persists source type state.

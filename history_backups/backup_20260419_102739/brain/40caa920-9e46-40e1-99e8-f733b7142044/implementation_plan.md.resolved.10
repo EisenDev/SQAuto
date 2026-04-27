@@ -1,0 +1,55 @@
+# Implementation Plan - Extreme Scale Stabilization & Real-time Visibility
+
+This plan addresses the 1.8GB processing failure by removing Nginx bottlenecks, implementing real-time progress *during* the restore phase, and adding the requested dashboard cards.
+
+## User Review Required
+
+> [!CAUTION]
+> **Large File Support**: I found that Nginx was blocking your 1.8gb upload because it had the default 1MB limit. I will increase this to 2GB and extend timeouts to 1 hour to ensure large transfers don't drop.
+> 
+> [!IMPORTANT]
+> **Visibility Fix**: Currently, you only see tables *after* the SQL is fully loaded. For a 1.8GB file, this takes long enough to look like a hang. I will change the logic so that the dashboard updates **as the database is being populated**, showing you tables appearing in real-time even during the "Restoring" phase.
+
+## Proposed Changes
+
+### 1. Infrastructure (Nginx & API Timeout)
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Add `client_max_body_size 2G;`.
+- Increase `proxy_read_timeout`, `proxy_connect_timeout`, and `send_timeout` to `3600` (1 hour).
+
+### 2. Backend - Real-time Progress Monitoring
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Refactor the `restore` method to run `psql` as a background process (`subprocess.Popen`).
+- Add a "Watcher" loop that queries the database every 10 seconds to see which tables have appeared.
+- Update `Job.profile` incrementally during the restore so the UI stays alive and interactive.
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Implement a more detailed "Data Statistics" gatherer to populate the new cards:
+    - **Total Rows**: Sum of all rows across detected tables.
+    - **Data Size**: Size of the staging database in MB.
+    - **Duplicates**: Analyze table indices/keys to estimate duplicate counts.
+
+### 3. UI - 5-Card Dashboard
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Update the layout to display 5 cards: **TABLES**, **ROWS**, **DATA EXTRACTED**, **DUPLICATE DATA**, and **READINESS**.
+- Enhance the polling logic to handle "Restoring" as a live-update state.
+
+#### [MODIFY] [SummaryCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/SummaryCard.tsx)
+- Ensure all 5 cards fit elegantly in the grid.
+
+## Open Questions
+
+- **Timeout Warning**: Is 1 hour enough for your largest files, or should we set it to unlimited? (Unlimited carries a small security risk of hung connections on the VM).
+- **Duplicate Logic**: For "Duplicate Data", do you have a specific definition (e.g., identical primary keys)? Or should I use a generic check for "Possible Duplicates" based on repeated values?
+
+## Verification Plan
+
+### Automated Tests
+- `curl -I -X POST -F "file=@large.sql" https://sqauto.zeraynce.com/api/upload` -> Verify 201 Created for 1.8GB file.
+- Inspect logs for "Watcher: Found X tables during restore".
+
+### Manual Verification
+- Perform a 1GB+ scan and capture a recording showing the "TABLES" and "ROWS" cards counting up LIVE während the restore phase.

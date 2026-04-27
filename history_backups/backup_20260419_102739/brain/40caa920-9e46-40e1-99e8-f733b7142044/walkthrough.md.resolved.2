@@ -1,0 +1,48 @@
+# Walkthrough - SQAuto Restoration & Successful Launch
+
+I have successfully restored the corrupted project files, bootstrapped your new Azure VM, and launched the SQAuto application in production mode.
+
+## What I Accomplished
+
+### 1. Project Restoration
+I detected several critical files that had become empty (0 bytes) and restored them from internal backups:
+- **`requirements.txt`**: Restored all Python dependencies.
+- **`.env`**: Restored the database connection string and application ports.
+- **`apps/web/next.config.js`**: Re-enabled standalone output for efficient hosting.
+- **`scripts/setup_vm.sh`**: Restored the bootstrap logic for server setup.
+
+### 2. Server Bootstrap (172.188.112.192)
+- **Docker Installation**: Installed Docker and Docker Compose on Ubuntu 24.
+- **Swap Space (2GB)**: Created a 2GB swap file to protect the server from memory crashes (OOM).
+- **Permissions**: Configured the `azureuser` to manage Docker collections.
+
+### 3. Production Deployment
+- **Docker Compose**: Launched the 5-container architecture (Nginx, API, Web, Redis, Worker).
+- **Nginx Proxy**: Configured the entry point to support both the direct IP and the `admin.zeraynce.com` subdomain.
+- **Standalone Mode**: Next.js is running in a highly optimized standalone mode, taking up minimal RAM.
+
+## Verification Results
+
+### Live Dashboard
+I have verified that the dashboard is fully functional at both addresses:
+- **Direct IP**: [http://172.188.112.192/](http://172.188.112.192/)
+- **Domain**: [http://admin.zeraynce.com/](http://admin.zeraynce.com/)
+
+![Dashboard Verification](file:///home/eisen/.gemini/antigravity/brain/40caa920-9e46-40e1-99e8-f733b7142044/ip_dashboard_1776427705250.png)
+
+### API Health
+- Running `curl http://localhost/api/health` on the server returns `{"status":"ok"}`.
+
+## Final Handover Instructions
+
+1. **Deploying Updates**: 
+   Since we cleaned up the repo, you can now push any local changes to GitHub, and pulling them on the server will be synchronized.
+2. **Monitoring**:
+   You can monitor your server's health by SSHing in and running:
+   ```bash
+   cd ~/SQAuto
+   sudo docker compose -f docker/docker-compose.yml ps
+   free -m
+   ```
+
+**The system is now stable, optimized, and ready for use!**

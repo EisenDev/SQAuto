@@ -1,0 +1,62 @@
+# UI Evolution Pass: Roadmap Preparation
+
+This pass modernizes the frontend interface to reflect the project's long-term roadmap. We will introduce interactive source selection for "Old" and "New" data sources, while keeping the current V1 "SQL Dump" workflow active and stable.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Functional Scope**: All Phase 8 (Database Connection) and Phase 9 (Legacy Application) controls will be visually integrated but functionally disabled. The system will continue to rely on the existing `POST /upload` endpoint for the V1 SQL Dump workflow.
+>
+> **Layout Shift**: The "Source Data Ingestion" area will be reorganized into logical segments: Excel Master, Old Source, and New Source.
+
+## Proposed Changes
+
+---
+
+### Frontend Components
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/Otumisyon/frontend/src/app/page.tsx)
+- **State Management**:
+    - Add `oldSourceType` (default: 'sql_dump') and `newSourceType` (default: 'sql_dump').
+- **Ingestion Cards**:
+    - Create a dedicated section for **Excel Report**.
+    - Implement a grid of selectable cards for **Old Source**:
+        - SQL Dump (Active)
+        - Database Connection (Disabled - Phase 8)
+        - Legacy Application (Disabled - Phase 9)
+    - Implement a grid of selectable cards for **New Source**:
+        - SQL Dump (Active)
+        - PostgreSQL Connection (Disabled - Phase 8)
+- **Legacy Mode Info Panel**:
+    - Build a modern info panel that appears when `Legacy Application` is selected.
+    - Include descriptive text about the Desktop Helper and placeholder buttons (Download, Setup Guide, Configure).
+- **Label Updates**:
+    - Update all technical labels to friendlier versions (e.g., "Comparison Field" instead of "Target Column").
+    - Rename "Analysis Status Hook" to "Status Keyword".
+    - Rename "Run Reconciliation Engine" to "Start Check".
+- **Theme & Polish**:
+    - Improve spacing and contrast in the card headers.
+    - Add subtle "Coming in Phase X" badges to future-scoped cards.
+
+---
+
+### Documentation
+
+#### [MODIFY] [UI_WIREFRAME.md](file:///home/eisen/Downloads/Otumisyon/docs/UI_WIREFRAME.md)
+- Update the wireframe description to reflect the new segmented source selection.
+
+#### [MODIFY] [frontend/README.md](file:///home/eisen/Downloads/Otumisyon/frontend/README.md)
+- Note the addition of roadmap placeholders in the UI.
+
+---
+
+## Open Questions
+- For the "New Source", should we imply support for other databases (MySQL, SQL Server) in the Phase 8 placeholder, or keep it focused on PostgreSQL for now? I will stick to PostgreSQL placeholder as per request.
+
+## Verification Plan
+
+### Manual Verification
+1. **Source Selection**: Click through the newly added Old/New source cards. Ensure the "SQL Dump" remains the only one that allows file selection/upload.
+2. **Legacy Panel**: Verify the Legacy Application info panel appears with the correct informative text and disabled buttons.
+3. **V1 Flow**: Perform a full reconciliation using the mock files to ensure the label changes didn't break the component logic or state mappings.
+4. **Responsive Check**: Ensure the new multi-column card layout scales well on different screen sizes.

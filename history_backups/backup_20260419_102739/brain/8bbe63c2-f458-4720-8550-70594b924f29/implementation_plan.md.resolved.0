@@ -1,0 +1,62 @@
+# Phase 7: Integrate and Refine V1
+
+This phase focuses on connecting the frontend and backend to enable a real, end-to-end reconciliation workflow. We will move away from mock file paths and implement actual file uploads and session-based processing.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Dynamic Storage**: We will create a `storage/` directory in the project root to hold uploaded files temporarily. These files are required during the reconciliation session. For V1, we will not implement an automatic cleanup cron job, but we will ensure files are organized by `session_id`.
+> 
+> **Database Reuse**: The `old_snapshot` and `new_snapshot` schemas will be overwritten every time a new upload is processed for any session (since we only have one Postgres instance). This is acceptable for a single-user V1 internal tool.
+
+## Proposed Changes
+
+---
+
+### Backend Components
+
+#### [MODIFY] [session_store.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/session_store.py)
+- Extend the store to save file metadata (Excel path, old SQL path, new SQL path) for a given `session_id`.
+
+#### [MODIFY] [upload.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/upload.py)
+- Implement real file reception using `UploadFile`.
+- Save files to `storage/{session_id}/`.
+- Call `restore_dump_to_schema` for both the `old_dump` and `new_dump`.
+- Store the Excel file path in the `session_store`.
+
+#### [MODIFY] [reconcile.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/reconcile.py)
+- Retrieve the real Excel path from the `session_store` based on the `session_id` instead of hardcoding `mock_data/input.xlsx`.
+
+---
+
+### Frontend Components
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/Otumisyon/frontend/src/app/page.tsx)
+- Replace mock `handleUpload` with a real `fetch` call using `FormData`.
+- Fix the API URL to be more flexible (potentially via a constant).
+- Add loading states and error toasts (or simple alerts) for the upload and reconciliation processes.
+- Ensure the "Export Patch" button uses the correct `sessionID`.
+
+---
+
+### Infrastructure
+
+#### [MODIFY] [.gitignore](file:///home/eisen/Downloads/Otumisyon/.gitignore)
+- Add `storage/` to ignore uploaded user data.
+
+## Open Questions
+
+- **API Configuration**: Should I use `NEXT_PUBLIC_API_URL` for the frontend, or is `localhost:8000` fine for this phase?
+- **Cleanup**: Are you comfortable with manual cleanup of the `storage/` directory for now?
+
+## Verification Plan
+
+### Automated Tests
+- Run `pytest backend/tests/test_reconciliation.py` to ensure core logic still holds.
+- Add a new integration test for the upload flow (`test_upload_and_reconcile.py`).
+
+### Manual Verification
+- **Step 1**: Use the UI to upload the files from the `mock_data/` directory.
+- **Step 2**: Click "Run Reconciliation" and verify the summary cards match previous Phase 4 results (84 mismatches).
+- **Step 3**: Preview the SQL and verify it matches the detected mismatches.
+- **Step 4**: Download the `.sql` file and verify it contains the expected `UPDATE` statements.

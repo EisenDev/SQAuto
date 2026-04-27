@@ -1,0 +1,17 @@
+# Tasks: SQAuto Final Polish (Domain & UI)
+
+- [ ] Phase 1: Domain & Routing Correction
+    - [ ] Update `docker/nginx.conf` (Change `server_name` to `sqauto.zeraynce.com`)
+    - [ ] Update `docker/docker-compose.yml` (Update `NEXT_PUBLIC_API_URL` to `https://sqauto.zeraynce.com/api`)
+    - [ ] Update `apps/api/main.py` (Update CORS whitelist for `sqauto.zeraynce.com`)
+- [ ] Phase 2: UI Aesthetics & UX
+    - [ ] [NEW] Create `apps/web/src/components/Skeleton.tsx` for loading states
+    - [ ] Update `apps/web/src/components/UploadCard.tsx`
+        - [ ] Add size-based time estimation (e.g., 100MB/min)
+        - [ ] Add processing time indicator
+        - [ ] Integrate Pulse skeletons
+    - [ ] Update `apps/web/src/app/page.tsx` to use skeletons
+- [ ] Phase 3: Deployment & Verification
+    - [ ] Sync files to server: `scp ...`
+    - [ ] Rebuild and Restart: `docker compose up -d --build`
+    - [ ] Final end-to-end verification (Domain -> API -> Supabase)

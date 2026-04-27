@@ -1,0 +1,34 @@
+# Implementation Plan - INDUSTRIAL WIPE & REBUILD (v2.3.0)
+
+I have identified why the "Permission Fix" failed to apply: I updated the code on your VM's disk, but the **Docker Container** was already built using a previous version. I will now bake the sanitization logic directly into a new image and purge the UI labels you find annoying.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Total Container Rebuild:** I will use `docker compose build --no-cache api` on the Azure VM. This ensures your production system is NOT running stale code and physically includes the new sanitization rules.
+
+> [!WARNING]
+> **Readiness PURGE:** Per your request, I will remove the "15% RECEIVED" label from the Readiness card. It will now only show progress based on the **actual** extraction stream, keeping the dashboard honest.
+
+## Proposed Changes
+
+### 1. Multi-Line Sanitization (The Permission Fix)
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Regex Robustness:** I will add `re.DOTALL` to the sanitization regex. This will ensure that `OWNER TO` commands that span multiple lines in your `.sql` file are correctly detected and stripped.
+- **Grant/Role Stripping:** Add filters for `CREATE ROLE`, `CREATE USER`, and `ALTER ROLE` to ensure total isolation from production roles.
+
+### 2. Dashboard Integrity (The UI Fix)
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- **Purge "RECEIVED":** Update `getReadiness` to return `0%` for the `uploaded` status.
+- **Fluid Progression:** The Readiness card will stay at `0%` during upload and only move once the **Actual Extraction** begins (i.e., when data hits the database).
+
+### 3. Forced Remote Rebuild
+- **SSH Exec:** `scp` fixed files -> `docker compose down` -> `docker compose build --no-cache api web` -> `docker compose up -d`.
+- **Version Marker:** Update footer to **`v2.3.0-INDUSTRIAL-WIPE`**.
+
+## Verification Plan
+
+### Manual Verification (on the VM)
+1. Confirm `docker exec sqauto_api cat /app/services/dump_restore/service.py` shows the `re.DOTALL` logic.
+2. Confirm the Readiness card does not jump to `15%` during the next upload.
+3. Monitor `restoration.log` to see if `infoxoft` refers are being stripped.

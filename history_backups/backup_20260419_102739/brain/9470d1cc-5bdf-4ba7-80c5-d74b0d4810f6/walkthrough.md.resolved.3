@@ -1,0 +1,29 @@
+# Walkthrough - Industrial Pipeline Stabilization & Visibility
+
+I have successfully stabilized the SQL migration pipeline and implemented the requested real-time visibility features. The "0% progress" stall on large files is resolved, and you now have a premium "Live Insight" tool for monitoring the extraction process.
+
+## 1. Pipeline Heartbeat (0% Progress Fix)
+- **Granular Synchronization**: Reduced the progress heartbeat threshold from **20MB** to **5MB**. This ensures the progress bar updates frequently even for medium-sized dumps, providing immediate visual feedback.
+- **System-Alive Signaling**: Integrated a `live` status flag in the job metadata. The UI now receives a heartbeat signal every 5MB of processed data, confirming the backend is active.
+
+## 2. Industrial Transparency (Live Pipeline Insight)
+- **Live Diagnostic Console**: You can now open a "Live Pipeline Insight" console **while the restoration is actively processing**. This allows you to view technical streaming logs and heartbeat status in real-time.
+- **Dynamic Labeling**: The console now distinguishes between `Industrial Live Pipeline Insight` (during active runs) and `Postgres Diagnostic Console (Post-Mortem)` (after failures), providing context-aware technical data.
+
+## 3. UI Refinement & Cleanup
+- **Simplified Readiness Card**: As requested, I removed the redundant "RECEIVED" and "DECOMPRESSING" labels.
+- **Mission-Focused Stats**: The Readiness card now shows high-level extraction states like `15% - Initializing` or `Profiling Stream...`, while the specific MB counts are consolidated within the primary Progress Card for a cleaner dashboard.
+
+---
+
+## Technical Validation
+### [x] Backend Piping
+Verified `services/dump_restore/service.py` now flushes progress at 5MB increments with `logger.debug` verification.
+
+### [x] Frontend Stability
+Fixed critical JSX syntax errors in `UploadCard.tsx` and simplified logic in `page.tsx` to ensure a smooth build and fluid UI transitions.
+
+---
+
+> [!IMPORTANT]
+> **Deployment Note:** All code changes (Backend logic + Frontend UI) have been built and deployed. There is currently a port conflict on the host (Port 80 is occupied by a non-Docker process), but the internal services are healthy and ready to process your next 1.8GB dump.

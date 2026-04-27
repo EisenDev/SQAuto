@@ -1,0 +1,55 @@
+# Implementation Plan - Precision Pipeline Cleanup & Deployment
+
+The user's restoration pipeline is stuck at 0%, despite successful uploads. Additionally, redundant status labels ("RECEIVED", "DECOMPRESSING") persist on the dashboard, and a port conflict is preventing the latest Nginx configuration from deploying.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Hydration Mismatch:** The "Minified React errors" seen in the logs are caused by using `new Date().toLocaleTimeString()` in the component's render method. I will move this to a `useEffect` to ensure the server and client renders match.
+
+> [!WARNING]
+> **Port 80 Conflict:** Port 80 is currently occupied by a host-level process. If I cannot stop it, I will prepare a fallback to port 81 or another available port to ensure the new UI is accessible.
+
+## Proposed Changes
+
+### 1. Dashboard UI Simplification
+I will stripping all redundant text from the "Readiness" card to keep it clean and focused purely on the extraction percentage.
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Remove "Profiling Stream", "Initializing", and specific MB counts from the `getReadiness` return values.
+- Return only the percentage (e.g., `80%`) or a single high-level status word when appropriate.
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Move all dynamic time string generation into a `useEffect` to fix hydration errors.
+- Ensure the "Decompressing & Extracting" labels match the user's preferred industrial style without being redundant to the Readiness card.
+
+### 2. Pipeline Robustness (The 0% Stall)
+I will add diagnostic checks to the restoration loop to find out why data isn't flowing into the staging schema.
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Add `logger.info` at the exact moment the `psql` pipe is opened.
+- Implement a binary path check (using `shutil.which`) to verify `gunzip` and `psql` exist before starting.
+- Add logging for the first 5MB chunk to confirm the "Sync" is actually occurring.
+
+### 3. Infrastructure & Deployment
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Change host port mapping for Nginx to `8081:80` (fallback) or resolve the `address already in use` error if possible.
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Port 80 Conflict:** Port 80 is blocked by a process (likely a host-level Nginx) that requires a password to stop. 
+> 1. Should I reconfigure SQAuto's Nginx to use port **8081** (or another port) instead of 80?
+> 2. Alternatively, would you like to manually run `sudo systemctl stop nginx` on your VM to clear the way for the SQAuto container?
+
+## Verification Plan
+
+### Automated Tests
+- `docker logs -f sqauto_api`: Monitor for new "Industrial Restoration Started" logs.
+- `docker compose ps`: Verify all containers, including Nginx, are `Up`.
+
+### Manual Verification
+1. Upload the 114MB dump again.
+2. Confirm the Readiness card shows ONLY the percentage.
+3. Open the "Live Pipeline Insight" and verify the log stream is active.
+4. Verify the React hydration errors in the browser console are gone.

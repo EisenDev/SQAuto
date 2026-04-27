@@ -1,0 +1,13 @@
+# Task Checklist: SQAuto Verification
+
+- [ ] Verify dashboard loads at https://sqauto.zeraynce.com/
+- [ ] Verify summary cards use pulse skeletons when data is pending
+- [ ] Upload a small sample file
+- [ ] Verify Job ID appears
+- [ ] Verify status transitions without crashing
+- [ ] Confirm API calls are successful
+- [ ] Report results
+
+## Findings
+- Initial attempt: 502 Bad Gateway (Cloudflare).
+- Retrying after waiting...

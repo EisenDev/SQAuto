@@ -1,0 +1,11 @@
+# SQAuto Verification Checklist
+
+- [ ] Navigate to `http://sqauto.zeraynce.com/` (HTTP only)
+- [ ] Verify dashboard loads successfully
+- [ ] Verify 5 cards: TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS
+- [ ] Verify polling shows 200 OK (no "Network Error" alerts)
+- [ ] Verify UI is polished and responsive
+
+## Notes
+- Ensure browsers are not forcing HTTPS.
+- Check network logs for polling status.

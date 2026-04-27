@@ -1,0 +1,23 @@
+# Tasks: Compressed SQL Support (.sql.gz)
+
+- [ ] Phase 1: Database & Model
+    - [ ] Update `apps/api/models.py` (Add `is_compressed`, `original_filename`, `file_size`)
+    - [ ] Run migration: `ALTER TABLE jobs ADD COLUMN ...` on Supabase
+- [ ] Phase 2: API Upgrades
+    - [ ] Update `apps/api/router.py`:
+        - [ ] Accept `.sql.gz` and `.sql`
+        - [ ] Extract and store metadata during upload
+- [ ] Phase 3: Industrial Streaming Restorer
+    - [ ] Update `services/dump_restore/service.py`:
+        - [ ] Support `gzip`-compatible `detect_flavor`
+        - [ ] Implement `zcat` streaming for `.sql.gz`
+        - [ ] **SAFETY**: Add 10GB decompression guard (kill process if output exceeds limit)
+- [ ] Phase 4: Industrial UI & Beta Label
+    - [ ] Update `apps/web/src/components/UploadCard.tsx`:
+        - [ ] Add Beta Warning: "this is currently on beta avoid uploading 10gb files as much as possible..."
+        - [ ] Recommend `.sql.gz` for faster uploads
+        - [ ] Update progress bar for compressed files
+- [ ] Phase 5: Verification & Report
+    - [ ] Test `.sql` upload (still works)
+    - [ ] Test `.sql.gz` upload (streaming works)
+    - [ ] Test 10GB guard (simulated)

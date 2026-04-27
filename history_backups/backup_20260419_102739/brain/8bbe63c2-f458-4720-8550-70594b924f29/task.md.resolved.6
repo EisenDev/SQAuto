@@ -1,0 +1,20 @@
+# Phase 8A: Source Adapter Architecture Task List
+
+- [ ] **Infrastructure: Source Adapters Directory**
+    - [ ] Create `app/services/source_adapters/__init__.py`.
+    - [ ] Create `app/services/source_adapters/base.py` (Base class).
+    - [ ] Create `app/services/source_adapters/sql_dump.py` (V1 logic).
+    - [ ] Create `app/services/source_adapters/placeholder_adapters.py` (Future stubs).
+    - [ ] Create `app/services/source_adapters/factory.py` (Adapter factory).
+- [ ] **Service: Normalization Layer**
+    - [ ] Create `app/services/normalization.py`.
+- [ ] **Core Refactor: Source-Aware Engine**
+    - [ ] Refactor `app/services/reconciliation.py` to use the adapter factory.
+    - [ ] Integrate normalization calls into the data flow.
+    - [ ] Ensure backward compatibility for the SQL dump workflow.
+- [ ] **Testing & Verification**
+    - [ ] Create `tests/test_source_adapters.py`.
+    - [ ] Run E2E verification of the SQL dump workflow.
+- [ ] **Documentation Updates**
+    - [ ] Update `AGENT.md`, `ARCHITECTURE.md`, `FUTURE_ROADMAP.md`.
+    - [ ] Update `backend/README.md`.

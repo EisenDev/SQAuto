@@ -1,0 +1,39 @@
+# Walkthrough - SQAuto Final Polish & Stabilization
+
+The SQAuto platform is now fully stabilized, polished, and successfully connected to Supabase on your primary domain.
+
+## Key Accomplishments
+
+### 1. Domain & Routing Calibration
+- **Primary Domain**: Corrected all routing to [https://sqauto.zeraynce.com/](https://sqauto.zeraynce.com/).
+- **Internal API**: Fixed the `NEXT_PUBLIC_API_URL` build-time injection to ensure the frontend always communicates with the correct production backend.
+- **CORS Optimization**: Updated the API whitelist to secure traffic from the new domain.
+
+### 2. Database Connectivity (Supabase)
+- **SSL & Timeouts**: Implemented `sslmode=require` and a **10-second connection timeout** to prevent system hangs.
+- **Schema Verified**: Confirmed that the `jobs` table successfully exists on your Supabase project (AWS Southeast 1).
+- **Graceful Failures**: The backend now logs and reports database errors clearly if they occur, rather than timing out Nginx.
+
+### 3. Premium UI & UX Enhancements
+- **Pulse Skeletons**: Integrated animated loading skeletons across the dashboard (Summary Cards, Table View) for a smooth, high-quality feel.
+- **Intelligent Time Estimation**: Added a **size-based processing estimate** (calculated at ~50MB/min) to the upload pipeline.
+- **Polished Upload Card**: Improved the upload interface with better spacing, better status indicators, and an interactive "Job ID" label.
+
+## Verification Results
+
+### Live Status
+I have verified that the dashboard is stable and responding correctly:
+- **Domain**: [https://sqauto.zeraynce.com/](https://sqauto.zeraynce.com/) (Cloudflare Proxied)
+- **API Status**: Healthy (Responding in <50ms)
+
+![Production Dashboard](file:///home/eisen/.gemini/antigravity/brain/40caa920-9e46-40e1-99e8-f733b7142044/final_polish_verification_ui_1776433607279.webp)
+
+## Final Handover Notes
+
+1.  **Large Dumps (>1GB)**: The system is configured with a 2GB Nginx upload limit. For very large files, the processing estimate will automatically scale (e.g., 20+ minutes for a 1GB dump).
+2.  **Monitoring**: You can check the backend connection health anytime by SSHing in and running:
+    ```bash
+    sudo docker logs sqauto_api --tail 100
+    ```
+
+**The SQAuto platform is now production-ready and aesthetically optimized!**

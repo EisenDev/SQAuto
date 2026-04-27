@@ -1,0 +1,11 @@
+- [x] Fix CORS whitelist in backend (`apps/api/main.py`)
+- [x] Initialize Extractor service (`services/extractor/service.py`)
+- [x] Implement E2E automation in `UploadCard.tsx` (Upload -> Restore -> Profile)
+- [x] Update `page.tsx` with `activeJob` state and polling
+- [x] Wire status badge in `Header.tsx`
+- [x] Wire summary counts in `SummaryCard.tsx`
+- [x] Wire table list in `TableView.tsx`
+- [x] Fix backend crash by adding DB connection resilience in `main.py`
+- [x] Clean up `next.config.js` (remove deprecated `experimental.appDir`)
+- [x] Improve error reporting in `UploadCard.tsx`
+- [x] Verify fix in browser

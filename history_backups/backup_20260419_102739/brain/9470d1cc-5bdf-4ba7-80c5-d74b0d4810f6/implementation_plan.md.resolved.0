@@ -1,0 +1,65 @@
+# Implementation Plan - Industrial Upload Recovery & Live Extraction Visibility
+
+The goal is to fix the 114MB upload failure (stuck at 0%) caused by Cloudflare's 100MB limit and to complete the "Extraction Chunk" visibility so the user can see real data as it is being processed.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Cloudflare 100MB Limit:** The 114.2MB file exceeds Cloudflare's default limit. We will implement **Chunked Uploads** (sending the file in 10MB parts) to bypass this restriction without needing to change your server or Cloudflare settings.
+
+> [!NOTE]
+> **Live Extraction:** We will implement a "Peeking" mechanism where the system extracts the first few rows of every table *while it is still restoring*, allowing you to see the data in the UI almost immediately after the upload finishes.
+
+## Proposed Changes
+
+---
+
+### [Component] Frontend (Next.js)
+
+We need to modify the upload logic to slice the file into chunks and send them sequentially.
+
+#### [MODIFY] [lib/api.ts](file:///home/eisen/Downloads/SQAuto/apps/web/src/lib/api.ts)
+- Add `uploadChunk` function to handle part-by-part uploading.
+- Update `uploadDump` to use the chunking logic.
+
+#### [MODIFY] [components/UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Enhance the progress bar to handle the multi-request flow smoothly.
+
+---
+
+### [Component] Backend (FastAPI)
+
+We need a way to receive and reassemble chunks on the server.
+
+#### [MODIFY] [router.py](file:///home/eisen/Downloads/SQAuto/apps/api/router.py)
+- Add a NEW endpoint `/upload/chunk` to receive file slices.
+- Modify the `/upload` completion logic to trigger the pipeline once all chunks are merged.
+
+---
+
+### [Component] Extraction Pipeline
+
+Enhance the "Industrial Visibility" to show real data chunks.
+
+#### [MODIFY] [service.py (DumpRestore)](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Update the `_flush_progress` (heartbeat) to query the first 5 rows of each discovered table in the `staging` schema.
+- Store these "chunks" in the `Job.profile` JSON.
+
+#### [MODIFY] [TableView.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/TableView.tsx)
+- Update the UI to subscribe to these live profile updates and render the "Extracted Chunks" immediately.
+
+---
+
+## Open Questions
+
+- **Cloudflare Tunnels:** Are you using a Cloudflare Tunnel or just the standard Proxy? (Chunked uploads solve both, but good to know).
+- **Table Priority:** Should we prioritize extracting specific tables first if they are found?
+
+## Verification Plan
+
+### Automated Tests
+- Upload a generated 120MB file to verify the chunking works beyond the 100MB limit.
+- Verify that `is_compressed` logic still correctly identifies `.sql.gz` chunks after reassembly.
+
+### Manual Verification
+- Watch the Dashboard after a 114MB upload to see if the "Extracted Tables" cards populate with real row samples *before* the entire 1.8GB restore is finished.

@@ -1,0 +1,13 @@
+# Verification Plan for SQAuto
+
+- [/] Navigate to https://admin.zeraynce.com/ (Persistent 522 Connection Timed Out)
+- [/] Verify dashboard loads without 502/522 errors (Loads on IP http://172.188.112.192/, but domain is 522)
+- [x] Check if dashboard content is visible (Visible and interactive on IP)
+- [X] Verify API requests to https://admin.zeraynce.com/api/jobs return successfully (FAIL: Returns 502 Bad Gateway on origin IP)
+- [ ] Report final status
+
+## Observations
+- **Frontend**: Successfully loads via direct IP `http://172.188.112.192/`.
+- **API**: Returns **502 Bad Gateway** when accessed via `http://172.188.112.192/api/jobs`. This indicates the backend container (API) is either down or failing to respond to Nginx.
+- **Domain**: `https://admin.zeraynce.com/` returns **522 Connection Timed Out** from Cloudflare. This is likely because the origin is either slow to respond or Cloudflare's connection is being blocked/misconfigured.
+- **Hypothesis**: The 502 on the API confirms the user's suspicion that the backend is not fully functional, possibly due to the Supabase connection issue mentioned.

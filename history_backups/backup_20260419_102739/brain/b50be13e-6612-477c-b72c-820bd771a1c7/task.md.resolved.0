@@ -1,0 +1,6 @@
+- [x] Create `.gitignore`
+- [x] Initialize Git repository
+- [x] Add remote `origin`
+- [x] Initial commit on `main`
+- [ ] Push to GitHub
+    - [ ] Handle authentication (SSH, PAT, or GH CLI)

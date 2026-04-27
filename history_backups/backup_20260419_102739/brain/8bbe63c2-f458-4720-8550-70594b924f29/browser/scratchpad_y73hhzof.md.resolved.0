@@ -1,0 +1,15 @@
+# Reconciliation Tool Verification
+
+## Checklist
+- [ ] Navigate to http://localhost:49100
+- [ ] Upload files (Select Source Files)
+- [ ] Wait for status 'Uploaded'
+- [ ] Click 'Run Reconciliation Engine'
+- [ ] Verify Results & Review tab (Summary cards & table)
+- [ ] Navigate to 'SQL Patch & Export' tab
+- [ ] Verify SQL code block
+- [ ] Final summary
+
+## Notes
+- URL: http://localhost:49100
+- Expected results after reconciliation: ~205 Total Checked

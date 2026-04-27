@@ -1,0 +1,67 @@
+# Phase 8B Implementation Plan: Real DB Connectors
+
+This phase activates the direct database connection capabilities of the reconciliation tool. We will implement functional adapters for MySQL and PostgreSQL sources, allowing the tool to query live databases instead of relying solely on manual SQL dumps.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Credential Handling**: For this initial implementation, I will assume a "Default Target" strategy using environment variables (`OLD_SOURCE_DB_URL`, `NEW_SOURCE_DB_URL`). This keeps the backend logic clean and secure. We can add a "Connection Modal" to the UI in a subsequent refinement if per-session credentials are required.
+>
+> **Stability**: The V1 SQL Dump workflow will remain the default and will be untouched.
+
+## Proposed Changes
+
+---
+
+### Backend Components
+
+#### [MODIFY] [requirements.txt](file:///home/eisen/Downloads/Otumisyon/backend/requirements.txt)
+- Add `mysql-connector-python` for MySQL support.
+
+#### [NEW] [mysql.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/mysql.py)
+- Implement `MySQLAdapter`.
+- Logic: Connect to a MySQL instance, execute the filtered query, return a normalized DataFrame.
+- Driver: `mysql.connector`.
+
+#### [NEW] [postgres.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/postgres.py)
+- Implement `PostgresAdapter`.
+- Logic: Connect to an external PostgreSQL instance (distinct from the internal session restore DB).
+- Driver: `psycopg2`.
+
+#### [MODIFY] [factory.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/factory.py)
+- Update `get_adapter` to instantiate the new real adapters when the source type is `mysql_connection` or `postgres_connection`.
+
+---
+
+### Frontend Components
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/Otumisyon/frontend/src/app/page.tsx)
+- Update "Database Connection" and "PostgreSQL Connection" cards:
+    - Change "Phase 8" badge to "ACTIVE".
+    - Enable selection of these cards.
+    - Add a small "Configured Target" indicator (e.g., "Target: [Host]") derived from the backend status.
+- Update the "Initialize Session" logic:
+    - For `sql_dump` types, it still triggers the file upload and restore.
+    - For `db_connection` types, it simply verifies the connection and prepares the session (no dump restoration needed).
+
+---
+
+### Documentation
+
+#### [MODIFY] [FUTURE_ROADMAP.md](file:///home/eisen/Downloads/Otumisyon/docs/FUTURE_ROADMAP.md)
+- Mark Phase 8B as In-Progress/Complete.
+
+#### [MODIFY] [ARCHITECTURE.md](file:///home/eisen/Downloads/Otumisyon/docs/ARCHITECTURE.md)
+- Detail the direct connection data flow.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- **Mocked DB Tests**: Use `unittest.mock` to simulate successful and failed DB queries for both MySQL and PostgreSQL adapters.
+- **Normalization Stability**: Verify the shared `normalize_dataframe` utility correctly handles the types returned by `mysql-connector` (e.g., Decimal logic).
+
+### Manual Verification
+1. **Source Switching**: In the UI, select "MySQL Connection" for the Old Source. Verify the summary/action button updates its context.
+2. **V1 Regression**: Perform a full "SQL Dump" reconciliation to ensure no regressions were introduced.

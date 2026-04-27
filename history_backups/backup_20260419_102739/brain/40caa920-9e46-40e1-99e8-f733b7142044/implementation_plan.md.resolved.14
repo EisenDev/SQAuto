@@ -1,0 +1,58 @@
+# Implementation Plan - Industrial Scaling & Safety (5GB+)
+
+This plan implements the "Best Move" recommendation for high-scale SQL processing: **Schema Isolation**. All SQL dumps will be restored into a dedicated `staging` schema to ensure maximum speed, safety, and reliability for files up to 5GB+.
+
+## Recommended "Best Move": Schema Isolation
+
+> [!TIP]
+> **Why move to a 'staging' schema?**
+> Currently, the system mixes your SQL dump data with the SQAuto application data. 
+> 1. **Safety**: Using a dedicated `staging` schema means we can wipe all your old data in **0.1 seconds** using `DROP SCHEMA staging CASCADE` without any risk of deleting the SQAuto app itself. 
+> 2. **Clarity**: You can easily see your restored tables in the Supabase Table Editor by selecting the `staging` schema dropdown.
+> 3. **Speed**: Schema-level operations are much faster than deleting tables one by one for 5GB+ dumps.
+
+## Proposed Changes
+
+### 1. Infrastructure (5-Hour Industrial Support)
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Increase all timeouts (`proxy_read_timeout`, etc.) to **18000** seconds (5 hours).
+- Increase `client_max_body_size` to **10G** to comfortably handle 5GB+ dumps.
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Increase Gunicorn timeout to **18000** (5 hours).
+- Ensure `pgloader` is installed.
+
+### 2. Backend - Universal "Agnostic" Restoration
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Automatic Format Detection**: Read the signature of the `.sql` file to detect the SQL flavor (MySQL, SQLite, or Postgres).
+- **Staging Redirect**: 
+    - For **Postgres**: Inject `SET search_path TO staging;` into the `psql` stream.
+    - For **MySQL/Other**: Configure `pgloader` to target the `staging` Postgres schema.
+- **Instant Wipe**: Implement the schema-drop-and-create logic for a clean 0.1s reset.
+
+### 3. Backend - Real-time Progress Monitor (5-Card Support)
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Update all profiling queries to target the `staging` schema.
+- Implement storage size monitoring (MB) and row counts that update the 5 cards every 5 seconds.
+
+### 4. UI - Industrial Dashboard
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Ensure the **5 Cards** remain active and polling throughout the 5-hour window.
+- Add a "Safe Staging" indicator so you know exactly which schema the data is in.
+
+## Open Questions
+
+- **Authentication**: `pgloader` might require a non-pooler Supabase connection (direct DB port 5432) for some migration types. Are you okay with me checking if port 5432 is open on your Supabase instance? (Pooler port 6543 often has session limitations).
+
+## Verification Plan
+
+### Automated Tests
+- Upload a sample dataset and verify `staging` schema is cleared and repopulated.
+- Check logs for "Bypassing Cloudflare limits via Grey Cloud confirmed -- Streaming 5GB pipeline established".
+
+### Manual Verification
+- Perform a 1.8GB + scan and recording showing the "TABLES" and "ROWS" cards growing as the data is streamed into the `staging` schema.

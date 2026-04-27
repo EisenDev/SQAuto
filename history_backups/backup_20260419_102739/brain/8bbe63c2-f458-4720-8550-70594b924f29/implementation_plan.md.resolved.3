@@ -1,0 +1,67 @@
+# Phase 7.5: Architecture & UI Alignment
+
+This intermediate phase implements critical pre-Phase 8 refinements based on your feedback. We are adjusting the UI terminology for enterprise-ready clarity and updating the backend contract to be "Source Aware," preparing for the pluggable adapter pattern in Phase 8A.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Source Type Persistence**: I will update the `/upload` endpoint and `session_store` to track `old_source_type` and `new_source_type`. For V1, these will default to `sql_dump`, but this change establishes the permanent contract needed for Phase 8.
+>
+> **Phase 8 Split**: Per your suggestion, I've updated the roadmap to split Phase 8 into 8A (Architecture & Adapters) and 8B (Real Implementation).
+
+## Proposed Changes
+
+---
+
+### Backend Components
+
+#### [MODIFY] [session_store.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/session_store.py)
+- Update `SESSION_FILES` to include `old_source_type` and `new_source_type`.
+- Modify `save_session_files` to accept these parameters.
+
+#### [MODIFY] [upload.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/upload.py)
+- Accept `old_source_type` and `new_source_type` as optional form fields (default: 'sql_dump').
+- Pass these through to the session store.
+
+---
+
+### Frontend Components
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/Otumisyon/frontend/src/app/page.tsx)
+- **Label Refinement**: 
+    - Old Source Subtitle: "Previous system data"
+    - New Source Subtitle: "Current system data"
+    - Legacy App Info: "This desktop helper safely extracts data from the old system by automating the application interface."
+- **Validation Logic**: 
+    - Update "Initialize Session" `disabled` state to be aware of the selected source method (e.g., if DB Connection is selected, it should be disabled until Phase 8).
+- **API Payloads**:
+    - Include `old_source_type` and `new_source_type` in the `FormData` sent to `/upload`.
+
+---
+
+### Documentation
+
+#### [MODIFY] [FUTURE_ROADMAP.md](file:///home/eisen/Downloads/Otumisyon/docs/FUTURE_ROADMAP.md)
+- Formalize the 8A/8B split.
+- Define Phase 8A: **Source Adapter Architecture (Normalization Layer)**.
+- Define Phase 8B: **Real SQL/Postgres Connection Implementations**.
+
+#### [MODIFY] [ARCHITECTURE.md](file:///home/eisen/Downloads/Otumisyon/docs/ARCHITECTURE.md)
+- Introduce the **Source Adapter Design Pattern** section.
+- Diagram the new flow: `Extract -> Normalize -> Pandas -> Compare`.
+
+---
+
+## Open Questions
+
+- Should the "Initialize Session" button remain enabled for the "PostgreSQL Connection" card (Phase 8 placeholder), or should it strictly stay disabled until actually implemented? I plan to keep it disabled when any non-functional card is selected.
+
+## Verification Plan
+
+### Automated Tests
+- `pytest` check for the new `/upload` signature.
+
+### Manual Verification
+1. **Frontend Copy**: Verify the new subtitles and Legacy App wording.
+2. **Button Gating**: Verify the "Initialize Session" button disables correctly when a "Phase 8/9" card is selected.
+3. **Session State**: Verify the backend correctly identifies the session as `sql_dump` type for both sources.

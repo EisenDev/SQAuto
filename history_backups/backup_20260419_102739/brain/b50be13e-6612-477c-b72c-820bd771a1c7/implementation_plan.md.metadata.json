@@ -1,0 +1,7 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Deep diagnostic and final stabilization plan for the Bad Gateway error, focusing on Next.js 13 container binding and Nginx upstream connectivity.",
+  "updatedAt": "2026-04-17T05:30:50.370564124Z",
+  "version": "7",
+  "requestFeedback": true
+}

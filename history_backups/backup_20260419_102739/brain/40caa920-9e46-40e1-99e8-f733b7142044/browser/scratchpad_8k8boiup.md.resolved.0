@@ -1,0 +1,7 @@
+# Verification Plan for SQAuto
+
+- [ ] Navigate to https://admin.zeraynce.com/
+- [ ] Verify dashboard loads without 502/522 errors
+- [ ] Check if dashboard content is visible (interactive elements, text)
+- [ ] Verify API requests to https://admin.zeraynce.com/api/jobs return successfully
+- [ ] Report final status

@@ -1,0 +1,46 @@
+# Implementation Plan - Final Stabilization (Database & Networking)
+
+The application is deployed but experiencing connectivity issues. The frontend is timing out (522 error), and the backend is likely failing to connect to Supabase. This plan will systematically resolve these bottlenecks.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Supabase Reachability**: I will be testing the connection from your VM to Supabase. Please ensure your Supabase project allows connections from `172.188.112.192`.
+> 
+> [!WARNING]
+> **Nginx Reconfiguration**: I will update the Nginx configuration to specifically recognize `admin.zeraynce.com` and use the correct internal routes for health checks.
+
+## Proposed Changes
+
+### 1. Networking & Routing Fixes
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Add `admin.zeraynce.com` to `server_name`.
+- Fix the health check route to point to the correct internal API endpoint.
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Add a health check to the `api` container to ensure it's fully ready before Nginx starts directing traffic.
+
+### 2. Database Stability
+
+- **Connectivity Test**: Run `nc -zv aws-1-ap-southeast-1.pooler.supabase.com 6543` from the VM to confirm the database port is open and reachable.
+- **Log Verification**: Inspect the full `api` container logs without filters to identify why the PostgreSQL connection message is missing.
+
+### 3. Next.js Upstream Timeout Resolution
+
+- **Timeout Adjustment**: Increase the Nginx `proxy_read_timeout` to handle the heavy initial compilation load of Next.js if necessary.
+- **Local API Routing**: Modify how the frontend discovers the backend to avoid "hairpin" networking loops.
+
+## Open Questions
+
+- **Supabase SSL**: Does your Supabase connection string require SSL mode (`?sslmode=verify-full`)? Currently, it's not specified in the URL I restored.
+- **Azure NSG**: Are you sure outbound traffic on port **6543** (Supabase) is allowed on your VM? Some cloud environments block all non-standard outbound ports by default.
+
+## Verification Plan
+
+### Automated Tests
+- `docker exec sqauto_api curl localhost:8000/health` -> Must return `{"status":"ok"}`.
+- `docker exec sqauto_nginx ping web` -> Must succeed.
+
+### Manual Verification
+- I will refresh the dashboard at `https://admin.zeraynce.com/` and confirm "PostgreSQL connected" is visible in the logs.

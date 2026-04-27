@@ -1,0 +1,30 @@
+# Implementation Plan - SQL Restoration Stabilization
+
+The "Restoration Failed" error you encountered is a `Broken Pipe` issue. This happened because the database client (`psql`) was configured to run a setup command and then immediately exit, while our system was still trying to stream your 114MB file into it.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Environment Variables:** I will switch to using `PGOPTIONS` to set the `staging` schema. This is the industrial standard for configuring `psql` sessions that read from a stream.
+
+## Proposed Changes
+
+---
+
+### [Component] Restoration Service
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Fix `psql` Arguments**: Remove the `-c "SET search_path TO staging;"` flag which was causing the premature exit.
+- **Use Environment Configuration**: Pass `search_path=staging` via the `PGOPTIONS` environment variable when starting the restoration process.
+- **Improved Error Diagnostics**: Update the streaming loop to catch `BrokenPipeError`. Instead of just failing, it will now capture and log the specific reason the database rejected the stream (e.g., a constraint violation or syntax error in the dump).
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Monitor `docker logs sqauto_api` during the next restore attempt.
+
+### Manual Verification
+- You will be able to retry the 114MB upload/restore.
+- Instead of an immediate "FAILED" status, you should see the new progress bar incrementing as data successfully pipes into the `staging` schema.

@@ -1,0 +1,51 @@
+# Implementation Plan - Industrial-Grade Stability (1.8GB+)
+
+This plan addresses the "Network Error" caused by Cloudflare's 100MB limit and implements the requested real-time visibility for massive 1GB+ SQL dumps.
+
+## User Review Required
+
+> [!CAUTION]
+> **Cloudflare Block Identified**: I discovered that Cloudflare is blocking your 1.8GB upload. Cloudflare has a **100MB limit** for standard proxied traffic. This is why you see a "Network Error" immediately.
+> 
+> **Immediate Action Needed**: To fix this, you MUST go to your Cloudflare Dashboard and **Turn OFF the Proxy (Grey Cloud)** for `sqauto.zeraynce.com`. This will allow the 1.8GB transfer to go directly to your server where we have already enabled 2GB limits.
+
+> [!IMPORTANT]
+> **Real-time Progress Upgrade**: I will refactor the backend "Watcher" to be more aggressive. It will now fetch **Table Names**, **Row Estimates**, and **Current Storage Size** every 5 seconds *during* the restore phase, so your 5-card dashboard feels alive from the first second.
+
+## Proposed Changes
+
+### 1. Backend - Real-time "Restoration Monitor"
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Use a fresh database connection for each monitoring loop iteration to prevent session timeouts.
+- Implement storage size monitoring (MB) while `psql` is running.
+- Add SQL format verification (check for MySQL/SQLServer headers) and report an explicit error if the dump is incompatible.
+
+### 2. Backend - Enhanced Profiler (5-Card Support)
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Integrate duplicate data heuristic (checking for non-unique indexes with repeated patterns).
+- Support partial results in the `Job.profile` JSON so the UI doesn't have to wait for the final scan.
+
+### 3. UI - Premium Data Streaming
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Add a "Pre-upload Check" to detect if the file exceeds 100MB and warn the user about Cloudflare proxies.
+- Fix the error message handling for better "Direct IP" suggestions.
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Finalize the data binding for the **5 Cards**: TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, and READINESS.
+
+## Open Questions
+
+- **Cloudflare Policy**: Are you able to toggle the Cloudflare Proxy to "DNS Only" (Grey Cloud) for this subdomain? If not, I will need to implement a complex **Chunked Upload** system which will take significantly longer to build.
+- **Data Extracted Units**: For "Data Extracted", would you prefer it in MB, GB, or "Total Records Processed"?
+
+## Verification Plan
+
+### Automated Tests
+- `docker logs sqauto_api -f` -> Verify "Watcher: Storage size now X MB" during a simulated large restore.
+- Monitor the `Job` record in Supabase to confirm metadata is updating every 5-10 seconds.
+
+### Manual Verification (Using browser tool)
+- I will simulate a long-running restore and verify that the "TABLES" and "ROWS" cards grow incrementally on the UI.

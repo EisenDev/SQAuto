@@ -1,0 +1,8 @@
+# Task: Bot Timing Refinement (Universal & Random Wait)
+
+- [x] Update BotAction Model with randomized wait fields
+- [x] Update Profile Service for timing persistence
+- [x] Implement random wait logic in Automation Engine
+- [x] Update Calibration Wizard with randomized wait dialog
+- [/] Update/Add Tests for randomized timing
+- [ ] Verify implementation with manual test

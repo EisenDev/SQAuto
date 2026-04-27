@@ -1,0 +1,7 @@
+- [ ] Initialize task tracking
+- [ ] Generate WORK_HISTORY.md from existing conversation data
+    - [ ] Collect titles and IDs from summaries and disk
+    - [ ] Link walkthroughs for each active session found
+- [ ] Create backup_history.sh script
+- [ ] Verify script and document functionality
+- [ ] Provide guidance on safe USB shutdown

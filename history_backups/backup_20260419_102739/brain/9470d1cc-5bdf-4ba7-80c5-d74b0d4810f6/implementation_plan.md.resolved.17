@@ -1,0 +1,36 @@
+# Implementation Plan - SCHEMA ISOLATION & PROGRESS FIX (v2.3.1)
+
+I have found the "Hidden Blocker." Even though we told the database to use the `staging` schema, your SQL dump contains "GPS coordinates" (commands like `SET search_path = public`) that force the database to ignore our settings and try to write to restricted areas. 
+
+I will now implement a "Schema Fortress" that blocks these commands and forces the data into our staging sandbox.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Total Schema Hijack:** I will update the stream processor to strip any `SET search_path` commands from your dump. This ensures that every table, index, and constraint is forced into the `staging` schema, bypassing any permission issues in the `public` area.
+
+> [!TIP]
+> **Fluid Progress:** I am increasing the "Heartbeat" frequency of the progress bar. It will now update every **1MB** of data processed instead of every 5MB. This will eliminate the "0% stall" appearance in the UI.
+
+## Proposed Changes
+
+### 1. The Schema Fortress (The "Relation Not Found" Fix)
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Search Path Stripping:** Add regex to identify and strip `SET search_path` commands.
+- **Public Schema Stripping:** Add regex to strip `CREATE SCHEMA IF NOT EXISTS public`.
+- **Global Injection:** Inject a forced `SET search_path TO staging;` at the very beginning of the stream to ensure the database follows our lead from the first byte.
+
+### 2. UI Pulse Upgrade (The "0% Progress" Fix)
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Sync Threshold:** Lower the progress sync threshold from `5MB` to `1MB`. This ensures the Readiness card moves fluidly during decompression.
+
+### 3. Remote Sync & Rebuild
+- **SSH Exec:** `scp` -> `docker compose down` -> `docker compose build --no-cache api` -> `docker compose up -d`.
+- **Version Marker:** Update footer to **`v2.3.1-INDUSTRIAL-STAGING`**.
+
+## Verification Plan
+
+### Manual Verification (on the VM)
+1. Confirm `docker exec sqauto_api cat /app/services/dump_restore/service.py` contains the `search_path` stripping regex.
+2. Monitor the "Live Console" during upload to confirm `[INDUSTRIAL SANITIZED] SEARCH_PATH REMOVED` appears.
+3. Verify the Readiness card moves incrementally during restoration.

@@ -1,0 +1,11 @@
+# Task Checklist
+- [ ] Go to http://localhost:49100
+- [ ] Upload Excel: /home/eisen/Downloads/Otumisyon/mock_data/input.xlsx
+- [ ] Upload Legacy SQL: /home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql
+- [ ] Upload Current SQL: /home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql
+- [ ] Click 'Upload Data Sources'
+- [ ] Click 'Run Reconciliation Engine'
+- [ ] Verify 'Results & Review' tab (Identical: 68, Safe Updates: 84)
+- [ ] Verify 'SQL Patch & Export' tab
+- [ ] Click 'Export Patch' and verify download
+- [ ] Final summary and confirmation

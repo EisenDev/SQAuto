@@ -1,0 +1,9 @@
+# Task List: Phase 7 Dynamic UI Implementation
+
+- [ ] Modify `src/core/excel_loader.py` to expose `get_headers(path)` without fully parsing the document.
+- [ ] Refactor `src/core/query_builder.py` variables to be instantiated dynamically instead of `settings.yaml`.
+- [ ] Add **Data Mapping Toolbars** and **SQL Parser Square** elements within `ControlHub` (`src/ui/app_window.py`).
+- [ ] Build SQL auto-parsing regex hooks linking raw PostgreSQL to dropdown data.
+- [ ] Update `OrchestratorThread` payload structure inside `src/ui/workers.py` to ingest UI inputs explicitly.
+- [ ] Wire `AuditorApp` execution flow inside `src/main.py` routing User settings -> Orchestrator instantiation.
+- [ ] Verify End-To-End parsing with PyTest or local demo tests.

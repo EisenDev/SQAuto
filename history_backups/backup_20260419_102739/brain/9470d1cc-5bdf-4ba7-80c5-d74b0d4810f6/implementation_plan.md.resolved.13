@@ -1,0 +1,39 @@
+# Implementation Plan - EMERGENCY PIPELINE RECOVERY
+
+The platform is currently paralyzed by a classic **Subprocess Deadlock** in the decompression loop and an **Environment Mismatch** between your local development folder and the Azure production VM.
+
+## User Review Required
+
+> [!CAUTION]
+> **Environment Sync Needed:** I am currently editing the files in your `~/Downloads` folder. However, your site is running from `~/SQAuto` on the Azure VM. I will fix the code here, but you **MUST** pull these changes on the VM to see the effect.
+
+> [!IMPORTANT]
+> **Deadlock Confirmed:** The '0% stall' is caused by `psql` filling its error buffer (64KB) while the Python process waits to write more data. They are currently staring at each other in a deadlock.
+
+## Proposed Changes
+
+### 1. Robust Pipe Draining (The 0% Fix)
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Direct Log Redirection:** I will redirect both `stdout` and `stderr` of the `psql` process directly to a physical file on disk (`/app/uploads/restoration.log`).
+- **Deadlock Prevention:** By using a file handle instead of a `PIPE`, the OS will handle the buffer draining, preventing the Python thread from hanging.
+- **Fail-Safe Processing:** Ensure all file handles are closed and processes are terminated correctly on failure.
+
+### 2. UI Integrity Verification (Cache Buster)
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Update version label to **`v2.1.1-EMERGENCY-FIX`**.
+- Add a visible **Environment Warning** if the API is not responding.
+
+### 3. Production Deployment (Sync)
+- I will provide a single 'Super-Command' for you to run on the Azure VM to pull these fixes and relaunch and force-clear the deadlock.
+
+## Verification Plan
+
+### Automated Tests
+- Syntax check on `service.py`.
+- Mock run of the extraction loop with a dummy `.gz` file.
+
+### Manual Verification
+1. User pulls changes to Azure VM.
+2. User runs the `docker compose` force-rebuild command.
+3. User verifies the `v2.1.1-EMERGENCY-FIX` footer is visible.
+4. User monitors `/app/uploads/restoration.log` inside the container to see real-time SQL execution.

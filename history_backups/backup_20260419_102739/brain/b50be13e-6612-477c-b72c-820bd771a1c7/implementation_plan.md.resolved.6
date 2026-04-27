@@ -1,0 +1,30 @@
+# Resolution Plan: Fixing Domain Access & Routing
+
+We have "Welcome to nginx!" because the default Nginx configuration is blocking our app, and the API needs to be updated to recognize your new domain.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Automatic Migration**: The app is designed to create tables automatically on startup. If we fix the connection, the tables will appear in Supabase immediately.
+
+> [!WARNING]
+> **CORS Update**: I need to update the Backend to allow requests from `sqauto.zeraynce.com`. Currently, it only allows `localhost`.
+
+## Proposed Changes
+
+### 1. Nginx Configuration Repair
+We will update the configuration on the server to:
+- Disable the default Nginx "Welcome" page.
+- Fix the `/api` routing so it correctly reaches the Backend's `/health` and `/api/*` endpoints.
+
+### 2. Backend CORS Update
+#### [MODIFY] [main.py](file:///home/eisen/Downloads/SQAuto/apps/api/main.py)
+- Add `https://sqauto.zeraynce.com` to the `allow_origins` list.
+
+### 3. Verification Steps
+- Check Docker logs for database connection errors.
+- Visit the domain to verify the Frontend loads.
+
+## Open Questions
+
+1. **Supabase Connectivity**: Please check the logs by running `sudo docker logs sqauto_api`. If you see "PostgreSQL connected", then the tables are already migrated!

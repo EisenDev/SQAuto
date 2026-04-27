@@ -1,0 +1,11 @@
+# Task: Verify SQAuto Dashboard at http://admin.zeraynce.com/
+
+## Plan
+- [ ] Navigate to http://admin.zeraynce.com/
+- [ ] Verify dashboard loads correctly (no 502)
+- [ ] Check browser console for `NEXT_PUBLIC_API_URL`
+- [ ] Check network tab for `/jobs` request and response
+- [ ] Confirm everything is functional
+
+## Findings
+- 

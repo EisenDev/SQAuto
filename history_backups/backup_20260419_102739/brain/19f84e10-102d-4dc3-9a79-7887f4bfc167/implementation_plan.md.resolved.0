@@ -1,0 +1,168 @@
+# Implementation Plan for SQAuto Initial Scaffolding
+
+## Goal Description
+Create the foundational repository structure, Docker dev environment, FastAPI backend, Next.js frontend, worker scaffolding, shared config, placeholder routes and services, and a new UI specification document (`UI_FRONTEND_SPECS.md`). All work must strictly follow the existing markdown documentation (AGENT.md, ARCHITECTURE.md, DOCS.md, FILE_STRUCTURE.md, PROMPT_SPECS.md, SAFETY_RULES.md, TECH_STACK.md) and respect safety boundaries (read‑only source, staging‑only transformations, AI assistive only, no production writes).
+
+## User Review Required
+> [!IMPORTANT]
+> Please review the proposed file layout, Docker setup, and placeholder code. Confirm that the structure aligns with the `FILE_STRUCTURE.md` tree and that no safety rules are violated. Approve to proceed with file creation.
+
+## Proposed Changes
+---
+### Repository Scaffold (based on `FILE_STRUCTURE.md`)
+#### [NEW] `apps/api/__init__.py`
+#### [NEW] `apps/api/main.py`
+#### [NEW] `apps/api/router.py`
+#### [NEW] `apps/api/models.py`
+#### [NEW] `apps/api/schemas.py`
+#### [NEW] `apps/api/deps.py`
+#### [NEW] `apps/api/config.py`
+#### [NEW] `apps/web/__init__.py`
+#### [NEW] `apps/web/next.config.js`
+#### [NEW] `apps/web/package.json`
+#### [NEW] `apps/web/tailwind.config.js`
+#### [NEW] `apps/web/postcss.config.js`
+#### [NEW] `apps/web/src/app/layout.tsx`
+#### [NEW] `apps/web/src/app/page.tsx`
+#### [NEW] `apps/web/src/components/Header.tsx`
+#### [NEW] `apps/web/src/components/UploadCard.tsx`
+#### [NEW] `apps/web/src/components/SummaryCard.tsx`
+#### [NEW] `apps/web/src/components/TableView.tsx`
+#### [NEW] `apps/web/src/components/AIExplanationPanel.tsx`
+#### [NEW] `apps/web/src/components/ExportPanel.tsx`
+#### [NEW] `apps/web/src/components/AdvancedTools.tsx`
+#### [NEW] `apps/web/src/styles/globals.css`
+#### [NEW] `workers/migration_worker/__init__.py`
+#### [NEW] `workers/migration_worker/tasks.py`
+#### [NEW] `workers/migration_worker/worker.py`
+#### [NEW] `services/ai_assistant/__init__.py`
+#### [NEW] `services/ai_assistant/service.py`
+#### [NEW] `services/ai_assistant/models.py`
+#### [NEW] `services/ai_assistant/utils.py`
+#### [NEW] `services/ai_assistant/prompts.py`
+#### [NEW] `services/cleaner/__init__.py`
+#### [NEW] `services/cleaner/service.py`
+#### [NEW] `services/cleaner/models.py`
+#### [NEW] `services/cleaner/utils.py`
+#### [NEW] `services/cleaner/rules.py`
+#### [NEW] `services/dump_restore/__init__.py`
+#### [NEW] `services/dump_restore/service.py`
+#### [NEW] `services/dump_restore/models.py`
+#### [NEW] `services/dump_restore/utils.py`
+#### [NEW] `services/exporter/__init__.py`
+#### [NEW] `services/exporter/service.py`
+#### [NEW] `services/exporter/models.py`
+#### [NEW] `services/exporter/utils.py`
+#### [NEW] `services/exporter/excel.py`
+#### [NEW] `services/exporter/sql.py`
+#### [NEW] `services/extractor/__init__.py`
+#### [NEW] `services/extractor/service.py`
+#### [NEW] `services/extractor/models.py`
+#### [NEW] `services/extractor/utils.py`
+#### [NEW] `services/extractor/chunking.py`
+#### [NEW] `services/relationship_repair/__init__.py`
+#### [NEW] `services/relationship_repair/service.py`
+#### [NEW] `services/relationship_repair/models.py`
+#### [NEW] `services/relationship_repair/utils.py`
+#### [NEW] `services/relationship_repair/matching.py`
+#### [NEW] `services/relationship_repair/scoring.py`
+#### [NEW] `services/schema_profiler/__init__.py`
+#### [NEW] `services/schema_profiler/service.py`
+#### [NEW] `services/schema_profiler/models.py`
+#### [NEW] `services/schema_profiler/utils.py`
+#### [NEW] `services/schema_profiler/analyzers.py`
+#### [NEW] `services/validator/__init__.py`
+#### [NEW] `services/validator/service.py`
+#### [NEW] `services/validator/models.py`
+#### [NEW] `services/validator/utils.py`
+#### [NEW] `services/validator/checks.py`
+#### [NEW] `configs/model_config.py`
+#### [NEW] `configs/settings.py`
+#### [NEW] `docker/docker-compose.yml`
+#### [NEW] `docker/Dockerfile`
+#### [NEW] `scripts/extract_data.py`
+#### [NEW] `scripts/profile_schema.py`
+#### [NEW] `scripts/restore_dump.py`
+#### [NEW] `scripts/validate_data.py`
+#### [NEW] `UI_FRONTEND_SPECS.md`
+---
+### Docker / Dev Environment
+#### [NEW] `docker/docker-compose.yml`
+- Services: `api`, `web`, `worker`, `postgres` (staging DB), `redis`.
+- Mount source code, expose ports 8000 (API) and 3000 (Web).
+- Use official images (`python:3.12-slim`, `node:20-alpine`).
+
+#### [NEW] `docker/Dockerfile`
+- Multi‑stage build for FastAPI backend and Next.js frontend.
+- Install dependencies, copy source, expose appropriate ports.
+
+### FastAPI Backend Baseline
+#### [NEW] `apps/api/main.py`
+- Create FastAPI instance, include router, health endpoint.
+
+#### [NEW] `apps/api/router.py`
+- Placeholder `APIRouter` with route stubs for upload, jobs, profiling, extraction, cleaning, relations, validation, exports, AI.
+- Each route returns JSON `{ "status": "TODO", "detail": "Not implemented yet" }`.
+
+#### [NEW] `apps/api/config.py`
+- Load settings via Pydantic `BaseSettings` (reads from `configs/settings.py`).
+
+#### [NEW] `apps/api/deps.py`
+- Dependency placeholders (e.g., DB session, Redis client).
+
+### Next.js Frontend Baseline
+#### [NEW] `apps/web/package.json`
+- Include Next.js, TypeScript, Tailwind, shadcn/ui dependencies.
+
+#### [NEW] `apps/web/next.config.js`
+- Enable App Router.
+
+#### [NEW] `apps/web/tailwind.config.js` & `postcss.config.js`
+- Basic Tailwind setup.
+
+#### [NEW] `apps/web/src/app/layout.tsx`
+- Root layout with `Header` component and global CSS.
+
+#### [NEW] `apps/web/src/app/page.tsx`
+- Dashboard page rendering placeholder cards (`UploadCard`, `SummaryCard`, `TableView`, `AIExplanationPanel`, `ExportPanel`, `AdvancedTools`).
+
+#### Component Stubs (`Header.tsx`, `UploadCard.tsx`, etc.)
+- Minimal functional React components with TypeScript typings, Tailwind classes, and `TODO` comments.
+
+### Worker Baseline
+#### `workers/migration_worker/worker.py`
+- Celery/RQ worker entry point (placeholder). Registers task functions from `tasks.py`.
+
+#### `workers/migration_worker/tasks.py`
+- Define async placeholder functions: `restore_job`, `profile_job`, `extract_job`, `clean_job`, `repair_relations_job`, `validate_job`, `export_job`.
+- Each function logs entry and returns a simple dict.
+
+### Shared Config Loading
+- `configs/settings.py` uses Pydantic `BaseSettings` to expose environment variables (DB URL, Redis URL, etc.).
+- `configs/model_config.py` placeholder for AI model selection.
+
+### Service Layer Stubs
+- Each service package contains `service.py` with a class exposing methods matching the placeholder routes (e.g., `UploadService.upload_file`). Methods contain `raise NotImplementedError` or return TODO dicts.
+- `models.py` defines Pydantic models for request/response schemas.
+- `utils.py` contains generic helper functions (e.g., `log_placeholder`).
+- Additional files (`rules.py`, `chunking.py`, etc.) contain empty placeholder functions with docstrings.
+
+### UI_FRONTEND_SPECS.md
+- Full specification covering design philosophy, layout, pages, UX rules, style rules, component guidance as requested.
+
+## Verification Plan
+- Run `docker compose up --build` to ensure containers start without runtime errors (services will only import modules, no DB connections needed yet).
+- Execute `uvicorn apps.api.main:app --reload` locally to verify FastAPI starts and health endpoint returns 200.
+- Run `npm install && npm run dev` inside `apps/web` to verify Next.js compiles.
+- Run a simple Python script importing a service module to ensure no import errors.
+- No unit tests are required at this stage; manual start‑up checks suffice.
+
+## Open Questions
+> [!WARNING]
+> - Do you prefer Celery or RQ for the worker queue? The plan uses a generic placeholder that can be swapped later.
+> - Should the Docker compose expose ports 8000 (API) and 3000 (Web) or different values?
+> - Any specific naming conventions for environment variables beyond those in `configs/settings.py`?
+
+## Next Steps After Approval
+- Execute the plan: create all files/folders, write the content as described, and run the verification steps.
+- Update `task.md` and `walkthrough.md` artifacts accordingly.

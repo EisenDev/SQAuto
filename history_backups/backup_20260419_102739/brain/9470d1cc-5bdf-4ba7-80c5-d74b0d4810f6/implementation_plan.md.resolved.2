@@ -1,0 +1,49 @@
+# Implementation Plan - Industrial Visibility Stabilization
+
+The system is currently reporting "45% Decompressing" because of a missing `file_size` field in the API response, causing the frontend to fall back to a hardcoded default. Additionally, the "Data Peeking" feature is failing because of a database search path conflict during the restoration heartbeat.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Data Peeking Logic:** I am removing the `SET search_path` command from the background heartbeat to ensure it doesn't conflict with the main system tables. I will use explicit schema references (`staging.table_name`) instead.
+
+## Proposed Changes
+
+---
+
+### [Component] Backend API
+#### [MODIFY] [router.py](file:///home/eisen/Downloads/SQAuto/apps/api/router.py)
+- Update `job_detail` endpoint to include `file_size` in the returned JSON.
+- Ensure the `profile` object is always structured correctly for the frontend.
+
+---
+
+### [Component] Restoration Service
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Remove `SET search_path`**: This was causing `relation "jobs" does not exist` errors.
+- **Explicit Schema Peeking**: Update the SQL query in `_flush_progress` to explicitly target the `staging` schema for metadata discovery and data sampling.
+- **Robustness**: Wrap the peeking query in a more granular try/except to ensure a single locked table doesn't crash the entire heartbeat.
+
+---
+
+### [Component] Frontend Dashboard
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Update the `getReadiness` logic to remove the hardcoded `45%` fallback.
+- Show "Calculating Progress..." if the file size is being determined, ensuring the user isn't misled by fake percentages.
+
+---
+
+## Open Questions
+
+- **Restoration Check:** Does your 114MB file contain a specific schema other than `public` or `staging`? I am assuming all salvaged data goes into `staging`.
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Upload a file and verify via `docker logs sqauto_api` that the heartbeat is now successfully committing updates to the `jobs` table without `UndefinedTable` errors.
+- Check the `/api/jobs/{id}` response to confirm `file_size` is present.
+
+### Manual Verification
+- Verify the "Readiness" card shows a dynamic percentage based on real compression progress.
+- Verify the "Extracted Tables" section populates with real data samples during the "Restoring" phase.

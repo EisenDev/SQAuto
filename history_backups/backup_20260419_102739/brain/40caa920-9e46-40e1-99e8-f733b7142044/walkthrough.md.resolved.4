@@ -1,0 +1,28 @@
+# Walkthrough - Stability & Real-time Progress (SQAuto)
+
+We have successfully resolved the Out-of-Memory (OOM) crashes and implemented a high-performance, real-time progress dashboard for SQAuto.
+
+## Key Accomplishments
+
+### 1. Stability & OOM Prevention
+- **Memory Optimization**: Eliminated the memory bottleneck in the `DumpRestoreService` by switching from buffered log capture to a high-speed stream. This ensures the system remains stable even when processing 1GB+ SQL dumps on a 4GB RAM Azure VM.
+- **Process Robustness**: Replaced blocking synchronous calls with **FastAPI Background Tasks**. Your workers are now free to handle other requests while the heavy processing happens safely in the background.
+
+### 2. Real-time Progress Dashboard
+- **Incremental Scanning**: Refactored the `SchemaProfilerService` to update the database table-by-table. You can now see discovered tables appearing on your dashboard "live" every few seconds, rather than waiting for the entire scan to finish.
+- **Polished UI Interaction**: Integrated high-quality **Pulse Skeletons** and a **Size-Based Time Estimator** to provide immediate visual feedback from the moment you click "Upload."
+
+### 3. Production Readiness
+- **Corrected Domain**: The platform is fully operational at [https://sqauto.zeraynce.com/](https://sqauto.zeraynce.com/).
+- **Verified Connectivity**: Confirmed end-to-end connectivity between the Cloudflare-fronted UI, the containerized API, and the Supabase backend.
+
+## Visual Verification
+
+![Polished Dashboard](file:///home/eisen/.gemini/antigravity/brain/40caa920-9e46-40e1-99e8-f733b7142044/final_stability_progress_verification_ui_2_1776437084405.webp)
+
+## Final Status
+- **Backend**: Stable (Async Pipeline Active)
+- **Frontend**: Polished (Skeletons & Real-time Updates)
+- **Database**: Connected (Supabase Verified)
+
+**The platform is now optimized for heavy production workloads and provides a premium, responsive user experience!**

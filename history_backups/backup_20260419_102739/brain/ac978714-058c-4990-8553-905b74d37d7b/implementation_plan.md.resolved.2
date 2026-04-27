@@ -1,0 +1,31 @@
+# Direct Server Fix via SSH
+
+The user has provided SSH access to solve the "Bad Gateway" problem directly. Based on the logs and container statuses, the site is down because the frontend container is crashing due to a malformed command and the backend cannot initialize Supabase because of missing dependencies on the host.
+
+## Proposed Actions on Server
+
+### 1. Fix `docker-compose.yml` on the Server
+I will update the `docker-compose.yml` file on the server (under `SQAuto/docker/`) with the following:
+- **Correct Frontend Command**: Change `npm run dev:web -- ...` to `npm run dev --workspace=@sqauto/web -- -p 3000 -H 0.0.0.0`. This correctly forwards arguments to the Next.js process.
+- **Disable Failing Worker**: Comment out the `worker` service since it's currently causing noise and its source code is missing from the repository (the API is currently monolithic and handles restorations directly anyway).
+
+### 2. Initialize Supabase Database
+Instead of running it on the host (where `sqlalchemy` is missing), I will run the initialization script **inside the running `api` container**.
+- **Command**: `sudo docker exec sqauto_api python3 scripts/init_db.py`
+
+### 3. Service Restart
+After the config fix, I will restart the services:
+- **Command**: `sudo docker compose -f SQAuto/docker/docker-compose.yml up -d --build`
+
+## User Review Required
+
+> [!CAUTION]
+> **No Data Deletion**: I will strictly follow the rule to not delete anything. I will only modify the configuration and run the initialization script.
+
+> [!IMPORTANT]
+> **SSH Command**: I will use the provided key and IP: `ssh -i /home/eisen/Downloads/SQAuto/SQAUTO_key.pem azureuser@4.230.17.169`.
+
+## Verification Plan
+1. **Check Containers**: Run `sudo docker ps` to ensure all containers (including `sqauto_web`) are `Up`.
+2. **Check Logs**: Run `sudo docker logs sqauto_api` to ensure the Supabase connection is healthy.
+3. **External Ping**: Verify that the domain `sqauto.zeraynce.com` responds (this might require the user to check but Nginx status should confirm).

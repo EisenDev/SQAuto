@@ -1,0 +1,12 @@
+# Browser Task: UI Evolution Pass Verification
+
+## Tasks
+- [ ] Navigate to http://localhost:49100 <!-- id: 0 -->
+- [ ] Capture screenshot of 'Ingest & Define' tab (Source Selection & Friendly Labels) <!-- id: 1 -->
+- [ ] Click 'Legacy App' to show info panel <!-- id: 2 -->
+- [ ] Capture screenshot of Legacy App info panel <!-- id: 3 -->
+- [ ] Close browser <!-- id: 4 -->
+
+## Notes
+- URL: http://localhost:49100
+- Goal: Verify UI refinements for Phase 8/9 preparation.

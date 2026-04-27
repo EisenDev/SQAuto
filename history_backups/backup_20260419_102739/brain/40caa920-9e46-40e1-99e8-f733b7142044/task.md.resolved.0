@@ -1,0 +1,18 @@
+# Tasks: SQAuto Remake & Stabilization
+
+- [ ] Phase 1: Local Configuration Optimization
+    - [ ] Create `.dockerignore` to reduce build context size
+    - [ ] Update `apps/web/next.config.js` for standalone output
+    - [ ] Complete rewrite of `docker/Dockerfile` for production-grade builds
+- [ ] Phase 2: Production Orchestration
+    - [ ] Create `docker/nginx.conf` for the Nginx proxy container
+    - [ ] Rewrite `docker/docker-compose.yml` to use pre-built images and Nginx
+- [ ] Phase 3: Robust CI/CD Pipeline
+    - [ ] Rewrite `.github/workflows/deploy.yml` with proper buildx and caching
+- [ ] Phase 4: Server Bootstrap & Scaling
+    - [ ] Update `scripts/setup_vm.sh` with Swap file creation and Docker setup
+    - [ ] Create `scripts/add_swap.sh` (standalone swap utility)
+- [ ] Phase 5: Verification & Handover
+    - [ ] Build Docker images locally to verify configurations
+    - [ ] Verify Supabase connection via local check script
+    - [ ] Final instructions for GitHub Secrets and VM bootstrap

@@ -1,0 +1,36 @@
+# Push Codebase to GitHub
+
+The goal is to push the current `SQAuto` codebase to the provided GitHub repository (`https://github.com/EisenDev/SQAuto.git`). Since the local directory is not yet a git repository, we need to initialize it, set up a proper `.gitignore`, and commit the files before pushing.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Authentication**: Pushing to GitHub requires authentication. Since there are no SSH keys detected and the GitHub CLI (`gh`) is not installed, the `git push` command will likely prompt for credentials (Username and Personal Access Token). I will prepare the repository locally, but you may need to enter your credentials or set up an SSH key to complete the push.
+
+## Proposed Changes
+
+### Git Configuration
+
+#### [NEW] [.gitignore](file:///home/eisen/Downloads/SQAuto/.gitignore)
+Create a `.gitignore` file to ensure sensitive data and large dependency folders are not pushed to GitHub.
+
+### Execution Steps
+
+1.  **Initialize Git**: Run `git init` in the root directory.
+2.  **Add Remote**: Add the remote origin pointing to `https://github.com/EisenDev/SQAuto.git`.
+3.  **Stage Files**: Add all relevant files to the staging area.
+4.  **Initial Commit**: Create an initial commit with a descriptive message.
+5.  **Push**: Attempt to push to the `main` branch.
+
+## Open Questions
+
+1.  **Desired Branch**: Should I push to the `main` branch or a different one (e.g., `master`)?
+2.  **Auth Method**: Do you prefer to use a Personal Access Token (PAT) over HTTPS or would you like me to help you generate and add an SSH key to your GitHub account?
+
+## Verification Plan
+
+### Manual Verification
+- Run `git remote -v` to verify the remote URL.
+- Run `git log` to verify the commit.
+- Run `git status` to ensure all necessary files are tracked and ignored files are skipped.
+- Attempt `git push` and observe the output.

@@ -1,0 +1,7 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Industrial Takeover (v3.1.0). Forcing a total cache-busting deployment of the 'v3.1.0' dashboard and backend. Including a 'docker system prune' and 'Nginx purge' to ensure the user sees the new version and its critical fixes. village. village.",
+  "updatedAt": "2026-04-19T01:31:01.792010104Z",
+  "version": "18",
+  "requestFeedback": true
+}

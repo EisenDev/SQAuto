@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Summary of Bot Timing Refinements: Users can now set base wait times and random jitter ranges to simulate human-like behavior. The Calibration Wizard has been updated with a 'Configure Wait Step' dialog.",
+  "updatedAt": "2026-04-16T07:44:54.344139462Z"
+}

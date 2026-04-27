@@ -1,0 +1,5 @@
+- [ ] Update `.gitignore` to ignore `uploads/` and database files
+- [ ] Remove large SQL files from `uploads/`
+- [ ] Reset Git history and re-commit without large files
+- [ ] Verify large files are no longer tracked
+- [ ] Push to GitHub

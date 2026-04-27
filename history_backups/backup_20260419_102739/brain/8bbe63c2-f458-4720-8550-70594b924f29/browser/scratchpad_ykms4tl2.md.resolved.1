@@ -1,0 +1,16 @@
+# Task Checklist
+- [x] Go to http://localhost:49100
+- [x] Upload Excel: /home/eisen/Downloads/Otumisyon/mock_data/input.xlsx
+- [x] Upload Legacy SQL: /home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql
+- [x] Upload Current SQL: /home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql
+- [x] Click 'Upload Data Sources'
+- [x] Click 'Run Reconciliation Engine'
+- [/] Verify 'Results & Review' tab (Identical: 68, Safe Updates: 84) - Encountered CORS error on frontend; bypassing via Swagger UI.
+- [ ] Verify 'SQL Patch & Export' tab
+- [ ] Click 'Export Patch' and verify download
+- [ ] Final summary and confirmation
+
+## Findings
+- Frontend at :49100 cannot hit backend at :8000 due to CORS policy.
+- Bypassing via backend documentation (Swagger UI) at :8000/docs.
+- Triggered reconciliation for session `89f109f8-dd20-4528-aa4a-4e3c20d83cee`.

@@ -1,0 +1,6 @@
+- [ ] Fix the `import time` and path bugs in `DumpRestoreService.py`
+- [ ] Ensure `stderr` is correctly written to `jobs.log` in the database upon failure
+- [ ] Implement the "Error Console" component in `UploadCard.tsx`
+- [ ] Add "View Detailed Log" button for `FAILED` jobs
+- [ ] Sync and Force-Rebuild containers on the Azure server
+- [ ] Verify the Debugger UI with a simulated (or real) failure

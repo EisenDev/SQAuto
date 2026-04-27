@@ -1,0 +1,49 @@
+# Implementation Plan - Final Domain Fix & UI Polish
+
+This plan addresses the domain correction to `sqauto.zeraynce.com`, finalizes the Supabase connection stability, and implements premium UI features like loading skeletons and processing time estimates.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Domain Re-Sync**: I will be switching all references from `admin` to `sqauto.zeraynce.com`. This will require a full rebuild of the web container on the server to bake the correct API URL into the Next.js bundle.
+> 
+> [!NOTE]
+> **Supabase Connectivity**: I have verified that the `jobs` table exists on your Supabase project. If you are not seeing "connections" in the Supabase UI, it may be due to how they track idle connections. I will add a "Database Heartbeat" check to the API logs for your peace of mind.
+
+## Proposed Changes
+
+### 1. Domain & Routing Calibration
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Update `server_name` to `sqauto.zeraynce.com`.
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Update `NEXT_PUBLIC_API_URL` build-arg and environment to `https://sqauto.zeraynce.com/api`.
+
+#### [MODIFY] [main.py](file:///home/eisen/Downloads/SQAuto/apps/api/main.py)
+- Add `https://sqauto.zeraynce.com` to the CORS whitelist.
+
+### 2. UI Enhancements (Premium UX)
+
+#### [NEW] [Skeleton.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/Skeleton.tsx)
+- Create a reusable pulse-animation skeleton component for loading states.
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Add a "Time Estimate" display (e.g., "Est: ~2 mins depending on file size") that appears when the pipeline starts.
+- Integrate the Skeleton component for the status indicator.
+
+#### [MODIFY] [app/page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Use skeletons instead of "0" or empty states when the initial job list is loading.
+
+## Open Questions
+
+- **Time Estimation**: Do you want the estimate to be based on the actual file size (e.g. 10MB/min) or a generic average "2-5 mins" for now?
+- **Cloudflare SSL**: Is Cloudflare set to "Full (Strict)"? If so, we may eventually need to add an Origin Certificate to Nginx, but currently, we are using port 80 (HTTP) behind Cloudflare.
+
+## Verification Plan
+
+### Automated Tests
+- `docker exec sqauto_api curl -s localhost:8000/api/jobs` -> Should return a JSON array (even if empty).
+
+### Manual Verification
+- I will refresh the browser at `https://sqauto.zeraynce.com/` and confirm the UI loads with skeletons and calls the correct API domain.

@@ -1,0 +1,9 @@
+# Phase 7: Integrate and Refine V1
+
+- [ ] Setup backend storage and session store extensions
+- [ ] Implement real `POST /api/v1/upload` with SQL restoration
+- [ ] Update `POST /api/v1/reconcile` to use session-specific files
+- [ ] Update `.gitignore` to exclude `storage/`
+- [ ] Implement real frontend upload handling (`FormData`)
+- [ ] Refine frontend with loading states and error handling
+- [ ] Verify end-to-end workflow (Upload -> Reconcile -> SQL Preview)

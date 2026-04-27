@@ -1,0 +1,21 @@
+# SQAuto Verification Scratchpad
+
+## Progress Checklist
+- [x] Navigate to `http://sqauto.zeraynce.com/` (HTTP only)
+- [/] Verify 5 cards: TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS (Present, but values are blank except READINESS 0%)
+- [ ] Check console logs for /api/jobs polling success (200 OK)
+- [x] Verify no "Network Error" in UI (No error alert visible)
+- [x] Confirm polished and responsive UI
+
+## Findings
+- URL: http://sqauto.zeraynce.com/
+- Dashboard: Loaded successfully.
+- State: STANDBY
+- Cards:
+  - TABLES: Present (Blank value)
+  - ROWS: Present (Blank value)
+  - DATA EXTRACTED: Present (Blank value)
+  - DUPLICATE DATA: Present (Blank value)
+  - READINESS: 0%
+- UI: Looks clean, Teal/White theme.
+- Issues: `browser_list_network_requests` failed once. Will retry.

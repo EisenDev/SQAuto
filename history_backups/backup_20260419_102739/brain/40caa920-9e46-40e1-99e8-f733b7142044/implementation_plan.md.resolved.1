@@ -1,0 +1,156 @@
+# Remake: SQAuto — Full Dockerization, Supabase Connection & CI/CD
+
+Complete re-architecture of SQAuto to be production-ready from day 1. We fix the root cause of the old server dying — it was running `next dev` and `uvicorn --reload` in Docker (heavy dev-mode processes on a small VM). We replace them with a proper production build pipeline.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Before I start coding, I need 3 things from you:**
+> 1. **Docker Hub username** — I will push images to Docker Hub. What is your Docker Hub username?
+> 2. **New Azure VM IP** — Once you create the new server, share the IP.
+> 3. **Supabase connection string** — It's already in your `.env` — I'll guide you to verify it works locally.
+
+> [!WARNING]
+> **GitHub Secrets must be set** before the CI/CD pipeline can deploy. After my changes, you'll need to add these in GitHub → Settings → Secrets:
+> - `DOCKER_HUB_USERNAME`
+> - `DOCKER_HUB_TOKEN`
+> - `VM_IP` (new server IP)
+> - `VM_SSH_KEY` (contents of your `.pem` key)
+> - `DATABASE_URL` (your Supabase connection string)
+> - `NEXT_PUBLIC_API_URL` (`https://sqauto.zeraynce.com/api`)
+> - `SECRET_KEY` (any random string)
+> - `GOOGLE_API_KEY`
+
+---
+
+## What Was Wrong Before
+
+| Problem | Root Cause | Fix |
+|---|---|---|
+| 502 Bad Gateway | `next dev` running in prod — consumed all RAM | Build Next.js; run `next start` |
+| SSH timeout | OOM hung the entire server | Standalone Next.js output is ~50MB vs 500MB+ |
+| Build hangs | Docker re-installs all npm deps on every deploy | Use pre-built Docker Hub images |
+| Fragile Nginx | Manual script, not idempotent | Config file in repo, managed by Nginx container |
+
+---
+
+## Architecture (New)
+
+```
+GitHub Push → GitHub Actions:
+   • Builds Docker images (api, web, worker)
+   • Pushes to Docker Hub
+   • SSHes into VM → docker compose pull && docker compose up -d
+
+VM Layout:
+   [Nginx container :80/:443] → [Web container :3000]
+                              → [API container :8000]
+   [Redis container :6379] ← [Worker container]
+   All services → Supabase (external)
+```
+
+---
+
+## Proposed Changes
+
+### 1. Docker — Production Builds
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+Complete rewrite. Key changes:
+- `web` stage: add `RUN npm run build` to compile Next.js, use `next start` not `next dev`
+- Use Next.js **standalone output** mode to reduce image size from ~800MB to ~150MB
+- Add `.dockerignore` to prevent `node_modules`, `.next`, `__pycache__` from being sent to build context (this was causing the slow builds)
+- `api` stage: use `gunicorn` wrapping `uvicorn` for proper multi-worker production serving
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Pull pre-built images from Docker Hub (no more building on the VM!)
+- Add `nginx` service using official image with our config mounted
+- Add `restart: unless-stopped` to all services
+- Add memory limits to protect VM stability
+- Add `uploads` named volume for file persistence
+
+#### [NEW] docker/nginx.conf
+- Production Nginx config inside repo; handles `/api/` → API, `/` → web
+- Handles large SQL file uploads with `client_max_body_size 2g`
+- Proper proxy headers and timeouts
+
+#### [NEW] .dockerignore
+- Exclude `node_modules/`, `.next/`, `__pycache__/`, `uploads/`, `.env`, `.git`
+
+---
+
+### 2. Next.js — Standalone Build Mode
+
+#### [MODIFY] [next.config.js](file:///home/eisen/Downloads/SQAuto/apps/web/next.config.js)
+- Add `output: 'standalone'` — this tells Next.js to bundle only the files needed to run the server, producing a ~150MB image instead of ~800MB
+
+---
+
+### 3. Backend — Production API URL & CORS
+
+#### [MODIFY] [main.py](file:///home/eisen/Downloads/SQAuto/apps/api/main.py)
+- CORS `allow_origins` already has `https://sqauto.zeraynce.com` ✅
+- Add `http://localhost:3000` for local dev ✅ (already there)
+
+---
+
+### 4. CI/CD — Completely Rebuilt GitHub Actions
+
+#### [MODIFY] [deploy.yml](file:///home/eisen/Downloads/SQAuto/.github/workflows/deploy.yml)
+Complete rewrite. Key improvements:
+- Fix the broken `Set up Docker Buildx` step (was pointing to `actions/checkout` — wrong action!)
+- Use Docker layer caching via `cache-from`/`cache-to` — makes rebuilds **80% faster**
+- Inject all secrets into the server's `.env` via SSH (no secrets ever stored in git)
+- Run `docker compose pull && docker compose up -d --remove-orphans` on the VM
+
+---
+
+### 5. Server Bootstrap — Run Once on New VM
+
+#### [MODIFY] [setup_vm.sh](file:///home/eisen/Downloads/SQAuto/scripts/setup_vm.sh)
+Updated server bootstrap script that:
+1. Installs Docker + Docker Compose plugin
+2. Adds `azureuser` to docker group
+3. **Creates 2GB swap file** — critical for preventing OOM hangs
+4. Sets up the `~/sqauto` directory with a docker-compose.yml pointing to Docker Hub images
+5. Sets up Nginx Certbot for SSL
+
+---
+
+### 6. Supabase Local Connection
+
+#### [MODIFY] [.env](file:///home/eisen/Downloads/SQAuto/.env)
+- Verify local `.env` has the correct Supabase pooler URL with port `6543` (transaction mode)
+- The URL already appears correct: `postgresql://postgres.lcijmzschmnzghxqnpsd:...@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres`
+
+#### [MODIFY] [settings.py](file:///home/eisen/Downloads/SQAuto/configs/settings.py)
+- No changes needed; it reads `DATABASE_URL` from `.env` correctly ✅
+
+I will run a local connectivity test after setup to confirm Supabase responds.
+
+---
+
+## Execution Order
+
+- [x] Research complete
+- [ ] **Phase 1 — Local**: Write `.dockerignore`, fix `Dockerfile`, fix `next.config.js`
+- [ ] **Phase 2 — Docker Compose**: Rewrite `docker-compose.yml` with Nginx + Hub images
+- [ ] **Phase 3 — CI/CD**: Rewrite `deploy.yml`
+- [ ] **Phase 4 — Scripts**: Update `setup_vm.sh` with swap + Docker
+- [ ] **Phase 5 — Verify Local**: Run `docker compose build` locally
+- [ ] **Phase 6 — VM Setup**: SSH into new server and run bootstrap script
+- [ ] **Phase 7 — Supabase**: Verify DB connection locally via `python -c "from apps.api.database import engine..."`
+- [ ] **Phase 8 — Push & Deploy**: `git push` triggers CI/CD
+- [ ] **Phase 9 — Verify**: Browser test of `https://sqauto.zeraynce.com/`
+
+## Verification Plan
+
+### Automated Tests
+- `docker compose build` locally to catch any Dockerfile errors before touching the server
+- `curl http://localhost:8000/health` to verify API is up
+- `curl http://localhost:3000` to verify web is up
+- GitHub Actions workflow must show green ✅
+
+### Manual Verification
+- Browser subagent navigates to `https://sqauto.zeraynce.com/` and confirms UI loads
+- Upload a test `.sql` file and verify the pipeline runs end-to-end

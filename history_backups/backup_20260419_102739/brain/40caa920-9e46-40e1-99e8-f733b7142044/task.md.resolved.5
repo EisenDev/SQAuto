@@ -1,0 +1,17 @@
+# Tasks: Project Restoration & Server Launch
+
+- [ ] Phase 1: Local File Restoration
+    - [ ] Restore `requirements.txt`
+    - [ ] Restore `.env` with correct database URL
+    - [ ] Restore `apps/web/next.config.js`
+    - [ ] Restore `scripts/setup_vm.sh`
+- [ ] Phase 2: Synchronization
+    - [ ] Commit and push restored files to GitHub
+- [ ] Phase 3: Server Deployment
+    - [ ] Pull latest changes on the server
+    - [ ] Run `scripts/setup_vm.sh` on the server
+    - [ ] Launch with `docker compose up -d --build`
+- [ ] Phase 4: Final Verification
+    - [ ] Check API health
+    - [ ] Verify website accessibility in browser
+    - [ ] Create Walkthrough

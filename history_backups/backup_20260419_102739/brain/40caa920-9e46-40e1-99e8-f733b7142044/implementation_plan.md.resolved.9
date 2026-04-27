@@ -1,0 +1,52 @@
+# Implementation Plan - Stability & Real-time Progress
+
+This plan resolves the crashes encountered during large SQL dump processing and enables real-time progress tracking in the UI. We will move away from blocking synchronous calls and implement an incremental "scan" that updates the dashboard as it discovers tables.
+
+## User Review Required
+
+> [!CAUTION]
+> **Crash Fix (OOM Prevention)**: I have identified that the system was crashing because it tried to "capture" the entire log of the 1GB+ restore process into the server's RAM. I will be switching this to a non-capturing stream to ensure stability for even larger files (2GB+).
+> 
+> [!IMPORTANT]
+> **Async Pipeline**: The "Upload & Start Pipeline" button will now return immediately, and the UI will show live results. This means you will see tables appearing on the cards one by one as they are discovered, rather than waiting at the end.
+
+## Proposed Changes
+
+### 1. Stability & Memory Optimization
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Remove `capture_output=True` from the `subprocess.run` call. This prevents the logs of a 1GB dump from exhausting the server's memory.
+- Use `stdout=subprocess.DEVNULL` and only capture stderr for error handling.
+
+### 2. Real-time Progress Architecture
+
+#### [MODIFY] [router.py](file:///home/eisen/Downloads/SQAuto/apps/api/router.py)
+- Convert `/jobs/{job_id}/restore` and `/api/jobs/{job_id}/profile` to use FastAPI's `BackgroundTasks`. 
+- This allows the API to respond immediately (`202 Accepted`) so the frontend can start polling.
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Refactor the profiling loop to update the `Job.profile` field in the database **after each table is scanned**. 
+- This ensures the user sees progress every few seconds/minutes as the scan proceeds.
+
+### 3. UI Aesthetics & UX (Live Updates)
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Trigger the entire pipeline background flow once the upload is finished.
+- Support real-time status transitions.
+
+#### [MODIFY] [TableView.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/TableView.tsx)
+- Ensure the table layout doesn't "jump" as new tables are added in real-time. Use stable keys and CSS transitions.
+
+## Open Questions
+
+- **Row Counting**: During the real-time scan, should I attempt to count the rows for each table? (This provides better feedback but may slightly slow down the profiling of very large tables).
+- **History Retention**: Since background tasks run independently, do you want to keep a permanent log of the restore process in the database, or is the live UI enough?
+
+## Verification Plan
+
+### Automated Tests
+- `docker compose logs api` -> Verify no OOM errors during a simulated 1GB dump restore.
+- Monitor the `jobs` table to confirm `profile` JSON is growing incrementally during the scan.
+
+### Manual Verification
+- I will perform a scan and use the **Browser Subagent** to take screenshots every 30 seconds to confirm tables are "appearing" live on the dashboard.

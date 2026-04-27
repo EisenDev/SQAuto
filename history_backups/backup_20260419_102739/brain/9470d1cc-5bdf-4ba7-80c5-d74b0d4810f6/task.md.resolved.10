@@ -1,0 +1,6 @@
+- [ ] Implement the schema rewriter regex in `DumpRestoreService.py`
+- [ ] Add command filtering for `CREATE EXTENSION` and `ALTER OWNER`
+- [ ] Fix the `I/O on closed file` exception by refining the `process.stdin` handling
+- [ ] Sync the final industrial rewriter to the Azure VM via rsync
+- [ ] Rebuild Docker containers on the server
+- [ ] Verify the 114MB restore flow with dynamic schema re-routing

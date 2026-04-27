@@ -1,0 +1,25 @@
+# Industrial Progress Stabilization & Live Debugging
+
+This plan addresses the "stuck at 0%" progress issue and refines the UI based on user feedback to prevent redundant information and provide transparency during active restoration.
+
+## Proposed Changes
+
+### [Backend] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+*   **Reduce Sync Threshold**: Change the progress heartbeat frequency from 20MB to **5MB**. This ensures that even for smaller dumps, the UI updates almost immediately.
+*   **Enable Live Logging**: Uncomment the piping sync logs so we can verify the backend is processing chunks via `docker logs`.
+*   **Industrial Heartbeat**: Add a `last_heartbeat` timestamp and a `status_message` to the profile metadata. This will prove the "Alive" status even if the byte count hasn't jumped yet.
+
+### [Frontend] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+*   **Remove Redundant Readiness Labels**: Simplify the Readiness card to focus on overall mission status, removing the repetitive "Received/Decompressing" text.
+*   **Live Pipeline Insight**: 
+    *   Allow the "Diagnostic Console" to be opened while a job is in `restoring` status.
+    *   Label it "LIVE PIPELINE INSIGHT" when active.
+    *   Show technical "Piping Stats" (e.g., "Chunk Processing Active...") when open during restoration.
+
+## Verification Plan
+
+### Automated/Manual Testing
+1.  **Upload 114MB Dump**: Observe if the progress bar starts moving much earlier (at the 5MB mark).
+2.  **Open Console during Upload**: Verify the console shows "Live Pipeline Insight" and displays the current processing status.
+3.  **Check Readiness Card**: Ensure the labels are clean and non-redundant.
+4.  **Confirm Sync Frequency**: Check `docker logs sqauto_api` for "Piping Sync" entries every ~5-10 seconds.

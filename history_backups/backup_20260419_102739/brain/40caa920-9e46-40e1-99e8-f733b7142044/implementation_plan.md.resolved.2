@@ -1,0 +1,52 @@
+# Implementation Plan - Server 2.0: Setup, Fixes, and Cleanup
+
+The new server is live at `172.188.112.192`, but the Docker configuration files were accidentally emptied, and the codebase contains several obsolete files from previous deployment strategies. This plan will restore the production setup and clean the repository.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **SSH Key Location**: I will use the new key provided: `/home/eisen/Downloads/myVm_key.pem`. Please ensure this file exists and has correct permissions (chmod 400).
+> 
+> [!WARNING]
+> **Deletion of Files**: I will be deleting several files identified as "unused" (Makefile, old setup scripts, old PEM keys). Please confirm you do not need these for any other purpose.
+
+## Proposed Changes
+
+### 1. Restore Docker Configuration
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Re-implement the production-grade multi-stage Dockerfile I designed previously (Next.js standalone + Gunicorn/Uvicorn).
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Re-implement the production orchestration including the Nginx proxy and Redis.
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Re-implement the Nginx routing rules and 2GB upload limit.
+
+### 2. Codebase Cleanup (Remove Unused Files)
+
+#### [DELETE] [Makefile](file:///home/eisen/Downloads/SQAuto/Makefile)
+#### [DELETE] [SQAUTO_key.pem](file:///home/eisen/Downloads/SQAuto/SQAUTO_key.pem)
+#### [DELETE] [setup_nginx.sh](file:///home/eisen/Downloads/SQAuto/scripts/setup_nginx.sh)
+#### [DELETE] [init_db.py](file:///home/eisen/Downloads/SQAuto/scripts/init_db.py)
+#### [DELETE] [start.py](file:///home/eisen/Downloads/SQAuto/scripts/start.py)
+
+### 3. Server Interaction & Handover
+
+- **Verify Connection**: Test SSH to `172.188.112.192` using the new key.
+- **Server Bootstrap**: Once files are restored, guide you through running `scripts/setup_vm.sh` on the new server.
+- **"Opening" the Server**: Provide the URL (`http://172.188.112.192` or your domain) and explain how the Nginx proxy handles the traffic.
+
+## Open Questions
+
+- **Nginx Domain**: Do you want me to keep `sqauto.zeraynce.com` in the Nginx config, or should I use the new IP instead for now?
+- **Subsequent Builds**: Once I restore the files, do you want me to try and build them locally again (if network permits)?
+
+## Verification Plan
+
+### Automated Tests
+- `ssh -i /home/eisen/Downloads/myVm_key.pem azureuser@172.188.112.192 "uptime"` to confirm access.
+- `ls -l docker/` to confirm files are no longer empty.
+
+### Manual Verification
+- Ask you to visit the IP in your browser after the setup is complete.

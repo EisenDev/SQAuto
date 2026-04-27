@@ -1,0 +1,54 @@
+# GitHub CLI & Azure CI/CD Implementation
+
+This plan covers the final steps for pushing the SQAuto codebase to GitHub and setting up a basic CI/CD pipeline for deployment to your Azure server.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Sudo Permissions**: I was unable to install the GitHub CLI (`gh`) because it requires `sudo` credentials. Please run the installation command provided below in your terminal.
+>
+> **Azure Infrastructure**: To create the CI/CD pipeline, I need to know:
+> 1. What type of Azure service are you using? (e.g., **Azure App Service**, **Azure Container Apps**, or an **Azure VM** with Docker Compose).
+> 2. Have you already created the Azure resource?
+>
+> **Secrets**: You will need to add secrets (like `AZURE_CREDENTIALS` or SSH keys) to your GitHub repository settings once the code is pushed.
+
+## Proposed Changes
+
+### 1. GitHub CLI Setup
+Since I cannot run `sudo`, please execute this command in your terminal to install `gh`:
+```bash
+sudo mkdir -p -m 755 /etc/apt/keyrings && \
+wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null && \
+sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/keyrings/githubcli.list > /dev/null && \
+sudo apt update && \
+sudo apt install gh -y
+```
+After installation, run:
+```bash
+gh auth login
+```
+Follow the prompts to authenticate via your browser.
+
+### 2. CI/CD Workflow
+Once authenticated, I will add a GitHub Actions workflow.
+
+#### [NEW] [deploy.yml](file:///home/eisen/Downloads/SQAuto/.github/workflows/deploy.yml)
+Create a workflow that:
+1. Triggers on pushes to the `main` branch.
+2. Builds the Docker images (API and Web).
+3. Pushes them to a container registry (Azure Container Registry or Docker Hub).
+4. Deploys them to your Azure server.
+
+## Open Questions
+
+1. **Azure Resource**: Are we deploying to an **Azure App Service (Web App for Containers)** or a **Virtual Machine**?
+2. **Container Registry**: Do you have an **Azure Container Registry (ACR)** set up, or should I use Docker Hub?
+
+## Verification Plan
+
+### Manual Verification
+1. Run `gh auth status` to confirm login.
+2. Run `git push -u origin main` once logged in.
+3. Check the **Actions** tab on GitHub to verify the CI/CD pipeline run.

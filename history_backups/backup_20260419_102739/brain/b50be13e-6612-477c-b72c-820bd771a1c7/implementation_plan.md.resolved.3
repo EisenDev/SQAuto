@@ -1,0 +1,46 @@
+# Azure VM Deployment & Optimization Plan
+
+We will optimize the codebase to handle large SQL dumps (2GB+) to prevent server crashes and set up a CI/CD pipeline for your Azure Virtual Machine.
+
+## User Review Required
+
+> [!CAUTION]
+> **Memory Usage Warning**: The current code reads the entire SQL file into memory. A 2GB file will crash a small VM. I will fix this to stream the file or use system tools for the import.
+
+> [!IMPORTANT]
+> **Database Strategy**: For 2GB+ datasets, I **strongly recommend a separate database** (Azure Database for PostgreSQL or Supabase). 
+> - **Pros**: Higher stability, easier scaling, won't crash your API server during heavy imports.
+> - **Cons**: Additional cost.
+>
+> If you choose to keep the database on the VM, we need at least **8GB of RAM** and an **SSD**.
+
+## Proposed Changes
+
+### Core Optimization
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Refactor the `restore` logic to stop reading the whole file into memory.
+- Use `subprocess` to call `psql` directly if possible, or stream the SQL in chunks.
+
+### CI/CD Implementation
+
+#### [NEW] [deploy.yml](file:///home/eisen/Downloads/SQAuto/.github/workflows/deploy.yml)
+- Create a GitHub Actions workflow to:
+  1. Build Docker images for `api`, `web`, and `worker`.
+  2. Push images to **Docker Hub** (easiest for VM deployment).
+  3. SSH into the Azure VM to pull the new images and restart the containers.
+
+## Open Questions
+
+1. **Database Decision**: Will you use a **Separate Managed DB** (Azure/Supabase) or **Local VM Docker DB**? (I will adjust the `.env` and `docker-compose.yml` accordingly).
+2. **Server Specs**: How much RAM does your Azure VM have?
+3. **Registry**: Do you have a **Docker Hub** account, or should we use **Azure Container Registry**? (Docker Hub is simpler to configure for a VM).
+
+## Verification Plan
+
+### Automated Tests
+- Create a script to simulate a large SQL dump and verify the `restore` service doesn't exceed 200MB of RAM usage.
+
+### Manual Verification
+- Deploy to the VM and trigger a test upload.
+- Verify the logs in GitHub Actions and the VM.

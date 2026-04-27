@@ -1,0 +1,14 @@
+# Tasks: Final Stabilization - Database & Networking Fix
+
+- [ ] Phase 1: Local Configuration Updates
+    - [ ] Update `apps/api/database.py` with 10s connection timeout
+    - [ ] Update `.env` with `?sslmode=require` for Supabase
+    - [ ] Update `docker/Dockerfile` (Reduce Gunicorn workers to 2, Add 90s timeout)
+    - [ ] Update `docker/nginx.conf` (Increase proxy timeouts to 90s)
+- [ ] Phase 2: Synchronization & Deployment
+    - [ ] Sync all fixed files to the server via SCP
+    - [ ] Restart containers: `docker compose up -d --build`
+- [ ] Phase 3: Verification
+    - [ ] Verify `sqauto_api` logs show connection status (success or clear error)
+    - [ ] Verify `admin.zeraynce.com` is accessible and data loads
+    - [ ] Final Walkthrough

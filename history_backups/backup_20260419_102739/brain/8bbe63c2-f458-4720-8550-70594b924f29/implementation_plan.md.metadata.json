@@ -1,0 +1,7 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Implementation plan for \"Bot Mode\" (Clicker + Alt-Tab + Looping). This adds a new operation mode to the Desktop Helper allowing users to record and play back sequences of clicks and keystrokes.",
+  "updatedAt": "2026-04-16T07:31:00.296961488Z",
+  "version": "7",
+  "requestFeedback": true
+}

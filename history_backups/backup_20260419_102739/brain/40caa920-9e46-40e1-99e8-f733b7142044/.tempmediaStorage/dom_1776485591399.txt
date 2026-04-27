@@ -1,0 +1,19 @@
+* SQL dumps are processed in a staging sandbox. Your source file remains read-only.
+TABLES
+ROWS
+DATA EXTRACTED
+DUPLICATE DATA
+READINESS
+0%
+Extracted Tables
+0 Tables Detected
+No tables loaded yet. Upload a SQL dump to begin profiling.
+AI Explanation
+AI generated insights will appear here.
+Export Options
+Excel
+Clean SQL
+Translated SQL
+Waiting for job completion to enable exports...
+[0] (96,939)<button class='text-sm text-teal-600 underline mb-2'>Hide Advanced Tools />
+Advanced settings will appear here.

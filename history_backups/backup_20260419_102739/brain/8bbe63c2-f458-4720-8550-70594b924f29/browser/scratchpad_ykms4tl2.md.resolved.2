@@ -1,0 +1,17 @@
+# Task Checklist
+- [x] Go to http://localhost:49100
+- [x] Upload Excel: /home/eisen/Downloads/Otumisyon/mock_data/input.xlsx
+- [x] Upload Legacy SQL: /home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql
+- [x] Upload Current SQL: /home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql
+- [x] Click 'Upload Data Sources'
+- [x] Click 'Run Reconciliation Engine'
+- [/] Verify 'Results & Review' tab (Identical: 68, Safe Updates: 84) - Stuck on CORS error and 500 error in backend.
+- [ ] Verify 'SQL Patch & Export' tab
+- [ ] Click 'Export Patch' and verify download
+- [ ] Final summary and confirmation
+
+## Findings
+- Frontend (:49100) vs Backend (:8000) CORS issue blocks reconciliation trigger.
+- Reconciliation triggered via Swagger UI results in 500 Internal Server Error.
+- Current Session ID: `89f109f8-dd20-4528-aa4a-4e3c20d83cee`.
+- Plan: Attempting fresh upload and reconciliation via Swagger UI to bypass frontend issues completely.

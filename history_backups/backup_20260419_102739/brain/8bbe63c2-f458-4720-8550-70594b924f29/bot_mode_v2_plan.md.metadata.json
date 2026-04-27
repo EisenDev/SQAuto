@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Total restart of the Bot Builder. Moving to a 'Block-Based' architecture where you record sequences for specific applications and chain them together. Includes automatic timing (recording how long you wait between clicks) and a dedicated 'Sequence Manager' for easy reordering.",
+  "updatedAt": "2026-04-16T08:55:22.788536267Z",
+  "requestFeedback": true
+}

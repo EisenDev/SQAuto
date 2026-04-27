@@ -1,0 +1,32 @@
+Data Reconciliation Engine
+Internal Operations Tool — v1.0
+[0] (806,29)<button class='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-neutral-300 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-50 h-8 w-8 text-neutral-500 dark:text-neutral-400'>Toggle theme />
+	Toggle theme
+Validation Workflow
+An internal deterministic engine for cross-referencing snapshot data and generating safe bulk SQL updates.
+[1] (787,163)<button class='inline-flex items-center justify-center whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-neutral-300 border border-neutral-200 bg-white shadow-sm hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:bg-neutral-800 h-8 rounded-md px-3 text-xs text-neutral-500 hover:text-red-500 hover:border-red-200 transition-all'>Clear Session />
+[2] (225,232)<button class='inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 bg-white text-neutral-950 shadow-sm dark:bg-neutral-950 dark:text-neutral-50'>1. Ingest & Define />
+2. Review Results
+3. Export SQL Patch
+Source Data Ingestion
+[3] (281,395)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Master Operations Report (.xlsx) />
+input.xlsx
+[4] (250,542)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Legacy SQL Dump />
+old_mock.sql
+[5] (397,542)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Modern SQL Dump />
+new_mock.sql
+Dumps Restored Successfully
+Comparison Logic
+[6] (661,378)<label class='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>Analysis Status Hook />
+[7] (661,413)<input class='flex h-9 w-full rounded-md border border-neutral-200 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 bg-neutral-50/30 dark:bg-neutral-900/30' placeholder='e.g. UNCHECKED' />
+Filters Excel records by this value in the 'status' column.
+[8] (661,489)<label class='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>Target Table />
+[9] (661,524)<input class='flex h-9 w-full rounded-md border border-neutral-200 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 bg-neutral-50/30 dark:bg-neutral-900/30' placeholder='e.g. employees' />
+[10] (588,576)<label class='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>Match Key (ID) />
+[11] (588,612)<input class='flex h-9 w-full rounded-md border border-neutral-200 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 bg-neutral-50/30 dark:bg-neutral-900/30' placeholder='e.g. employee_code' />
+[12] (733,576)<label class='text-xs font-semibold text-neutral-500 uppercase tracking-wider'>Comparison Field />
+[13] (733,612)<input class='flex h-9 w-full rounded-md border border-neutral-200 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 bg-neutral-50/30 dark:bg-neutral-900/30' placeholder='e.g. employee_id' />
+[14] (661,692)<button class='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-neutral-300 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-50/90 h-9 px-4 py-2 w-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-600/20'>Start Reconciliation />
+V1 Stable
+Isolated Offline Environment
+Deterministic Logic Driven — Otumisyon Core v1.0.4

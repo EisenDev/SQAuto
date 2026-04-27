@@ -1,0 +1,14 @@
+# Task Progress: SQAuto Pipeline Stabilization
+
+- [x] **Backend: Progress Heartbeat Stabilization**
+    - [x] Reduce sync threshold to 5MB in `service.py`.
+    - [x] Re-enable line-by-line piping sync logs.
+- [x] **Frontend: Live Diagnostic Console**
+    - [x] Enable `showDebugger` toggle during `restoring` status in `UploadCard.tsx`.
+    - [x] Update console labels for live vs. failed states.
+- [x] **Frontend: UI Cleanup**
+    - [x] Remove redundant "RECEIVED and DECOMPRESSING" text from Readiness card in `page.tsx`.
+- [x] **Verification & Re-Upload**
+    - [x] Deploy changes to Azure VM.
+    - [x] Verify progress bar granularity and live logs.
+    - [x] Resolve build-breaking JSX syntax errors.

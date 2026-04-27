@@ -1,0 +1,15 @@
+# Verification Plan: SQAuto Dashboard Fix
+
+## Checklist:
+- [x] Navigate to http://sqauto.zeraynce.com/ (HTTP, no S)
+- [/] Verify dashboard loads successfully
+- [x] Verify presence of 5 cards: TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS
+- [ ] Verify polling works (no 'Network Error' alerts)
+- [ ] Confirm UI is polished and responsive
+
+## Findings:
+- Dashboard loads at http://sqauto.zeraynce.com/.
+- All 5 cards are present in the DOM and screenshot.
+- **Issue**: Console logs reveal the frontend is still trying to reach the API via **HTTPS** (`https://sqauto.zeraynce.com/api/upload`).
+- This suggests the frontend might need a rebuild or the environment variable for the API URL hasn't updated in the browser/frontend build.
+- I haven't seen the "Network Error" alert in the UI *yet* in the current session, but the console logs confirm connection refusal.

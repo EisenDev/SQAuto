@@ -1,0 +1,16 @@
+# Tasks: Supabase Connection & API Fix
+
+- [/] Phase 1: Connectivity & Access
+    - [ ] Regain SSH access to `172.188.112.192`
+    - [ ] Check Azure NSG rules if SSH remains blocked
+- [ ] Phase 2: Configuration Fixes
+    - [ ] Update `docker/docker-compose.yml` to use `build-args` for `web`
+    - [ ] Update `docker/Dockerfile` to accept `NEXT_PUBLIC_API_URL` during build
+    - [ ] Sync fixed files to the server
+- [ ] Phase 3: Deployment & Logging
+    - [ ] Rebuild and restart containers on server: `docker compose up -d --build`
+    - [ ] Inspect `docker compose logs api` for Supabase errors
+- [ ] Phase 4: Verification
+    - [ ] Confirm frontend is calling the correct API URL in browser console
+    - [ ] Confirm Supabase data is loading in the dashboard
+    - [ ] Create Walkthrough

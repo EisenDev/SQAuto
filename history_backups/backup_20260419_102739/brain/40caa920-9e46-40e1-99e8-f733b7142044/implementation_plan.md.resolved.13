@@ -1,0 +1,55 @@
+# Implementation Plan - Universal SQL Optimization & Safety
+
+This plan upgrades SQAuto to handle **MySQL, SQLite, and Postgres** uncompresssed dumps up to 2GB+, while implementing a safe "Wipe" mechanism for fresh scans.
+
+## Architectural Note (For User)
+
+> [!NOTE]
+> **Where is your data?**
+> Your data **is stored on Supabase**. When we run the restoration, the VM acts as a "high-speed pipe" that reads your 1.8GB file and streams it directly to your Supabase PostgreSQL database. 
+> 
+> The reason you don't see "Migrations" is that migrations are only for the *app's* structure (like the Jobs list). The **tables** from your SQL dump are inserted directly into the database. I will help you verify this by showing you how to find them in the Supabase Table Editor.
+
+## User Review Required
+
+> [!CAUTION]
+> **Safe Wiping**: Since your App (the Job list) and your Staging Dump share the same database, we cannot simply "Delete Everything" because it would delete the SQAuto app itself!
+> 
+> **The Solution**: I will implement a **Selective Wipe**. It will identify all tables that are NOT part of the SQAuto system (anything except the `jobs` table) and drop only those before starting a new scan. This gives you a clean slate while keeping the app alive.
+
+## Proposed Changes
+
+### 1. Infrastructure (Multi-SQL Tooling)
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Install `pgloader` and `mariadb-client` dependencies. `pgloader` is the industry standard for converting MySQL data into Postgres in real-time.
+
+### 2. Backend - Universal Restorer & Safe Wipe
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Signature Detection**: Read the first 2KB of `.sql` files to detect if it's MySQL (`-- MySQL dump`) or Postgres (`-- standard postgres`).
+- **Selective Wipe**: Before restoration, query the database for all user tables and `DROP` them, excluding the system `jobs` table.
+- **pgloader Dispatcher**: If a MySQL dump is detected, automatically generate a `pgloader` command to migrate the data into your Supabase Postgres instance.
+
+### 3. Backend - Live Monitor (5-Card Update)
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Enhance the monitoring heartbeat to report **Storage Footprint** in MB and **Row Counts** every 5 seconds.
+
+### 4. UI - Industrial Dashboard
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Connect all 5 cards (TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS) to the live data stream.
+
+## Open Questions
+
+- **Timeout Check**: With 1.8GB passing through to Supabase, the process might take 45-90 minutes. I have set the limit to **1 hour**. Should we increase it to **2 hours** just to be absolutely safe for your largest files?
+
+## Verification Plan
+
+### Automated Tests
+- `docker logs sqauto_api -f` -> Verify "Wiping 12 non-system tables" followed by "Starting pgloader for MySQL dump".
+- Check Supabase Table Editor to confirm tables appear under the `public` schema.
+
+### Manual Verification
+- I will perform a test upload and provide a walkthrough showing the cards updating "live" while the file is still being streamed.

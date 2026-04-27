@@ -1,0 +1,14 @@
+# Task: Verify SQAuto Dashboard at http://admin.zeraynce.com/
+
+## Plan
+- [x] Navigate to http://admin.zeraynce.com/
+- [x] Verify dashboard loads correctly (no 502/522)
+- [ ] Check browser console for `NEXT_PUBLIC_API_URL`
+- [ ] Check network tab for `/jobs` request and response
+- [ ] Confirm everything is functional
+
+## Findings
+- `http://172.188.112.192/` loads the dashboard successfully.
+- `https://sqauto.zeraynce.com/` loads the dashboard successfully.
+- `https://admin.zeraynce.com/` was unstable (showed 522), but I'm retrying.
+- Browser tools (`list_network_requests`) are intermittently failing with internal errors.

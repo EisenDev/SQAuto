@@ -1,0 +1,8 @@
+# Task: Bot Mode Separation & Multi-Window Support
+
+- [ ] Fix Calibration Wizard indentation crash
+- [ ] Update BotAction & ApplicationProfile for multi-window focus
+- [ ] Create standalone BotBuilderDialog
+- [ ] Add "Configure Bot Mode" to Main Window
+- [ ] Update Automation Engine for per-action window focusing
+- [ ] Verify multi-window sequence execution

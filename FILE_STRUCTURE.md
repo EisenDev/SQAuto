@@ -11,6 +11,16 @@ SQAuto/
 ├── apps/
 │   ├── api/
 │   │   ├── main.py
+│   │   ├── router.py
+│   │   ├── models.py
+│   │   ├── database.py
+│   │   ├── deps.py
+│   │   ├── schemas.py
+│   │   ├── routers/
+│   │   │   ├── debug.py
+│   │   │   ├── explorer.py
+│   │   │   ├── export.py
+│   │   │   └── migration.py
 │   │   ├── routes/
 │   │   │   ├── ai.py
 │   │   │   ├── cleaning.py
@@ -28,8 +38,12 @@ SQAuto/
 │       ├── app/
 │       ├── components/
 │       │   ├── SchemaVisualizer.tsx
+│       │   ├── SourceTruthExplorer.tsx
+│       │   ├── MigrationControlCenter.tsx
+│       │   └── ...
 │       ├── hooks/
 │       ├── lib/
+│       │   └── api.ts
 │       └── types/
 ├── configs/
 │   ├── model_config.py
@@ -80,6 +94,9 @@ SQAuto/
 │   │   ├── chunking.py
 │   │   ├── models.py
 │   │   └── utils.py
+│   ├── migration_engine/
+│   │   ├── __init__.py
+│   │   └── service.py
 │   ├── relationship_repair/
 │   │   ├── __init__.py
 │   │   ├── service.py

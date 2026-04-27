@@ -1,0 +1,18 @@
+# Phase 8B: Precise Database Connectors Task List
+
+- [ ] **Infrastructure: Dependency Update**
+    - [ ] Add `SQLAlchemy` and `pymysql` (for MySQL support via SQLAlchemy) to `backend/requirements.txt`.
+- [ ] **Service: Session Store Extension**
+    - [ ] Add `SESSION_CONNECTION_CONFIG` to `app/services/session_store.py`.
+    - [ ] Implement `save_connection_config` and `get_connection_config`.
+- [ ] **API: Connection Configuration Route**
+    - [ ] Create `app/api/routes/config.py` for `POST /session/{session_id}/connection`.
+    - [ ] Register the new route in `main.py`.
+- [ ] **Core: SQLAlchemy Source Adapters**
+    - [ ] Implement `app/services/source_adapters/sqlalchemy_adapter.py`.
+    - [ ] Update `app/services/source_adapters/factory.py` to use SQLAlchemy-based adapters.
+- [ ] **Testing & Verification**
+    - [ ] Update `tests/test_source_adapters.py` with SQLAlchemy mocks.
+    - [ ] Verify V1 SQL dump flow remains functional.
+- [ ] **Documentation Updates**
+    - [ ] Update `ARCHITECTURE.md` and `FUTURE_ROADMAP.md`.

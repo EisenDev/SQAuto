@@ -1,0 +1,52 @@
+# Walkthrough - SQAuto Server 2.0 Implementation
+
+I have completed the restoration of your production Docker configuration and cleaned up the repository by removing obsolete files.
+
+## Changes Made
+
+### 1. Docker Configuration Restored
+I have re-implemented the optimized production configurations that were previously missing:
+- **`docker/Dockerfile`**: A multi-stage build that compiles Next.js into a lightweight `standalone` output and serves the API using `gunicorn`.
+- **`docker/docker-compose.yml`**: Orchestrates the Nginx proxy, Redis, API, and Web containers.
+- **`docker/nginx.conf`**: Configured for `sqauto.zeraynce.com`, with large file upload support (2GB) and proper routing.
+
+### 2. Codebase Cleanup
+I removed the following obsolete files to keep the repository clean:
+- `Makefile`
+- `SQAUTO_key.pem` (Old SSH key)
+- `scripts/setup_nginx.sh` (Obsolete, as Nginx is now in Docker)
+- `scripts/init_db.py`
+- `scripts/start.py`
+
+### 3. SSH Troubleshooting
+- **Key Permissions**: I detected that your new key `/home/eisen/Downloads/myVm_key.pem` had incorrect permissions (664). I have fixed this to **400**, which is required by SSH.
+- **Connection Status**: I attempted to connect to the new server at `172.188.112.192`, but the connection timed out. 
+
+## Next Steps for Handover
+
+### 1. Check Azure Firewall (NSG)
+The SSH timeout suggests that **Port 22** might not be open for your IP in the Azure Portal. 
+- Please ensure that the **Networking** settings for your VM allow inbound traffic on Port 22.
+- Also, ensure that Ports **80** (HTTP) and **443** (HTTPS) are open for the website to load.
+
+### 2. Manual Verification
+Once you can reach the server, run the following commands to set up the project:
+```bash
+cd ~/sqauto
+# Run the bootstrap script I prepared earlier
+chmod +x scripts/setup_vm.sh
+./scripts/setup_vm.sh
+```
+
+### 3. Deployment
+After bootstrapping, use the GitHub Actions CI/CD to deploy:
+```bash
+git add .
+git commit -m "fix: restore docker files and cleanup codebase"
+git push origin main
+```
+
+## Evidence
+- [x] **Files Restored**: Verified that `docker/` contains full configurations.
+- [x] **Repo Cleaned**: Verified deletion of obsolete files.
+- [x] **Key Fixed**: `chmod 400` applied to the new PEM key.

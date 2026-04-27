@@ -1,0 +1,30 @@
+# Implementation Plan - Final Restoration Stabilization
+
+I have identified the "Hidden Error" that prevented the previous fix from working. The 114MB restoration failed because our rewriter was splitting lines in the middle, occasionally missing critical `public.` references. Additionally, a technical bug in how we captured errors was hiding the true cause from us.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Line-Buffered Rewriting:** I will move to a line-by-line processing model. This ensures that every single instance of `public.` is caught and re-routed to `staging`, even if it occurs at the boundary of a data chunk.
+
+## Proposed Changes
+
+---
+
+### [Component] Restoration Service
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Line-Buffered Streaming**: refactor the logic to read and rewrite line-by-line. This is safer for massive SQL dumps and ensures regex/string replacements are deterministic.
+- **Fix Diagnostic Masking**: Correct the `subprocess` logic to ensure that if `psql` fails, we get the **Actual SQL Error** from the database instead of a generic "I/O Error" in Python.
+- **Aggressive Command Stripping**: I will extend the filter list to include `SET default_table_access_method`, `SET xmloption`, and other production-only commands that often cause permission failures in staging environments.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Monitor `docker logs sqauto_api`.
+
+### Manual Verification
+- Retry the 114MB restore.
+- You should finally see the progress bar moving past 15% as the re-routed commands successfully populate the `staging` schema.

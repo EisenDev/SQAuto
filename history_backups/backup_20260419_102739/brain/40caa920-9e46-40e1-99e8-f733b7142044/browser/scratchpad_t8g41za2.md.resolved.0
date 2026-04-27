@@ -1,0 +1,11 @@
+# Task: Verify http://admin.zeraynce.com/
+
+## Goals:
+- [ ] Open http://admin.zeraynce.com/
+- [ ] Verify API endpoint in network/console (should be https://admin.zeraynce.com/api)
+- [ ] Verify if dashboard loads data
+- [ ] Report status
+
+## Notes:
+- API requests should NOT be sent to localhost.
+- Check for success/error messages in dashboard.

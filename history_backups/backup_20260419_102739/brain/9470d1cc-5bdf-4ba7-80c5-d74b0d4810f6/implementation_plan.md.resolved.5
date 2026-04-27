@@ -1,0 +1,35 @@
+# Implementation Plan - Industrial Schema Isolation Fix
+
+I have identified why the 114MB restore is still failing. Your SQL dump contains hardcoded references to the `public` schema (`CREATE TABLE public.abilities`, etc.). Our system tries to isolate everything in a `staging` schema for safety, but these hardcoded references were overriding our settings and causing permission errors that crashed the database pipe.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Schema Rewriting:** I will implement an industrial-grade stream rewriter. As your 114MB file is being piped to the database, the system will dynamically replace `public.` with `staging.` and filter out dangerous commands like `CREATE EXTENSION` which often cause permission failures.
+
+## Proposed Changes
+
+---
+
+### [Component] Restoration Service
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Implement Stream Rewriter**: Add a logic to the streaming loop that identifies Postgres schema-qualified names and re-routes them to the `staging` schema.
+- **Filter Privileged Commands**: Automatically strip `CREATE EXTENSION`, `ALTER OWNER`, and `SET row_security` commands. These are usually present in production dumps but fail in staging environments due to lack of superuser permissions.
+- **Stabilize Error Handling**: Fix the `I/O on closed file` exception by properly sequencing the `process.stdin.close()` and `process.communicate()` calls.
+
+---
+
+## Open Questions
+
+- **Extensions:** Your dump tries to install `pg_stat_statements`. Does your staging database already have the extensions you need, or should I attempt to ignore all extension errors? (I recommend ignoring them to ensure the tables and data can at least be salvaged).
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Monitor `docker logs sqauto_api`.
+
+### Manual Verification
+- Retry the 114MB upload/restore.
+- The system should now bypass the `public` schema errors and successfully populate the `staging` schema.
+- You should see the extracted tables appearing in the dashboard as `staging.abilities`, etc.

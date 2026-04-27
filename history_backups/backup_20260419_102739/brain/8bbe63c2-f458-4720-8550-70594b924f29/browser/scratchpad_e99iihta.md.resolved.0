@@ -1,0 +1,15 @@
+# Verification Plan for Data Reconciliation Engine
+
+- [ ] Navigate to http://localhost:49100.
+- [ ] Upload data sources:
+    - [ ] Excel: `/home/eisen/Downloads/Otumisyon/mock_data/input.xlsx`
+    - [ ] Legacy SQL: `/home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql`
+    - [ ] Current SQL: `/home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql`
+- [ ] Click 'Upload Data Sources' and wait for success.
+- [ ] Click 'Run Reconciliation Engine'.
+- [ ] Verify 'Results & Review' tab:
+    - [ ] 300 rows total.
+    - [ ] 205 unchecked rows.
+    - [ ] 84 Safe Updates.
+- [ ] Verify '3. SQL Patch & Export' tab displays SQL.
+- [ ] Confirm everything is working.

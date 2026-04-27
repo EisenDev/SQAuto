@@ -1,0 +1,40 @@
+# Implementation Plan - Supabase Connectivity & API Fix
+
+The application is currently experiencing two issues: the backend (Supabase) connection is failing, and the frontend is misconfigured to look for the API on `localhost` instead of the production domain.
+
+## User Review Required
+
+> [!CAUTION]
+> **SSH Reset**: I am currently experiencing "Connection Reset" when trying to SSH into your server. Is it possible that you have restricted SSH access to your specific IP, or is the server experiencing heavy load?
+> 
+> [!IMPORTANT]
+> **Rebuild Required**: Fixing the frontend API URL will require a full build of the web container on the server, which may take 5-10 minutes.
+
+## Proposed Changes
+
+### 1. Fix Frontend API URL (Build-time Variables)
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Pass `NEXT_PUBLIC_API_URL` as a `build-arg` to the `web` service.
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Update the `web-builder` stage to accept and use the `NEXT_PUBLIC_API_URL` argument during the `npm run build` process.
+
+### 2. Debug Supabase Connection
+
+- **Log Analysis**: Once SSH access is restored, I will inspect `docker compose logs api` to see the exact PostgreSQL connection error.
+- **Connectivity Check**: Run a manual `psql` or `nc` check from inside the API container to the Supabase endpoint.
+
+## Open Questions
+
+- **SSH Access**: Can you confirm if you still have SSH access from your terminal? If so, I may need you to run a command to unlock my access or check for logs.
+- **Supabase Credentials**: Are there any IP restrictions set up in your Supabase dashboard (Network settings)? If so, we need to whitelist the new VM IP `172.188.112.192`.
+
+## Verification Plan
+
+### Automated Tests
+- `docker compose logs api | grep "Database"` to check for success messages.
+- `curl -I https://admin.zeraynce.com/api/jobs` (once fixed) to check if the backend responds.
+
+### Manual Verification
+- I will use the **Browser Subagent** to refresh the dashboard and confirm that tables/jobs are loading from Supabase.

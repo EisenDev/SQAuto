@@ -1,0 +1,51 @@
+# Implementation Plan - Agnostic SQL Stability (Industrial Scale)
+
+This plan adds support for **MySQL, SQLite, and MS SQL** dumps alongside native **PostgreSQL**, while ensuring 1.8GB+ files are processed with real-time feedback.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Universal SQL Detection**: I will implement an "Auto-Detect" phase. Before processing, the system will read the signature of your SQL file to determine if it's from MySQL, Postgres, or another system.
+> 
+> **Cloudflare Status**: Since you have turned OFF the proxy (Grey Cloud), the 1.8GB limit is now removed! We are ready to process at full speed.
+
+## Proposed Changes
+
+### 1. Infrastructure (Multi-tool Support)
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Install `pgloader` in the API container. This is a powerful tool for migrating data from MySQL/SQLite into Postgres in one pass.
+
+### 2. Backend - The "Agnostic" Restorer
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Signature Detection**: Add a method to read the first 2KB of the file and identify the source database (MySQL, SQL Server, SQLite, Postgres).
+- **Tool Swapping**: 
+    - Use `psql` if it's a native Postgres dump.
+    - Use `pgloader` if it's MySQL or other formats to stream the data directly into your staging DB.
+- **Enhanced Watcher**: Update the progress loop to handle both tools and provide persistent table/row/size updates to the dashboard.
+
+### 3. Backend - Dashboard Data Engine (5-Card Logic)
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/schema_profiler/service.py)
+- Update row counting logic to be non-blocking.
+- Implement "Data Extracted" (MB) calculation using `pg_total_relation_size`.
+
+### 4. UI - Polished Industrial Interaction
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Ensure the 5 cards (TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS) are fully reactive to the "Restoring" state.
+
+## Open Questions
+
+- **Table Overwrites**: If you upload a new dump, should the system completely wipe the previous data, or append it? (Currently, I will default to **Wipe/Clean** for a fresh scan).
+- **Non-Standard Extensions**: Does your dump file always end in `.sql`, or might it be `.gz`, `.zip`, etc.? (Currently, I assume uncompressed `.sql`).
+
+## Verification Plan
+
+### Automated Tests
+- Upload a sample MySQL dump and verify `pgloader` is triggered.
+- Verify that `sqauto.zeraynce.com` now correctly receives 1.8GB without the "Network Error" (since Grey Cloud is active).
+
+### Manual Verification
+- I will perform a simulated restore and provide a recording of the cards "growing" as the tables are discovered.

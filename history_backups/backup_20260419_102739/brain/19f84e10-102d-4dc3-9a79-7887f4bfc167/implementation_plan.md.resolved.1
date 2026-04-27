@@ -1,0 +1,53 @@
+# Implementation Plan - Stabilizing End-to-End Pipeline
+
+The primary goal is to resolve the `Failed to fetch` error (CORS mismatch) and make the current "Upload -> Restore -> Profile" flow functional and visible in the UI.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **CORS Configuration**: I will broaden the allowed origins in the backend to include `localhost:3000` through `localhost:3010` to prevent future port-jumping issues on Ubuntu.
+> **Sequential Flow**: The UI will automatically trigger the "Restore" and "Profile" steps after a successful upload, providing a seamless "one-click" experience while keeping the user informed of each stage.
+
+## Proposed Changes
+
+### Backend (FastAPI)
+
+#### [MODIFY] [main.py](file:///home/eisen/Downloads/SQAuto/apps/api/main.py)
+- Update `CORSMiddleware` to allow origins `http://localhost:3000` through `http://localhost:3010`.
+
+#### [MODIFY] [router.py](file:///home/eisen/Downloads/SQAuto/apps/api/router.py)
+- Ensure the `profile` endpoint returns the final data structure expected by the UI.
+
+#### [NEW] [service.py (Extractor)](file:///home/eisen/Downloads/SQAuto/services/extractor/service.py)
+- Initialize the `ExtractorService` for Phase 3A readiness.
+
+---
+
+### Frontend (Next.js)
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Implement sequential calls: `uploadDump` -> `restoreJob` -> `profileJob`.
+- Add a status display to show "Restoring...", "Analyzing...", etc.
+- Replace `alert` with persistence status mapping.
+
+#### [MODIFY] [Header.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/Header.tsx)
+- Update to accept and display real `activeJob` status.
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Introduce state management for the `activeJob`.
+- Implement polling logic for job status.
+- Pass data to `SummaryCard` and `TableView`.
+
+#### [MODIFY] [TableView.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/TableView.tsx)
+- Render real table list from `activeJob.profile`.
+
+## Verification Plan
+
+### Automated Tests
+- Use the browser tool to verify `uploadDump` success (no CORS error).
+- Verify preflight requests succeed for `localhost:3002`.
+
+### Manual Verification
+- Confirm Dashboard Summary updates after profiling completes.
+- Confirm status badge transitions (Uploaded -> Restoring -> Completed).
+- Verify "Extracted Tables" list actual tables from dump.

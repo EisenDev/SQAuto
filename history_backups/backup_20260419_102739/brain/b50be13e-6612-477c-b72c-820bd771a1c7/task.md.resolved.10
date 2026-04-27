@@ -1,0 +1,22 @@
+- [x] Create `.gitignore`
+- [x] Initialize Git repository
+- [x] Add remote `origin`
+- [x] Initial commit on `main`
+- [x] Memory Optimization (2GB+ Dumps)
+- [x] Supabase Migration
+    - [x] Update `docker-compose.yml`
+    - [x] Update `.env.example`
+- [/] Azure VM Deployment
+    - [x] SSH into VM
+    - [x] Clone repository to VM
+    - [/] Run `setup_vm.sh` (Fixing command error)
+    - [ ] Create `.env` on VM (Using Supabase & Google Key)
+    - [ ] Run `docker compose up -d`
+- [ ] Domain & SSL Setup
+    - [x] Create `setup_nginx.sh` script
+    - [ ] Install Nginx Reverse Proxy (User to run script)
+    - [ ] Configure `sqauto.zeraynce.com`
+    - [ ] Setup SSL (Certbot)
+- [ ] CI/CD Verification
+    - [ ] Trigger deployment from GitHub
+    - [ ] Verify health endpoints

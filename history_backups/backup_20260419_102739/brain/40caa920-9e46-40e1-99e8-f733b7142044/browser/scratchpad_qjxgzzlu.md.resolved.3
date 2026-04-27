@@ -1,0 +1,15 @@
+# Task: Verify SQAuto Dashboard at http://admin.zeraynce.com/
+
+## Plan
+- [x] Navigate to http://admin.zeraynce.com/
+- [ ] Verify dashboard loads correctly (no 502/522) - CURRENTLY FAILING (522)
+- [ ] Check browser console for `NEXT_PUBLIC_API_URL`
+- [ ] Check network tab for `/jobs` request and response
+- [ ] Confirm everything is functional
+
+## Findings
+- `http://172.188.112.192/` was working but now returns 522 (Cloudflare page).
+- `https://sqauto.zeraynce.com/` was working but now returns 522.
+- `https://admin.zeraynce.com/` returns 522 consistently now.
+- The server seems to be under heavy load or unresponsive after recent docker commands.
+- Browser tools are intermittently failing.

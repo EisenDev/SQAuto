@@ -251,6 +251,11 @@ api_router.include_router(export.router, prefix="/jobs", tags=["jobs", "export"]
 from apps.api.routers import explorer
 api_router.include_router(explorer.router, prefix="/explorer", tags=["jobs", "explorer"])
 
+# Register migration routes (Phase 1: Dry-Run Only)
+from apps.api.routers import migration
+api_router.include_router(migration.router, prefix="/migration", tags=["migration"])
+
+
 class LayoutRequest(BaseModel):
     positions: list
 

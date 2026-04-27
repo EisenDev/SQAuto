@@ -1,0 +1,18 @@
+# Tasks: SQAuto Server 2.0 Implementation
+
+- [ ] Phase 1: Docker Configuration Restoration
+    - [ ] Restore `docker/Dockerfile` (Multi-stage, Production)
+    - [ ] Restore `docker/docker-compose.yml` (Orchestration + Nginx)
+    - [ ] Restore `docker/nginx.conf` (Routing + 2GB Limit)
+- [ ] Phase 2: Codebase Cleanup
+    - [ ] Delete `Makefile`
+    - [ ] Delete `SQAUTO_key.pem`
+    - [ ] Delete `scripts/setup_nginx.sh`
+    - [ ] Delete `scripts/init_db.py`
+    - [ ] Delete `scripts/start.py`
+- [ ] Phase 3: Server Access & Setup
+    - [ ] Verify SSH access to `172.188.112.192` with new key
+    - [ ] Handover instructions for `setup_vm.sh`
+- [ ] Phase 4: Verification
+    - [ ] Final check of file contents and connectivity
+    - [ ] Create Walkthrough

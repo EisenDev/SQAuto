@@ -1,0 +1,37 @@
+# Implementation Plan - Industrial Debugger & Stabilization
+
+I have identified the precise reason for the latest failure. There was an internal "Import Error" in the stabilization logic that prevented the system from finishing its final check. To prevent this "blind loop" from happening again, I am implementing the **Industrial Debugger UI** as you requested.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Live Debugger UI:** I will add a "View Detailed Log" feature to the restoration card. If a restoration fails, you will be able to click a button to see the **exact SQL error message** from the database (e.g., specific table names or syntax errors) directly in your browser.
+
+## Proposed Changes
+
+---
+
+### [Component] Restoration Service (Backend)
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Fix Import Bug**: Correct the `import time` placement to ensure the monitoring loop stays alive.
+- **Enhanced Log Persistence**: Ensure the `CalledProcessError` stderr is fully written to the `jobs.log` database field so the frontend can retrieve it.
+
+---
+
+### [Component] Upload Dashboard (Frontend)
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- **Diagnostic UI**: Add an "Error Console" component that becomes visible when a job status is `FAILED`.
+- **Log Binding**: Connect the frontend to the `log` field from the API so you can see the database's rejection reason in real-time.
+- **Industrial Aesthetics**: Design the log viewer with a "Dark Terminal" theme to match the industrial aesthetic.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Verify that `sqauto_api` starts without `NameError`.
+
+### Manual Verification
+- Upload the 114MB dump.
+- If it fails, verify that an "Error Console" appears in the UI showing the specific database error (e.g., "STAGING isolation success" or a specific table error).

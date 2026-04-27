@@ -1,0 +1,62 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+Data Reconciliation Engine
+Internal Operations Tool — v1.0
+[0] (730,22)<button class='inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-neutral-300 hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-neutral-50 h-8 w-8 text-neutral-500 dark:text-neutral-400'>Toggle theme />
+	Toggle theme
+VERSION 1.0 STABLE
+Validation Workflow
+A high-precision internal tool for cross-referencing snapshot data and generating transactional SQL updates. Follow the guided steps below to verify your dataset integrity.
+[1] (290,233)<button class='inline-flex items-center justify-center whitespace-nowrap py-1 text-sm font-medium ring-offset-white transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 bg-white text-neutral-950 shadow-sm dark:bg-neutral-950 dark:text-neutral-50 rounded-lg data-[state=active]:shadow-sm px-6'>1. Ingest & Define />
+2. Review Results
+3. Export SQL Patch
+Excel Report
+[2] (318,345)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Master Operations Report (.xlsx) />
+[3] (417,373)<input class='flex w-full rounded-md border border-neutral-200 bg-transparent transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-8 text-xs border-none shadow-none focus-visible:ring-0 p-0 cursor-pointer' />
+Old Source (Legacy Data)
+[4] (315,530)<div  />
+	[5] (315,513)<div  />
+		[6] (293,513)<span >SQL Dump />
+	[7] (315,530)<p >Fastest method. Provide a raw .sql file. />
+	[8] (283,546)<div >AVAILABLE />
+[9] (417,530)<div  />
+	[10] (417,513)<div  />
+		[11] (402,513)<span >DB Connection />
+	[12] (417,530)<p >Direct read from live databases. />
+	[13] (384,546)<div >Phase 8 />
+[14] (519,530)<div  />
+	[15] (519,513)<div  />
+		[16] (500,513)<span >Legacy App />
+	[17] (519,530)<p >For systems without DB access. />
+	[18] (486,546)<div >Phase 9 />
+[19] (305,613)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Legacy SQL Dump />
+[20] (417,641)<input class='flex w-full rounded-md border border-neutral-200 bg-transparent transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-8 text-xs border-none shadow-none focus-visible:ring-0 p-0 cursor-pointer' />
+New Source (Modern Data)
+[21] (340,798)<div  />
+	[22] (340,781)<div  />
+		[23] (293,781)<span >SQL Dump />
+	[24] (340,799)<p >Fastest method. Provide a modern .sql file. />
+	[25] (283,814)<div >AVAILABLE />
+[26] (494,798)<div  />
+	[27] (494,781)<div  />
+		[28] (464,781)<span >PostgreSQL Connection />
+	[29] (494,799)<p >Direct read from production schemas. />
+	[30] (435,814)<div >Phase 8 />
+[31] (306,882)<label class='text-[10px] font-bold uppercase tracking-widest text-neutral-400'>Modern SQL Dump />
+[32] (417,910)<input class='flex w-full rounded-md border border-neutral-200 bg-transparent transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-8 text-xs border-none shadow-none focus-visible:ring-0 p-0 cursor-pointer' />
+Initialize Session
+Comparison Rules
+[33] (666,332)<label class='text-xs font-bold text-neutral-500 uppercase tracking-wider'>Status Keyword />
+[34] (666,359)<input class='flex w-full border py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-9 px-3 rounded-lg bg-neutral-50/30 dark:bg-neutral-900/30 border-neutral-200 dark:border-neutral-800 focus:ring-blue-500' placeholder='e.g. UNCHECKED' />
+Target rows strictly identifying as this status in Excel.
+[35] (666,416)<label class='text-xs font-bold text-neutral-500 uppercase tracking-wider'>Target Table />
+[36] (666,442)<input class='flex w-full border py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-9 px-3 rounded-lg bg-neutral-50/30 dark:bg-neutral-900/30 border-neutral-200 dark:border-neutral-800 focus:ring-blue-500' placeholder='e.g. employees' />
+[37] (631,481)<label class='text-xs font-bold text-neutral-500 uppercase tracking-wider'>Match Key />
+[38] (631,508)<input class='flex w-full border py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-9 px-3 rounded-lg bg-neutral-50/30 dark:bg-neutral-900/30 border-neutral-200 dark:border-neutral-800 focus:ring-blue-500' placeholder='e.g. employee_code' />
+[39] (702,481)<label class='text-xs font-bold text-neutral-500 uppercase tracking-wider'>Comparison Field />
+[40] (702,508)<input class='flex w-full border py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300 h-9 px-3 rounded-lg bg-neutral-50/30 dark:bg-neutral-900/30 border-neutral-200 dark:border-neutral-800 focus:ring-blue-500' placeholder='e.g. employee_id' />
+Start Check
+
+</current_dom>

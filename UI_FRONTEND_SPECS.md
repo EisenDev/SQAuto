@@ -17,13 +17,15 @@
 6. **Schema Visualizer** – Visual graph of tables and relationships (PK/FK).
 7. **AI Explanation Panel** – Collapsible panel displaying AI‑generated schema explanations and suggestions.
 8. **Export Panel** – Buttons for Excel, Clean SQL, Translated SQL, each with status tooltip.
-9. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
+9. **Migration Control Center** – Target DB connection, dry‑run validation, reconciliation summary, migration logs.
+10. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
 
 ## Main Pages
 - **Dashboard** – Home view containing the layout above.
 - **Job Details** – Detailed view of a single migration job, with timeline and logs.
 - **Table Details** – Focused view for a specific table, showing raw vs cleaned data and AI notes.
 - **Export Page** – Final export options and download links.
+- **Migration Control Center** – Target database connection management, dry‑run execution, reconciliation results, and migration logs.
 - **Settings Page** – Global configuration (environment variables, API keys) – admin only.
 
 ## UX Rules

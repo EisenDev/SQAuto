@@ -1,0 +1,19 @@
+# Verification Plan: SQAuto Dashboard Fixes
+
+- [ ] Navigate to http://sqauto.zeraynce.com/
+- [ ] Select active job (2eaa...)
+- [ ] Verify READINESS card:
+    - [ ] Percentage (>= 45%)
+    - [ ] Label 'Streaming...'
+- [ ] Verify TABLES and ROWS cards:
+    - [ ] No gray skeletons
+    - [ ] Numbers displayed
+- [ ] Observe for 10 seconds:
+    - [ ] Confirm values increment
+
+## Observations
+- Job ID:
+- Initial Readiness:
+- Initial Tables/Rows:
+- Final Readiness:
+- Final Tables/Rows:

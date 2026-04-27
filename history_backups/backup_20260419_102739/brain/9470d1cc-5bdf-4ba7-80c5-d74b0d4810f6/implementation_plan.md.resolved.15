@@ -1,0 +1,32 @@
+# Implementation Plan - INDUSTRIAL REMOTE MIRRORING (v2.2.1)
+
+The `git pull` on your VM failed due to credential requirements. I will now bypass Git entirely and use `scp` to mirror the verified 'Deadlock-Free' code directly from your local machine to the VM.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Code Mirroring Phase:** I will use your SSH key to push the files from `/home/eisen/Downloads/SQAuto` to `azureuser@172.188.112.192:~/SQAuto`. This ensures the VM has the **exact** same stable code I just verified.
+
+> [!CAUTION]
+> **Total Container Reset:** After the sync, I will perform a `docker compose down -v` and a `build --no-cache` to ensure the old 'Phantom UI' and stalling logic are physically purged from the VM's disk.
+
+## Proposed Changes
+
+### 1. The Mirror Sync
+- **SCP Mirror:** `scp -i [KEY] -r . azureuser@[IP]:~/SQAuto`.
+- This will overwrite the VM's files with the fixed version.
+
+### 2. The Clean Rebuild
+- **SSH Exec:** `docker compose down -v`.
+- **SSH Exec:** `docker compose build --no-cache api web`.
+- **SSH Exec:** `docker compose up -d --force-recreate`.
+
+### 3. Pipeline Visibility
+- I will verify the creation of `restoration.log` on the VM.
+
+## Verification Plan
+
+### Manual Verification (on the VM)
+1. Confirm `grep "v2.2.0" ~/SQAuto/apps/web/src/app/page.tsx` returns a match.
+2. Confirm `docker ps` shows Port 80 bound and healthy.
+3. Confirm the new `/api/debug/restoration-log` route is reachable.

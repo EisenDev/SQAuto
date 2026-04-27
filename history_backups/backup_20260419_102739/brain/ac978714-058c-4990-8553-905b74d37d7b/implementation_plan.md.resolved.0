@@ -1,0 +1,54 @@
+# Fix 502 Bad Gateway and ExportPanel Prop Mismatch
+
+The user is experiencing a "502 Bad Gateway" on `sqauto.zeraynce.com`. This indicates that Nginx is running but cannot connect to the Next.js application. Additionally, there is a React prop mismatch in the dashboard's `ExportPanel` component.
+
+## Proposed Changes
+
+### 1. Fix React Prop Mismatch
+Modify `ExportPanel.tsx` to accept the `disabled` prop and apply it to its buttons. This will resolve the TypeScript/React error on line 62 of `page.tsx`.
+
+#### [MODIFY] [ExportPanel.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/ExportPanel.tsx)
+- Add `interface ExportPanelProps { disabled?: boolean }`
+- Update the component to use the prop.
+
+### 2. Robust Proxy Headers for Nginx
+Update the Nginx setup script to include standard proxy headers required for Cloudflare and modern web apps.
+
+#### [MODIFY] [setup_nginx.sh](file:///home/eisen/Downloads/SQAuto/scripts/setup_nginx.sh)
+- Add `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Real-IP` headers.
+- Ensure `Host` header is correctly passed.
+
+### 3. Production Configuration
+Update the `.env` and Docker setup for a production environment.
+
+#### [MODIFY] [.env](file:///home/eisen/Downloads/SQAuto/.env)
+- Update `NEXT_PUBLIC_API_URL` to use the actual domain `https://sqauto.zeraynce.com/api` instead of `localhost`.
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Change the `web` service command from `npm run dev:web` to a production-ready build/start sequence or ensure the current dev command is robust enough (though build/start is preferred).
+
+## User Review Required
+
+> [!IMPORTANT]
+> **API URL Configuration**: I am updating `NEXT_PUBLIC_API_URL` to `https://sqauto.zeraynce.com/api`. Please ensure that you have run the SSL setup (Certbot) as mentioned in your script, otherwise `https` might fail. If you haven't setup SSL yet, we should use `http://sqauto.zeraynce.com/api` temporarily.
+
+> [!WARNING]
+> **Port 3000 Connectivity**: The 502 error confirms Nginx is reaching the IP `4.230.17.169` but cannot find the app on port 3000. Please ensure your Docker containers are running on the server: `docker ps`.
+
+## Open Questions
+- Have you already run `sudo certbot --nginx -d sqauto.zeraynce.com` on the server?
+- Is the SQAuto application intended to run on `4.230.17.169` or `4.230.18.242`? (Cloudflare points to `.169`).
+
+## Verification Plan
+
+### Automated Tests
+- I will verify the code changes locally to ensure `ExportPanel` accepts the prop.
+- I will check the Nginx config syntax in the script.
+
+### Manual Verification
+- After we push these changes, you will need to `git pull` on your server and restart the services:
+  ```bash
+  docker-compose -f docker/docker-compose.yml down
+  docker-compose -f docker/docker-compose.yml up -d --build
+  ```
+- Re-run the Nginx setup script if needed: `bash scripts/setup_nginx.sh`.

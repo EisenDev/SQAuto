@@ -1,0 +1,13 @@
+# Verification Plan for SQAuto
+
+- [/] Navigate to https://admin.zeraynce.com/ (Persistent 522 Connection Timed Out)
+- [/] Verify dashboard loads without 502/522 errors (Loads on IP 172.188.112.192, but not on domain)
+- [ ] Check if dashboard content is visible (Visible on IP)
+- [ ] Verify API requests to https://admin.zeraynce.com/api/jobs return successfully
+- [ ] Report final status
+
+## Observations
+- Direct IP http://172.188.112.192/ loads the SQAuto Dashboard correctly.
+- https://admin.zeraynce.com/ consistently returns 522 (Cloudflare).
+- Suspected redirect: When hitting IP endpoints like /api/health, the browser might be redirected to the domain, triggering the 522.
+- Dashboard on IP shows "Tables: 0, Rows: 0", indicating it might be waiting for a DB connection or just empty.

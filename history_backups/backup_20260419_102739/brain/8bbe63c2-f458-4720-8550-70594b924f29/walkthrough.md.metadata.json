@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Summary of changes for the \"Bot Mode\" (Clicker + Alt-Tab + Loop) feature. The Desktop Helper now supports automated looping sequences of clicks and hotkeys.",
+  "updatedAt": "2026-04-16T07:34:41.196718596Z",
+  "version": "3"
+}

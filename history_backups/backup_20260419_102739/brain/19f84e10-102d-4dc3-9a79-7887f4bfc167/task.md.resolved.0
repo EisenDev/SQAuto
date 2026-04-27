@@ -1,0 +1,10 @@
+# Tasks - Pipeline Stabilization & Dashboard Wiring
+
+- [ ] Fix CORS whitelist in backend (`apps/api/main.py`)
+- [ ] Initialize Extractor service (`services/extractor/service.py`)
+- [ ] Implement E2E automation in `UploadCard.tsx` (Upload -> Restore -> Profile)
+- [ ] Update `page.tsx` with `activeJob` state and polling
+- [ ] Wire status badge in `Header.tsx`
+- [ ] Wire summary counts in `SummaryCard.tsx`
+- [ ] Wire table list in `TableView.tsx`
+- [ ] Verify fix in browser

@@ -1,0 +1,33 @@
+
+> @sqauto/web@0.1.0 build
+> next build
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
+
+./src/components/SchemaVisualizer.tsx:126:14
+Type error: Argument of type '{ id: any; source: any; target: any; label: any; type: string; animated: boolean; labelStyle: { fontSize: number; fontWeight: number; fill: string; }; labelBgPadding: number[]; labelBgBorderRadius: number; labelBgStyle: { ...; }; markerEnd: { ...; }; style: { ...; }; }[]' is not assignable to parameter of type 'SetStateAction<Edge<any>[]>'.
+  Type '{ id: any; source: any; target: any; label: any; type: string; animated: boolean; labelStyle: { fontSize: number; fontWeight: number; fill: string; }; labelBgPadding: number[]; labelBgBorderRadius: number; labelBgStyle: { ...; }; markerEnd: { ...; }; style: { ...; }; }[]' is not assignable to type 'Edge<any>[]'.
+    Type '{ id: any; source: any; target: any; label: any; type: string; animated: boolean; labelStyle: { fontSize: number; fontWeight: number; fill: string; }; labelBgPadding: number[]; labelBgBorderRadius: number; labelBgStyle: { ...; }; markerEnd: { ...; }; style: { ...; }; }' is not assignable to type 'Edge<any>'.
+      Type '{ id: any; source: any; target: any; label: any; type: string; animated: boolean; labelStyle: { fontSize: number; fontWeight: number; fill: string; }; labelBgPadding: number[]; labelBgBorderRadius: number; labelBgStyle: { ...; }; markerEnd: { ...; }; style: { ...; }; }' is not assignable to type 'DefaultEdge<any>'.
+        Type '{ id: any; source: any; target: any; label: any; type: string; animated: boolean; labelStyle: { fontSize: number; fontWeight: number; fill: string; }; labelBgPadding: number[]; labelBgBorderRadius: number; labelBgStyle: { ...; }; markerEnd: { ...; }; style: { ...; }; }' is not assignable to type 'EdgeLabelOptions'.
+          Types of property 'labelBgPadding' are incompatible.
+            Type 'number[]' is not assignable to type '[number, number]'.
+              Target requires 2 element(s) but source may have fewer.
+
+[0m [90m 124 | [39m[0m
+[0m [90m 125 | [39m    setNodes(initialNodes)[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m 126 | [39m    setEdges(initialEdges)[33m;[39m[0m
+[0m [90m     | [39m             [31m[1m^[22m[39m[0m
+[0m [90m 127 | [39m  }[33m,[39m [graph[33m,[39m setNodes[33m,[39m setEdges])[33m;[39m[0m
+[0m [90m 128 | [39m[0m
+[0m [90m 129 | [39m  [90m// Function to save the currently dragged layout back to the Job server[39m[0m
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path /home/eisen/Downloads/SQAuto/apps/web
+npm error workspace @sqauto/web@0.1.0
+npm error location /home/eisen/Downloads/SQAuto/apps/web
+npm error command failed
+npm error command sh -c next build

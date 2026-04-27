@@ -75,7 +75,18 @@ Responsible only for:
 
 The AI assistant is assistive only and must never act as the final authority.
 
-### 6. File Storage
+### 6. Migration Engine (`services/migration_engine`)
+Responsible for:
+- Managing target database connection configurations
+- Testing connectivity to external PostgreSQL databases
+- Executing dry-run migration validations (read-only)
+- Comparing source/staging schemas against target databases
+- Generating reconciliation summaries
+- Logging all migration events with severity and context
+
+The migration engine must NEVER execute destructive commands (INSERT, UPDATE, DELETE, DROP, TRUNCATE, ALTER, CREATE) against target databases during Phase 1. Only SELECT and metadata inspection queries are permitted.
+
+### 7. File Storage
 The system handles uploaded SQL dumps and generated exports:
 - **Uploaded Dumps:** Stored securely on disk (or object storage like S3 in production environments) within a dedicated `uploads/` volume.
 - **Processed Artifacts:** Generated exports and intermediate transformation logs are stored in an `exports/` volume.
@@ -91,6 +102,9 @@ Consumes API endpoints and displays:
 - Validation results
 - Export options
 - AI explanations
+- Migration target management
+- Dry-run results and reconciliation summaries
+- Migration logs
 
 ### Backend
 Coordinates:
@@ -99,6 +113,9 @@ Coordinates:
 - Worker dispatch
 - Service orchestration
 - API responses
+- Migration target CRUD
+- Dry-run execution
+- Migration log management
 
 ### Workers
 Execute:
@@ -120,6 +137,7 @@ Provide reusable, isolated logic for each domain area:
 - validation
 - exporting
 - AI assistance
+- migration engine
 
 ## DATA FLOW
 
@@ -168,6 +186,34 @@ Provide reusable, isolated logic for each domain area:
   - Clean SQL
   - Translated SQL (best effort)
 
+### 9. Migration (Phase 1: Dry-Run)
+- Operator registers and tests a target database connection
+- Operator selects the active source job and target connection
+- A dry-run validation compares staging schema against target schema
+- Row counts are compared per table using SELECT COUNT(*) only
+- A reconciliation summary is generated with match/mismatch/missing status
+- All steps are logged with severity (info/warning/error)
+- No data is written to the target database
+
+## DATABASE LAYER
+
+The system uses PostgreSQL and is logically split into:
+- **System data**
+  - jobs
+  - statuses
+  - logs
+  - configs
+  - exception records
+  - migration_targets (target DB connection metadata)
+  - migration_runs (dry-run and future execution records)
+  - migration_logs (per-run event logs with severity)
+- **Staging data**
+  - raw restored tables
+  - extracted datasets
+  - cleaned datasets
+  - validation outputs
+  - export-ready datasets
+
 ## JOB STATE MODEL
 
 Each migration job may move through these states:
@@ -199,3 +245,5 @@ Every state transition must be logged with:
 6. Raw and cleaned data must always be stored separately.
 7. AI suggestions must never bypass deterministic validation or operator review.
 8. Every meaningful action must be auditable.
+9. The migration engine must never execute destructive commands against target databases in Phase 1.
+10. Target database credentials must never be exposed in API responses, frontend logs, or backend logs.

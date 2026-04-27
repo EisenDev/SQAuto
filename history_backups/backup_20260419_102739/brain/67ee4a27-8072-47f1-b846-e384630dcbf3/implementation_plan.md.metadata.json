@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Plan to clear large SQL files from the repository and ensure they are not tracked by Git.",
+  "updatedAt": "2026-04-17T02:43:03.151727545Z",
+  "requestFeedback": true
+}

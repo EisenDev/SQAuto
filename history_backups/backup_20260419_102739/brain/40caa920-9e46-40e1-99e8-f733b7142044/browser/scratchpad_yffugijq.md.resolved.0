@@ -1,0 +1,8 @@
+# Verification Plan for https://sqauto.zeraynce.com/
+
+- [ ] Open https://sqauto.zeraynce.com/
+- [ ] Verify dashboard loading
+- [ ] Observe pulse skeletons in summary cards
+- [ ] Check API calls to /api/jobs in network tab
+- [ ] Check console for Network Error messages
+- [ ] Report findings

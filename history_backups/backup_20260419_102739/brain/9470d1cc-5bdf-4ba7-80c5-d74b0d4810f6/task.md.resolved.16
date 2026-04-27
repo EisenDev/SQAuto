@@ -1,0 +1,13 @@
+# Task Progress: Precision Pipeline Stabilization
+
+- [ ] **Infrastructure: Port 80 Conflict Resolution**
+    - [ ] Attempt to stop host-level Nginx / identify conflict.
+- [ ] **Frontend: UI Cleanup & Hydration Fix**
+    - [ ] Remove "DECOMPRESSING", "RECEIVED", and redundant text from `page.tsx`.
+    - [ ] Fix React hydration mismatches in `UploadCard.tsx` (Move `new Date()` to `useEffect`).
+- [ ] **Backend: Industrial Diagnostic Logging**
+    - [ ] Add trace logs to `service.py` pipe loop.
+    - [ ] Add binary checks for `gunzip` and `psql` path availability.
+- [ ] **Verification & Deployment**
+    - [ ] Rebuild and redeploy containers.
+    - [ ] Verify progress increments and live logs.

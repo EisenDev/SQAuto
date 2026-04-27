@@ -1,0 +1,70 @@
+# Phase 7: Integrate and Refine V1
+
+The goal of this phase is to move from "functional prototype" to a "polished V1 internal tool." We will fix inconsistencies in SQL generation parameters, improve UI feedback for file uploads, and ensure the entire flow feels cohesive.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **SQL Generation Parameter Persistence**: Current `preview/sql` and `export/sql` routes hardcode table/column names. I will change this so they use the parameters provided during the `reconcile` step, stored in the in-memory `session_store`. 
+> 
+> **CSV Export**: As per instructions, I will keep CSV export visibly disabled with a "Coming Next" tooltip/label to maintain honesty.
+
+## Proposed Changes
+
+---
+
+### Backend Components
+
+#### [MODIFY] [session_store.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/session_store.py)
+- Update to store the reconciliation configuration (`target_table`, `target_column`, `match_key`) alongside the results.
+
+#### [MODIFY] [reconcile.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/reconcile.py)
+- Save the rule configuration into the `session_store` when reconciliation is triggered.
+
+#### [MODIFY] [export.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/export.py)
+- Update `preview_sql` and `export_sql` to retrieve the configuration from the `session_store` instead of using hardcoded defaults.
+- Improve error messages for missing sessions.
+
+---
+
+### Frontend Components
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/Otumisyon/frontend/src/app/page.tsx)
+- **Upload UX**: Show selected file names next to inputs.
+- **Error Handling**: Replace basic `alert()` with a simple inline Error Alert component or better-styled feedback.
+- **Status Badges**: Refine colors and labels for `DUPLICATE_MATCH`, `MISSING_IN_NEW`, etc.
+- **Empty States**: Ensure Tabs don't crash if clicked out of order or before data is ready.
+- **CSV Export**: Explicitly label as "Coming Next".
+
+---
+
+### Documentation
+
+#### [MODIFY] [README.md](file:///home/eisen/Downloads/Otumisyon/README.md)
+- Update status to "Phase 7 Complete - V1 Production Ready".
+- Add "Current Capabilities" section.
+
+#### [MODIFY] [IMPLEMENTATION_PHASES.md](file:///home/eisen/Downloads/Otumisyon/docs/IMPLEMENTATION_PHASES.md)
+- Mark Phase 7 as completed.
+
+#### [NEW] [walkthrough.md](file:///home/eisen/Downloads/Otumisyon/docs/walkthrough.md) (optional, or just use artifact tool)
+
+---
+
+## Open Questions
+
+- Should I implement a "Reset Session" button in the UI to allow users to start over without refreshing?
+- Is there any specific edge case for filename display (e.g., very long names) that we should handle?
+
+## Verification Plan
+
+### Automated Tests
+- `pytest backend/tests/test_sql_generator.py` (ensure it still handles custom keys correctly).
+- Manual API tests via Swagger at `http://localhost:8000/docs`.
+
+### Manual Verification
+1. **Upload**: Select 3 files, verify names appear, click upload.
+2. **Reconcile**: Change "Target Table" to something other than `employees`, run.
+3. **Review**: Verify counts and table data.
+4. **SQL Preview**: Verify that the generated SQL uses the CUSTOM table name provided in step 2.
+5. **Download**: Verify the downloaded `.sql` file also uses the custom table name.

@@ -1,0 +1,49 @@
+# Implementation Plan - Fix Server 502/524 Errors & Resource Optimization
+
+The SQAuto server is currently unresponsive (502 Bad Gateway / 524 Timeout) and SSH is hanging. This is likely due to the application (specifically the Next.js dev server) consuming all available RAM and CPU on the Azure VM. This plan focuses on regaining access and optimizing the setup for a low-resource environment.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Server Access**: I cannot currently log into the server because it is overloaded. You may need to manually **Restart the VM** from your Azure Portal to regain connectivity.
+> 
+> [!WARNING]
+> **Deployment Mode Change**: I will be switching the application from "Dev Mode" (with hot-reloading) to "Production Mode" in Docker. This will significantly reduce memory usage but means changes won't reflect instantly without a container restart.
+
+## Proposed Changes
+
+### 1. Resource Optimization (Local)
+
+#### [MODIFY] [docker-compose.yml](file:///home/eisen/Downloads/SQAuto/docker/docker-compose.yml)
+- Remove `--reload` from the API command.
+- Switch the `web` command from `npm run dev` to `npm start`.
+- Add basic resource limits (memory) to containers to prevent one process from hanging the whole OS.
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Add a proper build step for the Next.js frontend within the Docker image.
+- Ensure only necessary files are copied to reduce image size and build time.
+
+#### [NEW] [add_swap.sh](file:///home/eisen/Downloads/SQAuto/scripts/add_swap.sh)
+- Create a script to add 2GB of Swap space to the VM to prevent OOM (Out Of Memory) hangs during Docker builds.
+
+### 2. Server-Side Execution (Requires SSH Access)
+
+#### [RUN] Server Commands
+- Run `add_swap.sh` to stabilize the system.
+- `docker-compose down` to clear the current hung state.
+- `docker system prune -f` to free up disk space.
+- Pull the new optimized configurations and `docker-compose up -d --build`.
+
+## Open Questions
+
+- **VM Size**: Do you know the exact specs of the Azure VM (e.g., Standard_B1s, B2s)? Knowing this will help me tune the memory limits.
+- **Auto-Restart**: Have you already tried restarting the VM? If not, please do so now so I can proceed with the fixes.
+
+## Verification Plan
+
+### Automated Tests
+- `curl -I https://sqauto.zeraynce.com/` to check for a 200 OK response.
+- `docker stats` on the server to monitor memory usage.
+
+### Manual Verification
+- Use the **Browser Subagent** to navigate to the website and verify that the UI loads and can successfully communicate with the API.

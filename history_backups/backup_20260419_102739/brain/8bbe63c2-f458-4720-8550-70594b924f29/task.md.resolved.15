@@ -1,0 +1,9 @@
+# Task: Implement Bot Mode (Clicker + Alt-Tab + Loop)
+
+- [x] Refactor Profile Models to support Bot Mode Actions
+- [x] Update Profile Service for Bot Mode persistence
+- [x] Implement Bot Mode logic in Automation Engine
+- [x] Update Calibration Wizard to support Bot Mode flow
+- [/] Update Extraction Panel UI to support Bot Mode loops
+- [ ] Add Tests for Bot Mode
+- [ ] Verify implementation with manual test

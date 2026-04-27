@@ -1,0 +1,13 @@
+# Tasks: Industrial Feedback (Upload Progress)
+
+- [ ] Phase 1: API Client Upgrade
+    - [ ] Refactor `apps/web/src/lib/api.ts` to use `XMLHttpRequest` for `uploadDump`
+    - [ ] Add `onProgress` callback support
+- [ ] Phase 2: UI Implementation
+    - [ ] Update `apps/web/src/components/UploadCard.tsx`:
+        - [ ] Add state for `progress`, `uploadedBytes`, `totalBytes`, and `startTime`
+        - [ ] Implement time-remaining estimation logic
+        - [ ] Render detailed industrial progress bar
+- [ ] Phase 3: Deployment & Verification
+    - [ ] Perform a test upload with a sample file
+    - [ ] Verify the progress bar and time estimate accuracy

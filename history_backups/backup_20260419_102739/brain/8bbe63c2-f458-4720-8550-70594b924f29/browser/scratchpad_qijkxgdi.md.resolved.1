@@ -1,0 +1,16 @@
+# Phase 7 Verification Checklist
+
+- [/] Navigate to http://localhost:49100 (Done, but noticed missing "Clear Session" button and CORS errors)
+- [ ] Verify "Clear Session" button and "Ingest & Define" card (Card is there, button is MISSING)
+- [ ] Select mock files and verify names are visible
+    - [ ] Excel: /home/eisen/Downloads/Otumisyon/mock_data/input.xlsx
+    - [ ] Legacy SQL: /home/eisen/Downloads/Otumisyon/mock_data/old_mock.sql
+    - [ ] Modern SQL: /home/eisen/Downloads/Otumisyon/mock_data/new_mock.sql
+- [ ] Click 'Initialize Session' and wait for success badge
+- [ ] Change 'Target Table' to 'staff_records'
+- [ ] Click 'Start Reconciliation'
+- [ ] Verify 'Review Results' (Safe updates = 84)
+- [ ] Go to 'Export SQL Patch' tab
+- [ ] Verify SQL Preview contains 'UPDATE staff_records'
+- [ ] Click 'Export SQL Patch' and verify download
+- [ ] Summarize E2E flow

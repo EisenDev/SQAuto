@@ -8,13 +8,14 @@ import ExportPanel from '@/components/ExportPanel';
 import AdvancedTools from '@/components/AdvancedTools';
 import SourceTruthExplorer from '@/components/SourceTruthExplorer';
 import SchemaVisualizer from '@/components/SchemaVisualizer';
+import MigrationControlCenter from '@/components/MigrationControlCenter';
 import { useJob } from '@/components/JobProvider';
 import { getJob } from '@/lib/api';
 import Skeleton from '@/components/Skeleton';
 
 export default function Dashboard() {
   const { activeJob, setActiveJob } = useJob();
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'truth' | 'schema'>('pipeline');
+  const [activeTab, setActiveTab] = useState<'pipeline' | 'truth' | 'schema' | 'migration'>('pipeline');
   const [jobHistory, setJobHistory] = useState<any[]>([]);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -145,6 +146,12 @@ export default function Dashboard() {
         >
           3. Schema Visualizer
         </button>
+        <button
+          onClick={() => setActiveTab('migration')}
+          className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'migration' ? 'bg-white text-indigo-800 shadow-sm ring-1 ring-indigo-100' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+        >
+          4. Migration Control Center
+        </button>
       </div>
 
       {/* Tab 1: Pipeline Engine */}
@@ -190,10 +197,17 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Tab 4: Migration Control Center */}
+      {activeTab === 'migration' && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <MigrationControlCenter />
+        </div>
+      )}
+
       {/* Industrial Versioning (Cache Buster) */}
       <div className="pt-8 pb-4 text-center">
         <p className="text-[10px] text-gray-400 font-mono uppercase tracking-[0.2em] opacity-50">
-          SQAuto Industrial v3.2.0-DATA-EXPLORER | Build: {new Date().toISOString()} | Status: SECURE-BROWSER-ACTIVE
+          SQAuto Industrial v4.0.0-MIGRATION-ENGINE | Build: {new Date().toISOString()} | Status: SECURE-BROWSER-ACTIVE
         </p>
       </div>
     </div>

@@ -1,0 +1,65 @@
+# SQAuto Deployment & Bug Fixes
+
+I have implemented the fixes for the "502 Bad Gateway" error and the React component crash at line 62.
+
+## Changes Overview
+
+### 1. Fixed `ExportPanel` Prop Mismatch
+The `ExportPanel` component was not accepting the `disabled` prop being passed to it. This would cause a build or runtime error. I have updated it to accept and use this prop.
+
+```tsx
+// apps/web/src/components/ExportPanel.tsx
+interface ExportPanelProps {
+  disabled?: boolean;
+}
+
+export default function ExportPanel({ disabled }: ExportPanelProps) {
+  // ... usage of disabled prop ...
+}
+```
+
+### 2. Improved Nginx Config for Cloudflare
+I updated `scripts/setup_nginx.sh` to include essential proxy headers for Cloudflare and modern Next.js deployments. This ensures the original IP and protocol are correctly passed to the application.
+
+```nginx
+proxy_set_header X-Real-IP \$remote_addr;
+proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto \$scheme;
+```
+
+### 3. Production Environment Configuration
+Updated `.env` to point to the correct production domain for the API.
+
+```env
+NEXT_PUBLIC_API_URL=https://sqauto.zeraynce.com/api
+```
+
+## Next Steps: Applying to Server
+
+Since you have already pushed to GitHub, please follow these steps on your server at `4.230.17.169`:
+
+1.  **Pull the latest code**:
+    ```bash
+    git pull origin main
+    ```
+
+2.  **Update Nginx**:
+    ```bash
+    bash scripts/setup_nginx.sh
+    ```
+
+3.  **Restart & Rebuild Containers**:
+    This will ensure the new code and `.env` settings are applied inside Docker.
+    ```bash
+    docker-compose -f docker/docker-compose.yml down
+    docker-compose -f docker/docker-compose.yml up -d --build
+    ```
+
+4.  **SSL Verification**:
+    Ensure you have run Certbot if you haven't already:
+    ```bash
+    sudo certbot --nginx -d sqauto.zeraynce.com
+    ```
+
+> [!IMPORTANT]
+> If you still see a "Bad Gateway", check your container logs with `docker logs sqauto_web` to see if there are any runtime errors during startup.

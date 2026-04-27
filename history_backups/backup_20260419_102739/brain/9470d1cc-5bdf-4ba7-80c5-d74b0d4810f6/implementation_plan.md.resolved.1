@@ -1,0 +1,47 @@
+# Implementation Plan - Production Recovery & Industrial Deployment
+
+The production environment on Azure is currently down due to a syntax error in the API logic. This plan recovers the server and deploys the new industrial features (Chunked Uploads and Live Extraction visibility).
+
+## User Review Required
+
+> [!CAUTION]
+> **Production Downtime:** The API is currently in a crash-loop on the server. I will be restarting the Docker containers to apply the fix, which will cause a brief service interruption.
+
+## Proposed Changes
+
+---
+
+### [Component] Database & Processing Service
+#### [MODIFY] [service.py (DumpRestore)](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **CRITICAL FIX:** Remove the redundant `except` block that is causing the `SyntaxError` on the server.
+- Ensure the "Extraction Peeking" logic is robust.
+
+---
+
+### [Component] Deployment & DevOps
+#### [Local] Environment Sync
+- Stage and commit all pending industrial updates (CORS fixes, timeout extensions, and the new Chunked Upload logic).
+- Push changes to the GitHub repository: `https://github.com/EisenDev/SQAuto.git`.
+
+#### [Remote] Azure VM Deployment (`172.188.112.192`)
+- SSH into the VM using the provided key.
+- Perform a clean `git pull` from the main branch.
+- Execute `docker-compose up -d --build` to rebuild the API and Frontend containers.
+- Verify that `sqauto_api` status changes from "Restarting" to "Up".
+
+---
+
+## Open Questions
+
+- **Branching:** Is it safe to push directly to `main` for this recovery, or do you have a staging branch you prefer?
+- **Data Persistence:** Rebuilding containers is safe for data because we use volumes, but please confirm no manual data was added to the containers themselves.
+
+## Verification Plan
+
+### Automated Tests
+- Run a health check against `http://sqauto.zeraynce.com/api/health` after deployment.
+- Verify the API logs show "Worker started successfully" and no further boot errors.
+
+### Manual Verification
+- Upload the 114MB file again to confirm the Chunked Upload bypasses the Cloudflare limit.
+- Watch the "Extracted Tables" card to verify the "Live Peeking" sample data appears.

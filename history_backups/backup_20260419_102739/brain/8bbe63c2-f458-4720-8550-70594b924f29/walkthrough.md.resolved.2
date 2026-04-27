@@ -1,0 +1,35 @@
+# Walkthrough: Phase 7.5 Architectural Alignment
+
+We have completed the architectural alignment and UI refinement pass. This phase ensures the application is structurally ready for the "Extract -> Normalize -> Compare" strategy coming in Phase 8A.
+
+## Key Accomplishments
+
+### 1. Enterprise-Ready UI Polish
+- **Source Labeling**: Refined "Old Source" and "New Source" with descriptive subtitles: *Previous system data* and *Current system data*.
+- **Agent Wording**: Adopted safer, enterprise-friendly language for the Legacy Application mode: *"This desktop helper safely extracts data from the old system by automating the application interface."*
+- **Comparison Rules**: Transitioned to non-technical labels including **Status Keyword**, **Match Key**, and **Comparison Field**.
+
+### 2. Strategic "Smart" Gating
+- **Button Logic**: The **"Initialize Session"** button now intelligently disables itself when an unimplemented source method (Database Connection or Legacy Application) is selected. This prevents invalid backend states and provides clear UX expectations.
+- **V1 Protection**: The existing SQL Dump workflow remains the default and is fully verified to be functional.
+
+### 3. Backend Contract Evolution
+- **Source Awareness**: The `POST /upload` endpoint and the internal `session_store` now explicitly track `old_source_type` and `new_source_type`.
+- **Pre-Phase 8A Prep**: This shift allows the backend to understand which **Source Adapter** it will need to instantiate during the reconciliation phase.
+
+### 4. Documentation Evolution
+- [FUTURE_ROADMAP.md](file:///home/eisen/Downloads/Otumisyon/docs/FUTURE_ROADMAP.md): Officially split Phase 8 into **8A (Architecture)** and **8B (Implementation)**.
+- [ARCHITECTURE.md](file:///home/eisen/Downloads/Otumisyon/docs/ARCHITECTURE.md): Introduced the **Source Adapter Design Pattern** and updated the data flow orchestration.
+
+## Verification Results
+
+| Requirement | Status | Verification Detail |
+| :--- | :--- | :--- |
+| UI Subtitles | ✅ PASS | "Previous/Current system data" visible. |
+| Button Gating | ✅ PASS | Disables correctly for "Coming Soon" cards. |
+| Legacy Agent Wording | ✅ PASS | Refined to "Automating interface" vs "hacking". |
+| Backend Persistence | ✅ PASS | `source_type` state correctly tracked in session. |
+| V1 Flow Stability | ✅ PASS | SQL Dump + Start Check flow verified functional. |
+
+## Moving to Phase 8A
+The foundation is now laid for the **Source Adapter Architecture**. Next, we will begin refactoring the backend logic to separate "Extraction/Normalization" from the core reconciliation engine.

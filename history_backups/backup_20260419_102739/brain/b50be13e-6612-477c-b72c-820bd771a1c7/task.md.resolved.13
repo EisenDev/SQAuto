@@ -1,0 +1,23 @@
+- [x] Create `.gitignore`
+- [x] Initialize Git repository
+- [x] Add remote `origin`
+- [x] Initial commit on `main`
+- [x] Memory Optimization (2GB+ Dumps)
+- [x] Supabase Migration
+    - [x] Update `docker-compose.yml`
+    - [x] Update `.env.example`
+- [x] Azure VM Deployment
+    - [x] SSH into VM
+    - [x] Clone repository to VM
+    - [x] Run `setup_vm.sh`
+    - [x] Create `.env` on VM
+    - [x] Run `docker compose up -d` (Success!)
+- [/] Domain & SSL Setup
+    - [x] Create `setup_nginx.sh` script
+    - [x] Fix Backend CORS origins
+    - [x] Fix Next.js binding (0.0.0.0)
+    - [/] Install & Configure Nginx (Retry)
+    - [x] Setup SSL (Managed by Cloudflare)
+- [ ] CI/CD Verification
+    - [ ] Trigger deployment from GitHub
+    - [ ] Verify health endpoints

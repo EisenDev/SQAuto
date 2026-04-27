@@ -1,0 +1,71 @@
+# Phase 8B Implementation Plan: Precise Database Connectors
+
+This phase matures the database ingestion layer by introducing **SQLAlchemy** for unified connection handling and establishing an API contract for full connection parameters (Host, Port, Credentials). This replaces the preliminary environment-based config with a proper session-driven configuration flow.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **API Change**: I will introduce a new endpoint `POST /session/{session_id}/connection` allowing the UI (or API consumer) to inject specific database credentials for a session. This is more scalable than environment variables.
+>
+> **Extraction Strategy**: Per instructions, we will switch to `SELECT * FROM table_name`, loading the entire table into a pandas DataFrame before normalization. This ensures maximum compatibility but relies on the table being a reasonable size for memory.
+
+## Proposed Changes
+
+### 1. Backend Infrastructure
+
+#### [MODIFY] [requirements.txt](file:///home/eisen/Downloads/Otumisyon/backend/requirements.txt)
+- Add `SQLAlchemy`.
+
+---
+
+### 2. Session & API Contract
+
+#### [MODIFY] [session_store.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/session_store.py)
+- Add `SESSION_CONNECTION_CONFIG = {}`.
+- Add `save_connection_config(session_id, role, config)`.
+- Role identifies if the config is for the `old` or `new` source.
+
+#### [NEW] [config.py](file:///home/eisen/Downloads/Otumisyon/backend/app/api/routes/config.py)
+- Endpoint: `POST /session/{session_id}/connection`.
+- Parameters: `role` (old/new), `host`, `port`, `database`, `user`, `password`, `table_name`, `driver` (mysql/postgres).
+
+---
+
+### 3. Refined Adapter Layer (SQLAlchemy)
+
+#### [NEW] [sqlalchemy_adapter.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/sqlalchemy_adapter.py) [REPLACES mysql.py/postgres.py logic]
+- A generic SQLAlchemy adapter that takes the connection config.
+- Implements `fetch_data`:
+    1. Build connection string.
+    2. Create engine.
+    3. Execute `SELECT * FROM {table_name}`.
+    4. Close engine.
+- Shared logic for both MySQL and PostgreSQL.
+
+#### [MODIFY] [factory.py](file:///home/eisen/Downloads/Otumisyon/backend/app/services/source_adapters/factory.py)
+- Update to fetch connection config from session store.
+- Instantiate the refined SQLAlchemy-based adapters.
+
+---
+
+### 4. Verification & Testing
+
+#### [MODIFY] [test_source_adapters.py](file:///home/eisen/Downloads/Otumisyon/backend/tests/test_source_adapters.py)
+- Update to mock `sqlalchemy.create_engine` and the resulting dataframes.
+- Verify `SELECT *` logic.
+- Verify error handling (failed connections, missing tables).
+
+---
+
+## Technical Considerations
+- **Memory Safety**: `pd.read_sql("SELECT * ...", engine)` is the simplest path. For Phase 10, we may consider chunking if tables exceed certain sizes.
+- **Normalization**: The existing `normalize_dataframe` will be applied *after* the `SELECT *` to maintain isolation.
+
+## Verification Plan
+
+### Automated Tests
+- `pytest backend/tests/test_source_adapters.py`.
+
+### Manual Verification
+- Verify via Swagger that `POST /session/.../connection` correctly persists data.
+- Verify that a standard SQL Dump reconciliation still passes (V1 Stability).

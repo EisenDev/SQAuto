@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "Adding an OS & Session indicator to the UI. Since you are on Ubuntu, the 'Tabbing' often fails because of 'Wayland' (a security feature). I will add a dynamic detector that shows your system status and warns if you are in an 'Unreliable' session (Wayland), along with a manual Linux/Windows toggle for peace of mind.",
+  "updatedAt": "2026-04-16T09:23:06.666034576Z",
+  "requestFeedback": true
+}

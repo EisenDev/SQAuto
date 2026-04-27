@@ -1,0 +1,41 @@
+# Final Production & Domain Setup Plan
+
+Now that your code is cloned, we will finalize the server's environment and set up your subdomain (`sqauto.zeraynce.com`).
+
+## User Review Required
+
+> [!IMPORTANT]
+> **No Host Dependencies**: Since we are using **Docker**, you do NOT need to install `npm` or `python` on the VM itself. Docker will build everything inside the containers.
+
+> [!TIP]
+> **Subdomain Config**: By using `sqauto.zeraynce.com`, we can serve both the Frontend and the Backend from the same domain (Backend on `/api`). This avoids many CORS issues.
+
+## Proposed Changes
+
+### 1. Environment Configuration
+We will create the `.env` on the server using the values you provided.
+
+### 2. Domain & Nginx Setup
+
+#### [NEW] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Serve the Web App on `sqauto.zeraynce.com`.
+- Proxy `/api/*` requests to the Backend container.
+- Handle SSL termination (HTTPS).
+
+### 3. DNS Configuration (User Action)
+You will need to visit your domain provider (e.g., GoDaddy, Cloudflare) and add:
+- **Type**: A Record
+- **Name**: `sqauto`
+- **Value**: `4.230.17.169`
+
+## Open Questions
+
+1. **SSL Cert**: Do you want me to set up **Certbot** for automatic free HTTPS?
+2. **Reverse Proxy**: Are you okay with me installing Nginx on your VM to handle the subdomain?
+
+## Verification Plan
+
+### Manual Verification
+1. Run `docker compose up --build -d` and verify containers are running.
+2. Verify domain resolves to the VM IP.
+3. Pulse the `/health` endpoint via the new subdomain.

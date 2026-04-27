@@ -1,0 +1,36 @@
+# Implementation Plan - Industrial Memory Protection & Final Stabilization
+
+The reason the latest fix "failed" is that the Docker container didn't fully refresh its internal code despite the sync. Additionally, your insight that the 114MB file expands to **1.8GB** is critical—it means we must use an even more memory-efficient "Sliding Window" rewriter to prevent the server from running out of RAM on super-long SQL lines.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Sliding Window Rewriting:** I will move away from line-by-line processing (which can crash on 1.8GB files with long lines) to a sliding-window chunk model. This is the industrial standard for processing massive binary-heavy SQL dumps safely.
+
+## Proposed Changes
+
+---
+
+### [Component] Restoration Service
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Implement Sliding Window**: The rewriter will process data in 1MB chunks with a 1KB overlap. This ensures `public.` is always caught without ever loading more than a few MBs into RAM.
+- **Hardened Initialization**: I will double-verify the `last_sync_bytes` and `compressed_bytes` scope to ensure the "UnboundLocalError" is permanently eliminated.
+- **Binary Safety**: The rewriter will use a more robust binary-to-text decoding strategy to handle your 1.8GB dump's potential non-UTF8 characters safely.
+
+---
+
+### [Component] Industrial Deployment
+- **Force Rebuild**: I will use `docker compose up -d --build --force-recreate` on the server. This guarantees that the "Typo Fix" is actually baked into the running container this time.
+- **Network Reset**: Full restart of the Nginx gateway.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Deploy to Azure.
+- Verify container logs show the **new** sliding window initialization.
+
+### Manual Verification
+- Retry the 114MB upload/restore.
+- The UI progress bar should now start immediately and move steadily as the 1.8GB stream is processed.

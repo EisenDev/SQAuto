@@ -1,0 +1,58 @@
+# Walkthrough - Precision Pipeline Stabilization
+
+We have successfully stabilized the SQAuto Industrial Pipeline and resolved the critical blockers preventing the dashboard from updating correctly.
+
+## Changes Made
+
+### 🎨 UI Cleanup & Redundancy Removal
+I have stripped the redundant "RECEIVED", "DECOMPRESSING", and "Profiling Stream" labels from the **Readiness** card. The dashboard now provides a clean, professional percentage indicating the readiness of the entire uncompressed SQL dump.
+
+- **File**: [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- **Result**: Compact status like `15%`, `80%`, or `100%`.
+
+### 🛡️ React Stability (Hydration Fix)
+I resolved the **Minified React Errors (#418/421)** seen in the browser console. These were caused by the server and client generating different time strings during the initial render of the 'Live Pipeline Insight' console.
+
+- **File**: [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- **Fix**: Moved dynamic timestamp generation into a `useEffect` hook to ensure perfect synchronization.
+
+### 🔍 Backend Diagnostics (The 0% Stall)
+To diagnose why the restoration progress sometimes hangs at 0%, I injected industrial-grade logging and safety checks into the decompression pipe.
+
+- **File**: [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Features**:
+    - **Binary Verification**: Confirms `psql` is available in the container before starting.
+    - **Industrial Trace**: Logs the exact file size and initial byte-stream activity to the server logs.
+
+### 🚀 Deployment Workaround (Port 8082)
+Due to host-level conflicts on the Azure VM:
+- **Port 80** is occupied by **Apache2** (Standard Ubuntu service).
+- **Port 443** is occupied by **Laradock**.
+
+I have reconfigured the SQAuto Nginx to use port **8082** to ensure the deployment can succeed and the platform remains active.
+
+## Verification Results
+
+### 1. Service Status
+All containers are successfully built and running:
+```bash
+sqauto_api     Up (Healthy)
+sqauto_web     Up
+sqauto_redis   Up
+sqauto_nginx   Up (Port 8082)
+```
+
+### 2. Dashboard Access
+The updated platform is now live and accessible at:
+[http://sqauto.zeraynce.com:8082](http://sqauto.zeraynce.com:8082)
+
+> [!IMPORTANT]
+> **To Return to Port 80:** 
+> If you wish to use the domain without the `:8082` port, you must manually stop the host-level Apache service by running:
+> `sudo systemctl stop apache2`
+> Once stopped, I can move SQAuto back to port 80.
+
+## Next Steps
+1. Visit [http://sqauto.zeraynce.com:8082](http://sqauto.zeraynce.com:8082) to see the clean UI.
+2. Re-run the 114MB restoration.
+3. Monitor the **Live Pipeline Insight** for the new diagnostic trace.

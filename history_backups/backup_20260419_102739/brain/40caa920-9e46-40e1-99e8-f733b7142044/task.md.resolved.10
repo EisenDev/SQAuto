@@ -1,0 +1,16 @@
+# Tasks: Stability & Real-time Progress
+
+- [ ] Phase 1: Backend Optimization (Async & OOM Fix)
+    - [ ] Update `services/dump_restore/service.py` (OOM mitigation: remove log buffer)
+    - [ ] Update `services/schema_profiler/service.py` (Implement incremental DB updates)
+    - [ ] Update `apps/api/router.py` (Convert to FastAPI `BackgroundTasks`)
+- [ ] Phase 2: Frontend Real-time Dash
+    - [ ] Update `apps/web/src/components/UploadCard.tsx` (Trigger async flow & status)
+    - [ ] Update `apps/web/src/app/page.tsx` (Enhance polling for incremental profile)
+- [ ] Phase 3: Sync & Deployment
+    - [ ] Sync fixed backend/frontend files to server
+    - [ ] Restart containers
+- [ ] Phase 4: Verification
+    - [ ] Verify no OOM on large file test
+    - [ ] Confirm "live" table extraction in UI
+    - [ ] Create Walkthrough

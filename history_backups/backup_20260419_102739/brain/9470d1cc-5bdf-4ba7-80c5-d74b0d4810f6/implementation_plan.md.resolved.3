@@ -1,0 +1,51 @@
+# Implementation Plan - Industrial UI & Pipeline Stabilization
+
+This plan addresses the "0% Stuck" issue by hardening the database connection logic and implements a premium "Industrial Progress" experience on the Upload card as requested.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Model Schema Binding:** I will explicitly bind the `Job` model to the `public` schema. This is an industrial safety measure to prevent `UndefinedTable` errors when the backend is performing multi-schema operations (staging vs public).
+
+## Proposed Changes
+
+---
+
+### [Component] Database Layer
+#### [MODIFY] [models.py](file:///home/eisen/Downloads/SQAuto/apps/api/models.py)
+- Add `__table_args__ = {"schema": "public"}` to the `Job` model.
+- This ensures that SQLAlchemy always looks for `public.jobs`, even if a previous raw SQL command changed the session's `search_path`.
+
+---
+
+### [Component] Background Heartbeat
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Update the `_flush_progress` method to be even more robust.
+- Use explicit `public.jobs` in any manual updates if necessary.
+- Store a `restore_start_time` in the job profile to enable accurate ETA calculations in the UI.
+
+---
+
+### [Component] Industrial UI Upgrade
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- **New State: Decompressing**: When the upload finishes and status moves to `restoring`, display a dedicated decompression progress bar.
+- **Progress Tracking**: Calculate percentage using: `(metadata.compressed_processed_mb / file_size) * 100`.
+- **Live ETA**: Implement a dynamic "Estimated Time" for the restoration process based on decompression throughput.
+- **Visual Polish**: Use the same premium teal theme with micro-animations.
+
+---
+
+## Open Questions
+
+- **Decompression Metrics:** I will calculate % based on the *compressed* bytes processed vs *compressed* total file size. This is the most accurate way to show how much of the file has been "read" by the decompression engine. Is this acceptable?
+
+## Verification Plan
+
+### Automated Tests
+- Deploy and verify logs on Azure VM.
+- Ensure `docker logs sqauto_api` no longer shows `relation "jobs" does not exist`.
+
+### Manual Verification
+- Upload the 114MB file.
+- Verify that once the Upload bar hits 100%, it switches to a "Restoring & Extracting" progress bar.
+- Confirm the progress bar increments and shows a decreasing time estimate (e.g., "5m 30s remaining").

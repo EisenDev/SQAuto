@@ -1,0 +1,18 @@
+# Tasks: Extreme Scale & 5-Card Dashboard
+
+- [ ] Phase 1: Infrastructure Stabilization
+    - [ ] Update `docker/nginx.conf` (Add `client_max_body_size 2G` and increase timeouts)
+    - [ ] Update `docker/Dockerfile` (Ensure timeouts match Gunicorn)
+- [ ] Phase 2: Backend - Real-time Restore Monitor
+    - [ ] Update `services/dump_restore/service.py` (Implement background psql watcher)
+    - [ ] Update `services/schema_profiler/service.py` (Implement Row Count & Data Size logic)
+- [ ] Phase 3: Backend - Job Model & Schema
+    - [ ] Update `apps/api/models.py` (Add new fields for cards if necessary, or just use `profile` JSON)
+- [ ] Phase 4: UI - 5-Card Dashboard
+    - [ ] Update `apps/web/src/components/SummaryCard.tsx` (Prop adjustments)
+    - [ ] Update `apps/web/src/app/page.tsx` (Implement the 5-card grid and live data binding)
+- [ ] Phase 5: Deployment & Verification
+    - [ ] Sync all files to VM
+    - [ ] Restart containers
+    - [ ] Verify 1.8GB upload success
+    - [ ] Verify real-time card updates durante restore

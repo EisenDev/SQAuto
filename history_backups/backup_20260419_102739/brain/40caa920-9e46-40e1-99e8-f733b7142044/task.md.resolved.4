@@ -1,0 +1,17 @@
+# Tasks: New Server Bootstrap & Launch
+
+- [ ] Phase 1: Server Bootstrap
+    - [ ] Run `scripts/setup_vm.sh` on remote server
+    - [ ] Verify Docker & Docker Compose installation
+    - [ ] Verify Swap file creation (2GB)
+- [ ] Phase 2: Configuration & Sync
+    - [ ] Sync local `.env` to remote server
+    - [ ] Update `docker/nginx.conf` with `admin.zeraynce.com`
+    - [ ] Pull latest changes on server if needed
+- [ ] Phase 3: Application Launch
+    - [ ] Run `docker compose up -d --build` on remote server
+    - [ ] Verify all containers are running (`docker ps`)
+- [ ] Phase 4: Verification & Handover
+    - [ ] Check API health via `curl`
+    - [ ] Verify website accessibility via browser subagent
+    - [ ] Create Walkthrough

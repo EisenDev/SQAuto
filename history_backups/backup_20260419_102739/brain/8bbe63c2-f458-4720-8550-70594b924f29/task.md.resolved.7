@@ -1,0 +1,18 @@
+# Phase 8B: Real DB Connectors Task List
+
+- [ ] **Dependency Update**
+    - [ ] Add `mysql-connector-python` to `backend/requirements.txt`.
+- [ ] **Backend: Implementation of Source Adapters**
+    - [ ] Create `app/services/source_adapters/mysql.py` with `MySQLAdapter`.
+    - [ ] Create `app/services/source_adapters/postgres.py` with `PostgresAdapter`.
+    - [ ] Update `app/services/source_adapters/factory.py` to use real implementations.
+- [ ] **Frontend: UI Ingestion Activation**
+    - [ ] Update `page.tsx`: Change DB card badges to "ACTIVE".
+    - [ ] Enable selection and logic for direct DB source types.
+    - [ ] Refine "Initialize Session" gating (bypass file check for DB sources).
+- [ ] **Verification & Testing**
+    - [ ] Create mock connection tests in `tests/test_source_adapters.py`.
+    - [ ] Verify V1 SQL dump flow remains functional.
+- [ ] **Documentation Updates**
+    - [ ] Update `FUTURE_ROADMAP.md`.
+    - [ ] Update `ARCHITECTURE.md`.

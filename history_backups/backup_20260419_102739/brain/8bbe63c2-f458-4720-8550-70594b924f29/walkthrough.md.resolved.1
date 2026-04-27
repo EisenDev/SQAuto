@@ -1,0 +1,40 @@
+# Walkthrough: UI Evolution & Roadmap Preparation
+
+We have successfully completed a comprehensive UI refinement pass. The interface is no longer just a functional backend tool; it is now a guided application that clearly communicates its current capabilities and future roadmap.
+
+## Key Changes
+
+### 1. Reorganized Data Ingestion
+The source selection is now segmented into three logical cards:
+- **Excel Report**: The master operations file.
+- **Old Source (Legacy Data)**: Card-based selection for SQL Dumps, Direct DB Connections (Ph 8), or Legacy Applications (Ph 9).
+- **New Source (Modern Data)**: Card-based selection for SQL Dumps or PostgreSQL Connections (Ph 8).
+
+### 2. Strategic Roadmap Placeholders
+To ensure users understand the future path without confusion:
+- **Database Connections**: Clearly marked as "Coming in Phase 8".
+- **Legacy Application Mode**: When clicked, it displays an informative panel explaining the **Desktop Helper agent** workflow (Coming in Phase 9). This includes placeholder buttons for downloading the agent and viewing human-readable setup guides.
+
+### 3. Non-Technical Terminology
+Technical jargon has been replaced with friendlier, operations-focused wording:
+- `Analysis Status Hook` $\rightarrow$ **Status Keyword**
+- `Target Table` $\rightarrow$ **Target Table** (Keeping this for specificity)
+- `Match Column` $\rightarrow$ **Match Key**
+- `Target Column` $\rightarrow$ **Comparison Field**
+- `Run Reconciliation` $\rightarrow$ **Start Check**
+
+### 4. Aesthetic & Visual Polish
+- **Dynamic Icons**: Used Lucide icons (Monitor, Link2, Database) to visually distinguish source types.
+- **V1 STABLE Branding**: Added a clear version badge and footer identifiers to communicate the project's current maturity.
+- **Improved Spacing**: Refined the grid layout for better readability on tablets and desktops.
+
+## Documentation Updated
+- **[UI Wireframe](file:///home/eisen/Downloads/Otumisyon/docs/UI_WIREFRAME.md)**: Updated to match the new segmented card structure.
+- **[Frontend README](file:///home/eisen/Downloads/Otumisyon/frontend/README.md)**: Updated with technical stack details and roadmap notes.
+
+## Verification Results
+- **SQL Dump Workflow (V1)**: ✅ **STABLE**. File selection, upload, and reconciliation still work exactly as they did in Phase 7.
+- **Roadmap Cards**: ✅ **INTERACTIVE**. State switching correctly toggles the placeholder panels.
+- **Theme**: ✅ **DAZZLING**. Light/Dark mode transitions are smooth and consistent.
+
+The UI is now fully prepared for **Phase 8: Multi-Database Ingestion Layer**.

@@ -1,0 +1,23 @@
+# Tasks: Industrial Scaling & Schema Isolation (5GB+)
+
+- [ ] Phase 1: Infrastructure & Scaling
+    - [x] Create `staging` schema in Supabase (Pre-verified)
+    - [ ] Update `docker/nginx.conf` (10GB limit, 5hr timeouts)
+    - [ ] Update `docker/Dockerfile` (Install `pgloader`, 5hr Gunicorn timeout)
+- [ ] Phase 2: Backend - Universal Restorer
+    - [ ] Update `services/dump_restore/service.py`:
+        - [ ] Add SQL Signature detection (Postgres vs MySQL vs MS SQL)
+        - [ ] Implement "Selective Wipe" (`DROP SCHEMA staging CASCADE`)
+        - [ ] Implement `psql` path with `search_path=staging`
+        - [ ] Implement `pgloader` path for MySQL/SQLite
+- [ ] Phase 3: Backend - Industrial Profiler
+    - [ ] Update `services/schema_profiler/service.py`:
+        - [ ] Point all discovery queries to the `staging` schema
+        - [ ] Add `pg_total_relation_size` for "Data Extracted" card
+- [ ] Phase 4: UI - Industrial Dashboard
+    - [ ] Update `apps/web/src/app/page.tsx`:
+        - [ ] Bind all 5 cards correctly
+        - [ ] Update polling to handle the 5-hour window
+- [ ] Phase 5: Verification
+    - [ ] Perform a test MySQL -> Postgres restoration
+    - [ ] Verify 1.8GB + restore with live card updates

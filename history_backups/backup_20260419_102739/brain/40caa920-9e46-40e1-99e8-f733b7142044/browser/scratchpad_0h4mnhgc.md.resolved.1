@@ -1,0 +1,15 @@
+# Verification Plan: SQAuto Dashboard Fix
+
+## Checklist:
+- [x] Navigate to http://sqauto.zeraynce.com/ (HTTP, no S)
+- [x] Verify dashboard loads successfully
+- [x] Verify presence of 5 cards: TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS
+- [failed] Verify polling works (no 'Network Error' alerts)
+- [/] Confirm UI is polished and responsive
+
+## Findings:
+- Dashboard loads at http://sqauto.zeraynce.com/.
+- All 5 cards (TABLES, ROWS, DATA EXTRACTED, DUPLICATE DATA, READINESS) are present and correctly formatted.
+- **Critical Issue**: The frontend is still attempting to reach the backend via **HTTPS** (`https://sqauto.zeraynce.com/api/upload`), which is resulting in `net::ERR_CONNECTION_REFUSED`.
+- The 'Network Error' alert has not appeared in the UI yet, but the API calls are failing silently in the background (as seen in console logs).
+- This indicates the frontend environment configuration for the API URL likely remains set to HTTPS and needs to be updated to HTTP.

@@ -1,0 +1,119 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+[0] (500,330)<div  />
+	[1] (500,24)<div  />
+		[2] (482,24)<button class='opblock-summary-control' />
+			[3] (85,24)<span >POST />
+			[4] (528,24)<div  />
+				[5] (309,24)<span  />
+					[6] (309,24)<a class='nostyle' href='#/Reconciliation%20Session/trigger_reconciliation_api_v1_reconcile__session_id__post' />
+						[7] (309,24)<span >/api
+/v1
+/reconcile
+/{session_id} />
+				[8] (559,24)<div >Trigger Reconciliation />
+		[9] (942,24)<button aria-label='post ​/api​/v1​/reconcile​/{session_id}' class='opblock-control-arrow' />
+	[10] (500,91)<h3  />
+		[11] (173,90)<a class='nostyle' href='#/Exports%20&%20Previews' />
+			[12] (173,90)<span >Exports & Previews />
+		[13] (926,90)<button class='expand-operation' title='Collapse operation' />
+	[14] (500,147)<div  />
+		[15] (482,147)<button class='opblock-summary-control' />
+			[16] (85,147)<span >GET />
+			[17] (528,147)<div  />
+				[18] (320,147)<span  />
+					[19] (320,147)<a class='nostyle' href='#/Exports%20&%20Previews/preview_sql_api_v1_preview_sql__session_id__get' />
+						[20] (320,147)<span >/api
+/v1
+/preview
+/sql
+/{session_id} />
+				[21] (549,147)<div >Preview Sql />
+		[22] (942,147)<button aria-label='get ​/api​/v1​/preview​/sql​/{session_id}' class='opblock-control-arrow' />
+	[23] (500,208)<div  />
+		[24] (482,208)<button class='opblock-summary-control' />
+			[25] (85,208)<span >GET />
+			[26] (528,208)<div  />
+				[27] (332,208)<span  />
+					[28] (332,208)<a class='nostyle' href='#/Exports%20&%20Previews/export_report_api_v1_export_report__session_id__get' />
+						[29] (332,208)<span >/api
+/v1
+/export
+/report
+/{session_id} />
+				[30] (578,208)<div >Export Report />
+		[31] (942,208)<button aria-label='get ​/api​/v1​/export​/report​/{session_id}' class='opblock-control-arrow' />
+	[32] (500,270)<div  />
+		[33] (482,270)<button class='opblock-summary-control' />
+			[34] (85,270)<span >GET />
+			[35] (528,270)<div  />
+				[36] (315,270)<span  />
+					[37] (315,270)<a class='nostyle' href='#/Exports%20&%20Previews/export_sql_api_v1_export_sql__session_id__get' />
+						[38] (315,270)<span >/api
+/v1
+/export
+/sql
+/{session_id} />
+				[39] (533,270)<div >Export Sql />
+		[40] (942,270)<button aria-label='get ​/api​/v1​/export​/sql​/{session_id}' class='opblock-control-arrow' />
+	[41] (500,369)<h4  />
+		[42] (494,365)<button class='models-control' />
+			[43] (483,365)<span >Schemas />
+	[44] (269,441)<button class='json-schema-2020-12-accordion' />
+		[45] (255,441)<div  />
+			[46] (255,441)<div >Body_upload_files_api_v1_upload_post />
+		[47] (441,442)<span  />
+	[48] (494,443)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[49] (179,513)<button class='json-schema-2020-12-accordion' />
+		[50] (165,513)<div  />
+			[51] (165,513)<div >ExcludedCandidate />
+		[52] (261,513)<span  />
+	[53] (314,515)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[54] (183,579)<button class='json-schema-2020-12-accordion' />
+		[55] (170,579)<div  />
+			[56] (170,579)<div >HTTPValidationError />
+		[57] (270,580)<span  />
+	[58] (323,581)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[59] (166,646)<button class='json-schema-2020-12-accordion' />
+		[60] (152,646)<div  />
+			[61] (152,645)<div >HealthResponse />
+		[62] (234,646)<span  />
+	[63] (287,648)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[64] (173,712)<button class='json-schema-2020-12-accordion' />
+		[65] (159,712)<div  />
+			[66] (159,712)<div >ReconcileRequest />
+		[67] (250,712)<span  />
+	[68] (303,714)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[69] (181,778)<button class='json-schema-2020-12-accordion' />
+		[70] (167,778)<div  />
+			[71] (167,778)<div >ReconcileResponse />
+		[72] (265,778)<span  />
+	[73] (318,780)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[74] (185,844)<button class='json-schema-2020-12-accordion' />
+		[75] (171,844)<div  />
+			[76] (171,844)<div >RecordClassification />
+		[77] (273,844)<span  />
+	[78] (326,846)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[79] (173,910)<button class='json-schema-2020-12-accordion' />
+		[80] (159,910)<div  />
+			[81] (159,910)<div >SessionResponse />
+		[82] (249,911)<span  />
+	[83] (302,912)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+	[84] (200,977)<button class='json-schema-2020-12-accordion' />
+		[85] (187,977)<div  />
+			[86] (187,976)<div >SqlGenerationResponse />
+		[87] (304,977)<span  />
+	[88] (357,979)<button class='json-schema-2020-12-expand-deep-button'>Expand all />
+	object
+
+</current_dom>

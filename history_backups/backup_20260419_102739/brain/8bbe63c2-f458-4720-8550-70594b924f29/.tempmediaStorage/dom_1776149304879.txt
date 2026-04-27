@@ -1,0 +1,67 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+[0] (500,30)<h3  />
+	[1] (145,30)<a class='nostyle' href='#/System' />
+		[2] (145,29)<span >System />
+	[3] (864,30)<button class='expand-operation' title='Collapse operation' />
+[4] (500,83)<div  />
+	[5] (491,83)<button class='opblock-summary-control' />
+		[6] (142,83)<span >GET />
+		[7] (513,83)<div  />
+			[8] (205,83)<span  />
+				[9] (205,83)<a class='nostyle' href='#/System/health_check_api_v1_health_get' />
+					[10] (205,83)<span >/api
+/v1
+/health />
+			[11] (268,83)<div >Health Check />
+	[12] (871,83)<button aria-label='get ​/api​/v1​/health' class='opblock-control-arrow' />
+[13] (500,146)<h3  />
+	[14] (193,145)<a class='nostyle' href='#/Reconciliation%20Session' />
+		[15] (193,145)<span >Reconciliation Session />
+	[16] (864,145)<button class='expand-operation' title='Collapse operation' />
+[17] (500,198)<div  />
+	[18] (491,198)<button class='opblock-summary-control' />
+		[19] (142,198)<span >POST />
+		[20] (513,198)<div  />
+			[21] (205,198)<span  />
+				[22] (205,198)<a class='nostyle' href='#/Reconciliation%20Session/upload_files_api_v1_upload_post' />
+					[23] (205,198)<span >/api
+/v1
+/upload />
+			[24] (266,198)<div >Upload Files />
+	[25] (871,198)<button aria-label='post ​/api​/v1​/upload' class='opblock-control-arrow' />
+Upload required files, save them locally by session, and restore SQL dumps.
+[26] (160,327)<div  />
+	[27] (149,327)<h4  />
+		[28] (149,327)<span >Parameters />
+[29] (744,327)<button class='btn try-out__btn cancel'>Cancel />
+[30] (833,327)<button class='btn try-out__btn reset'>Reset />
+No parameters
+Request body
+[31] (810,432)<label id='post_api_v1_upload_requests_select' />
+	[32] (810,432)<select aria-label='Request content type' class='content-type' id='post_api_v1_upload_requests_select' />
+excel_file
+*
+string
+[33] (321,529)<input  />
+old_dump
+*
+string
+[34] (321,593)<input  />
+new_dump
+*
+string
+[35] (321,658)<input  />
+[36] (500,769)<button class='btn execute opblock-control__btn'>Execute />
+Responses
+Code
+Description
+Links
+200
+Successful Response
+Media type
+No links
+
+</current_dom>

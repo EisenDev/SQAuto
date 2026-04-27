@@ -1,0 +1,51 @@
+# Implementation Plan - Compressed Industrial Processing (.sql.gz)
+
+This plan implements support for compressed SQL dumps (`.sql.gz`) while preserving standard `.sql` support. It uses high-efficiency streaming decompression to handle 5GB+ dumps with minimal RAM.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Streaming Decompression**: To handle 1.8GB+ and 5GB+ files without crashing the server, I will use **Streaming Decompression**. Instead of decompressing the whole file to disk, the system will read the compressed file and pipe it directly into the database engine in real-time.
+> 
+> **Database Schema Update**: I will add three new fields to your database: `is_compressed`, `original_filename`, and `file_size` to track your industrial uploads.
+
+## Proposed Changes
+
+### 1. Database - Schema Migration
+
+#### [MODIFY] [models.py](file:///home/eisen/Downloads/SQAuto/apps/api/models.py)
+- Add `is_compressed` (Boolean), `original_filename` (String), and `file_size` (Integer) to the `Job` model.
+
+### 2. Backend - API Upload Upgrades
+
+#### [MODIFY] [router.py](file:///home/eisen/Downloads/SQAuto/apps/api/router.py)
+- Update `upload_dump` to accept both `.sql` and `.sql.gz`.
+- Record metadata (original filename and compression status) during the upload phase.
+
+### 3. Backend - Streaming Agnostic Restorer
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- **Compressed Detection**: Update the "Watcher" and detection logic to transparently open `.gz` files using the `gzip` library for signature checking.
+- **Pipe-to-Process Logic**: 
+    - For `.sql.gz`, use `zcat` to create a stream.
+    - Pipe the `zcat` output directly into `psql`'s standard input.
+    - This ensures **zero** overhead for decompression on disk.
+
+### 4. UI - Industrial Recommendations
+
+#### [MODIFY] [UploadCard.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/components/UploadCard.tsx)
+- Add the industrial guidance text: `⚡ For faster uploads, use compressed .sql.gz files (recommended)`.
+- Update the file picker filter to include `.gz`.
+
+## Open Questions
+
+- **Compression Ratio Warning**: For 1.8GB `.sql.gz` files, the decompressed size could be 10GB+ in Supabase. Would you like a warning if the estimated decompressed size exceeds your storage limits?
+
+## Verification Plan
+
+### Automated Tests
+- Upload a sample `.sql.gz` and verify `sqauto_api` logs show `Detected Compressed: True`.
+- Verify `zcat | psql` correctly populates the `staging` schema.
+
+### Manual Verification
+- I will perform a test upload of a compressed sample and provide a recording showing the dashboard updating while decompression is happening in the background.

@@ -1,0 +1,10 @@
+# Task: Check status of https://sqauto.zeraynce.com/
+
+## Plan
+- Navigate to https://sqauto.zeraynce.com/
+- Check if it loads, hangs, or shows 502 Bad Gateway
+- Check network requests and console logs for errors
+- Report findings
+
+## Findings
+- 

@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary": "Finalized the 'Bot Mode v2' and 'OS Awareness' upgrades. The bot is now a multi-application sequence manager with automatic timeline recording. It also features a new 'Direct Call' architecture for 100% reliable window focusing on Linux, along with session awareness for Ubuntu users.",
+  "updatedAt": "2026-04-16T09:23:59.606386566Z"
+}

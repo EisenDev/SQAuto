@@ -1,0 +1,44 @@
+# Implementation Plan - Fix API Startup Hang & Database Connectivity
+
+The API is currently hanging on startup while attempting to connect to Supabase. This is causing the Gunicorn workers to become unresponsive, leading to the 502/522 timeouts you are seeing. I will implement connection timeouts and SSL requirements to stabilize the backend.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Database Credentials**: I will update the `.env` file to include `?sslmode=require` and `?supavisor_session_mode=true` to ensure compatibility with the Supabase pooler.
+> 
+> [!WARNING]
+> **API Timeout**: I will set a **10-second timeout** for the database connection. If the database is unreachable, the API will now fail gracefully and log the error rather than hanging indefinitely.
+
+## Proposed Changes
+
+### 1. Backend Stabilization
+
+#### [MODIFY] [database.py](file:///home/eisen/Downloads/SQAuto/apps/api/database.py)
+- Update `create_engine` to include `connect_args={"connect_timeout": 10}`. This prevents the entire application from hanging if Supabase is slow to respond.
+
+#### [MODIFY] [.env](file:///home/eisen/Downloads/SQAuto/.env)
+- Update `DATABASE_URL` to: `postgresql+psycopg://postgres.lcijmzschmnzghxqnpsd:SqAuTO2556hkeygen@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require`.
+
+### 2. Docker & Gunicorn Optimization
+
+#### [MODIFY] [Dockerfile](file:///home/eisen/Downloads/SQAuto/docker/Dockerfile)
+- Reduce Gunicorn worker count from `4` to `2` (more suitable for a `Standard_B2s` VM).
+- Add `--timeout 90` to Gunicorn to prevent silent hangs.
+
+#### [MODIFY] [nginx.conf](file:///home/eisen/Downloads/SQAuto/docker/nginx.conf)
+- Increase `proxy_connect_timeout` and `proxy_read_timeout` to **90 seconds** to give Next.js and the API enough time to process heavy initial connections.
+
+## Open Questions
+
+- **Supabase SSL**: Do you have the `sslmode=require` setting enabled in your Supabase dashboard? (Usually required for the pooler).
+- **Network Latency**: Are you seeing any high latency from your location to the Azure VM IP?
+
+## Verification Plan
+
+### Automated Tests
+- `docker logs sqauto_api` -> Must show either `[+] PostgreSQL connected` or a clear `[!] Database connection failed` error message within 15 seconds of startup.
+- `curl -I http://172.188.112.192/api/health` -> Must return 200 OK after the fix.
+
+### Manual Verification
+- I will confirm the dashboard loads and displays a "Database Error" alert if the connection still fails, rather than a generic timeout.

@@ -1,0 +1,12 @@
+# Tasks: Industrial Stabilization & Visibility
+
+- [ ] Phase 1: Backend Fix (Search Path)
+    - [ ] Update `services/dump_restore/service.py` to explicitly set `search_path` to `public, staging`.
+- [ ] Phase 2: Frontend Fix (Dynamic Progress)
+    - [ ] Update `apps/web/src/app/page.tsx`:
+        - [ ] Remove Skeleton blocks during `restoring` phase.
+        - [ ] Implement `getReadiness` with dynamic calculation: `(processed_mb / file_size) * 100`.
+        - [ ] Add "Decompressing..." status label.
+- [ ] Phase 3: Deployment & Real-time Verification
+    - [ ] Perform a test upload of the 1.8GB file.
+    - [ ] Verify that TABLES and ROWS cards increment live from 0.

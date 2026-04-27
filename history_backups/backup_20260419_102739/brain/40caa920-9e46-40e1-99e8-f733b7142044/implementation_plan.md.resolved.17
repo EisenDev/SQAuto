@@ -1,0 +1,42 @@
+# Implementation Plan - Industrial Stabilization & Visibility
+
+This plan resolves the "Stalled Dashboard" issue and replaces hardcoded progress labels with real-time, calculated metrics for 1.8GB+ industrial SQL processing.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Visibility Regression**: I identified that the "TABLES" and "ROWS" cards are currently showing "Skeletons" (gray bars) instead of numbers during the restoration phase. I will remove this block so you can see every single table as it is created.
+> 
+> **Progress Calculation**: I will switch from a hardcoded 45% to a real-time calculation: `(Decompressed MB / Total MB) * 100`.
+
+## Proposed Changes
+
+### 1. Backend - Search Path Fix
+
+#### [MODIFY] [service.py](file:///home/eisen/Downloads/SQAuto/services/dump_restore/service.py)
+- Explicitly set the database `search_path` to include `public` during the watcher loop. This fixes the "relation jobs does not exist" error that was stalling the increments.
+
+### 2. Frontend - Dynamic Progress
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- **Remove Skeletons**: Change the SummaryCard logic to show the current incrementing values even while the job status is `restoring`.
+- **Calculated Readiness**: Update `getReadiness` to use `metadata.data_processed_mb` and `activeJob.file_size`.
+- **Decompression Label**: Show `X% - Decompressing & Streaming...` in the Readiness card.
+
+### 3. Frontend - Time remaining
+
+#### [MODIFY] [page.tsx](file:///home/eisen/Downloads/SQAuto/apps/web/src/app/page.tsx)
+- Add a refined time-remaining calculation for the restoration phase.
+
+## Open Questions
+
+- **Polling Frequency**: Currently, we check the DB every 10 seconds. For a 1.8GB file, this is safe. Would you like it faster (e.g., 5 seconds) for more "fluid" numbers?
+
+## Verification Plan
+
+### Automated Tests
+- Verify that `sqauto_api` logs no longer show `UndefinedTable` errors.
+- Verify that the API response for `/jobs/{id}` contains `data_processed_mb`.
+
+### Manual Verification
+- I will start a 1.8GB restoration and provide a walkthrough showing the TABLES and ROWS cards incrementing from 0 to final counts in real-time.
