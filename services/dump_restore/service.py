@@ -9,6 +9,7 @@ import subprocess
 import logging
 import time
 import shutil
+import re
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -105,9 +106,38 @@ class DumpRestoreService:
                 compressed_bytes = 0
                 last_sync_bytes = 0
 
-                def industrial_rewrite(text_data: str) -> str:
-                    # Isolation and filtering
-                    return text_data.replace('public.', 'staging.').replace('"public".', '"staging".')
+                def industrial_rewrite_line(line: str) -> str:
+                    # 1. Schema Isolation (Primary Target: public -> staging)
+                    rewritten = line.replace('public.', 'staging.').replace('"public".', '"staging".')
+                    
+                    # 2. Structural Sanitization (Simple & Fast string matching on single lines)
+                    upper_line = rewritten.upper()
+                    
+                    # Search paths and configs
+                    if "SET SEARCH_PATH" in upper_line or "SET_CONFIG('SEARCH_PATH'" in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] SEARCH_PATH REMOVED\n"
+                    if "CREATE SCHEMA" in upper_line and "PUBLIC" in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] SCHEMA_PUBLIC REMOVED\n"
+                    if "COMMENT ON SCHEMA" in upper_line and "PUBLIC" in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] COMMENT REMOVED\n"
+                        
+                    # Ownership and permissions (bypassing production lockers)
+                    if "ALTER " in upper_line and " OWNER TO " in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] OWNER REMOVED\n"
+                    if upper_line.startswith("SET ROLE "):
+                        return "-- [INDUSTRIAL SANITIZED] SET ROLE REMOVED\n"
+                    if upper_line.startswith("SET SESSION AUTHORIZATION "):
+                        return "-- [INDUSTRIAL SANITIZED] AUTH REMOVED\n"
+                    if upper_line.startswith("GRANT ") and " TO " in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] GRANT REMOVED\n"
+                    if upper_line.startswith("REVOKE ") and " FROM " in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] REVOKE REMOVED\n"
+                        
+                    # Extensions (let the VM handle them natively)
+                    if "CREATE EXTENSION" in upper_line:
+                        return "-- [INDUSTRIAL SANITIZED] EXTENSION REMOVED\n"
+                        
+                    return rewritten
 
                 # Streaming Block
                 try:
@@ -120,28 +150,50 @@ class DumpRestoreService:
                         stream = open(file_path, "rt", encoding="utf-8", errors="ignore")
 
                     try:
-                        CHUNK_SIZE = 1024 * 1024 # 1MB
-                        while True:
-                            raw_chunk = stream.read(CHUNK_SIZE)
-                            if not raw_chunk:
-                                break
+                        # Force industrial-scale session parameters immediately
+                        process.stdin.write("SET statement_timeout = 0; SET lock_timeout = 0; CREATE SCHEMA IF NOT EXISTS staging; SET search_path TO staging, public, pg_catalog;\n")
+                        process.stdin.flush()
+                        
+                        in_copy_block = False
+                        
+                        for line in stream:
+                            raw_len = len(line)
                             
-                            to_write = industrial_rewrite(raw_chunk)
-                            uncompressed_bytes += len(to_write)
-                            
-                            if raw_f:
-                                compressed_bytes = raw_f.tell()
+                            # State Machine: Protect data from structural sanitization
+                            if in_copy_block:
+                                if line.strip() == "\\.":
+                                    in_copy_block = False
+                                
+                                # Verbatim passthrough. Raw data is immune to rewriting.
+                                process.stdin.write(line)
+                                uncompressed_bytes += raw_len
                             else:
-                                compressed_bytes = uncompressed_bytes
-                            
-                            try:
+                                if line.upper().startswith("COPY "):
+                                    in_copy_block = True
+                                    # Isolate the COPY declaration to the staging schema
+                                    isolated_copy = line.replace('public.', 'staging.').replace('"public".', '"staging".')
+                                    process.stdin.write(isolated_copy)
+                                    uncompressed_bytes += raw_len
+                                    continue
+                                
+                                # Outside COPY: Perform structural sanitization
+                                to_write = industrial_rewrite_line(line)
                                 process.stdin.write(to_write)
-                                process.stdin.flush()
-                            except BrokenPipeError:
-                                trace_f.write("ERROR: Broken Pipe (Database disconnected)\n")
-                                break
-                            
-                            if uncompressed_bytes - last_sync_bytes > 5 * 1024 * 1024:
+                                uncompressed_bytes += raw_len
+                                
+                            # Safe heartbeat
+                            if uncompressed_bytes - last_sync_bytes > 3 * 1024 * 1024:  # every 3MB
+                                try:
+                                    process.stdin.flush()
+                                except BrokenPipeError:
+                                    trace_f.write("ERROR: Broken Pipe (Database disconnected during sync)\n")
+                                    break
+                                
+                                if raw_f:
+                                    compressed_bytes = raw_f.tell()
+                                else:
+                                    compressed_bytes = uncompressed_bytes
+                                    
                                 self._flush_progress(db_session, job_id, flavor, uncompressed_bytes, compressed_bytes)
                                 last_sync_bytes = uncompressed_bytes
                                 trace_f.write(f"Streaming: {round(uncompressed_bytes/(1024*1024), 2)} MB\n")
@@ -152,8 +204,28 @@ class DumpRestoreService:
                         stream.close()
                         if raw_f: raw_f.close()
                 except Exception as e:
-                    process.kill()
-                    raise e
+                    logger.error(f"Streaming error for job {job_id}: {e}")
+                    # Allow process to be killed/polled to settle return code
+                    try:
+                        process.kill()
+                        process.wait(timeout=5)
+                    except:
+                        pass
+                    
+                    # Capture actual DB log if it exists to expose root cause (like timeouts)
+                    try:
+                        if os.path.exists(db_log_path):
+                            with open(db_log_path, "r") as f:
+                                db_err_lines = f.read().splitlines()[-15:]
+                                if db_err_lines:
+                                    db_err = "\n".join(db_err_lines)
+                                    db_session.query(Job).filter(Job.id == job_id).update({"log": f"DB REJECTION: {db_err}"})
+                                    db_session.commit()
+                                    raise RuntimeError(f"Industrial Restoration failed: {db_err}")
+                    except Exception as fatal_log_err:
+                        logger.error(f"Could not extract DB log: {fatal_log_err}")
+                        
+                    raise RuntimeError(f"Industrial Restoration failed: {e}")
                 
                 # Final monitoring
                 while process.poll() is None:
@@ -171,8 +243,11 @@ class DumpRestoreService:
 
             logger.info(f"Industrial restore completed for job {job_id}")
         except Exception as e:
-            logger.error(f"Restoration failed for job {job_id}: {str(e)}")
-            raise RuntimeError(f"Industrial Restoration failed: {e}")
+            logger.error(f"Restoration failed summary for job {job_id}: {str(e)}")
+            # Ensure failure state in job
+            db_session.query(Job).filter(Job.id == job_id).update({"status": "failed", "log": str(e)})
+            db_session.commit()
+            raise e
 
     def _flush_progress(self, db_session: Session, job_id, flavor, uncompressed_bytes, compressed_bytes):
         """Internal helper to flush industrial progress to the Job record."""
@@ -182,16 +257,17 @@ class DumpRestoreService:
             
             job = db_session.query(Job).filter(Job.id == job_id).first()
             if job:
-                # Use explicit schema qualification for SQL queries
-                table_query = text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'staging'")
-                tables = [row[0] for row in db_session.execute(table_query).fetchall()]
+                # We purposefully DO NOT execute any schema queries (e.g., counting tables) here.
+                # Querying information_schema while psql is actively restoring causes catastrophic
+                # DEADLOCKS if psql is holding catalog locks on pg_class or index creations.
                 
-                current_profile = job.profile or {}
+                from sqlalchemy.orm.attributes import flag_modified
+                current_profile = dict(job.profile) if job.profile else {}
                 if "restore_start_time" not in current_profile:
                     current_profile["restore_start_time"] = time.time()
 
                 current_profile["metadata"] = {
-                    "table_count": len(tables),
+                    "table_count": 0, # Profiler handles this safely after restore completes
                     "data_processed_mb": round(uncompressed_bytes / (1024 * 1024), 2),
                     "compressed_processed_mb": round(compressed_bytes / (1024 * 1024), 2),
                     "flavor": flavor,
@@ -199,7 +275,9 @@ class DumpRestoreService:
                     "live": True
                 }
                 job.profile = current_profile
+                flag_modified(job, "profile")
                 db_session.commit()
         except Exception as e:
-            logger.error(f"Progress flush failed: {e}")
-            raise RuntimeError(str(e))
+            # NON-FATAL: Progress telemetry should NEVER kill the backend pipeline!
+            logger.error(f"UI Progress flush skipped due to session anomaly: {e}")
+            db_session.rollback()  # Recover the session state so future queries don't trigger PendingRollbackError

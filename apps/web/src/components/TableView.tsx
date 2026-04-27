@@ -1,19 +1,24 @@
+import React, { useState } from 'react';
 import Skeleton from './Skeleton';
 
 interface TableViewProps {
-  profile?: Record<string, any>; // Flexible for both metadata/live_chunks and final profile
+  profile?: Record<string, any>;
   loading?: boolean;
 }
 
 export default function TableView({ profile, loading }: TableViewProps) {
-  // Handle both the final profile and the live heartbeat profile
+  // Industrial safety: if profile contains a 'tables' key (new structure), use it
+  const actualTables = profile?.tables || (profile?.metadata ? {} : profile) || {};
   const liveChunks = (profile as any)?.live_chunks || [];
-  const finalTables = !liveChunks.length && profile ? Object.keys(profile) : [];
+  const finalTables = !liveChunks.length ? Object.keys(actualTables) : [];
   
   const hasData = liveChunks.length > 0 || finalTables.length > 0;
+  
+  // Track open table for column view
+  const [expandedTable, setExpandedTable] = useState<string | null>(null);
 
   return (
-    <div className="border border-teal-100 rounded-xl p-6 bg-white shadow-sm">
+    <div className="border border-teal-100 rounded-xl p-6 bg-white shadow-sm transition-all duration-300">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-800">Extracted Tables & Chunks</h2>
         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
@@ -68,23 +73,46 @@ export default function TableView({ profile, loading }: TableViewProps) {
           </div>
         </div>
       ) : finalTables.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {finalTables.map((tableName) => (
-            <div 
-              key={tableName} 
-              className="p-4 border border-gray-100 rounded-lg hover:border-teal-300 hover:bg-teal-50/20 transition-all cursor-default group"
-            >
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-2 h-2 bg-teal-500 rounded-full group-hover:scale-125 transition-transform" />
-                <h3 className="font-mono text-sm font-bold text-gray-700 truncate">
-                  {tableName}
-                </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+          {finalTables.map((tableName) => {
+            const isExpanded = expandedTable === tableName;
+            const tableData = (actualTables as any)?.[tableName];
+            // Industrial safety: Handle both new relational structure {columns: []} and legacy flat structure []
+            const columns = Array.isArray(tableData) ? tableData : (tableData?.columns || []);
+            
+            return (
+              <div 
+                key={tableName} 
+                onClick={() => setExpandedTable(isExpanded ? null : tableName)}
+                className={`p-4 border rounded-lg transition-all cursor-pointer group shadow-sm overflow-hidden ${isExpanded ? 'border-teal-300 bg-teal-50/10 ring-1 ring-teal-300' : 'border-gray-100 hover:border-teal-300 hover:bg-teal-50/20'}`}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full transition-all ${isExpanded ? 'bg-teal-500 scale-125' : 'bg-gray-300 group-hover:bg-teal-400 group-hover:scale-125'}`} />
+                    <h3 className="font-mono text-sm font-bold text-gray-700 truncate max-w-[180px]">
+                      {tableName}
+                    </h3>
+                  </div>
+                  <span className={`text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 font-mono transition-colors ${isExpanded ? 'bg-teal-100 text-teal-700' : ''}`}>
+                    {Array.isArray(columns) ? columns.length : 0} Cols
+                  </span>
+                </div>
+                
+                <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0'}`}>
+                  <div className="overflow-hidden">
+                    <ul className="space-y-1 bg-white p-2 rounded border border-gray-50">
+                      {Array.isArray(columns) && columns.map((col: {name: string, type: string}, cIdx: number) => (
+                        <li key={cIdx} className="flex justify-between text-[11px] py-1 border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                          <span className="font-mono text-gray-600 truncate mr-2">{col.name}</span>
+                          <span className="text-teal-600 font-mono opacity-80">{col.type}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-gray-500">
-                {profile?.[tableName]?.length || 0} Columns
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">

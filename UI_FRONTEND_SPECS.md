@@ -14,9 +14,10 @@
 3. **Upload Section** – Drag‑and‑drop box with progress bar and file details.
 4. **Summary Cards** – Grid of cards showing key metrics (tables, rows, anomalies, readiness score).
 5. **Extracted Tables View** – Paginated table list with search/filter and row count.
-6. **AI Explanation Panel** – Collapsible panel displaying AI‑generated schema explanations and suggestions.
-7. **Export Panel** – Buttons for Excel, Clean SQL, Translated SQL, each with status tooltip.
-8. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
+6. **Schema Visualizer** – Visual graph of tables and relationships (PK/FK).
+7. **AI Explanation Panel** – Collapsible panel displaying AI‑generated schema explanations and suggestions.
+8. **Export Panel** – Buttons for Excel, Clean SQL, Translated SQL, each with status tooltip.
+9. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
 
 ## Main Pages
 - **Dashboard** – Home view containing the layout above.
@@ -50,5 +51,6 @@
 - **Side Panels / Drawers**: For job logs or detailed AI explanations.
 - **Modals**: Confirmation dialogs for destructive actions (e.g., *Delete Job*).
 - **Loading States**: Skeleton loaders or spinners centered within cards.
+- **Graph Nodes**: Custom React Flow nodes showing Table Name, PKs, and FKs.
 - **Empty States**: Friendly illustration with a short call‑to‑action.
 - **Error States**: Inline error message with retry button.

@@ -128,6 +128,7 @@ Used for:
 - `lucide-react` for icons
 - `react-hook-form` for form handling
 - `sonner` for toast notifications
+- `reactflow` for schema visualization
 - `next-themes` for theme support if needed
 
 ---

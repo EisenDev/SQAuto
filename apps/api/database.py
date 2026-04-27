@@ -10,7 +10,10 @@ from configs.settings import settings
 # Create engine; echo can be turned off for production
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"connect_timeout": 10},
+    connect_args={
+        "connect_timeout": 10,
+        "prepare_threshold": None  # CRITICAL for PgBouncer/Supabase compatibility
+    },
     echo=False,
     future=True
 )

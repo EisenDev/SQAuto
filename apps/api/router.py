@@ -17,6 +17,7 @@ from apps.api.deps import logger
 from configs.settings import settings
 from services.dump_restore.service import DumpRestoreService
 from services.schema_profiler.service import SchemaProfilerService
+from apps.api.routers import debug
 
 api_router = APIRouter()
 
@@ -50,6 +51,7 @@ def run_restore_task(job_id: uuid.UUID, file_path: str):
         run_profile_task(job_id, db)
     except Exception as e:
         logger.error(f"Background Restore failed for job {job_id}: {e}")
+        db.rollback()  # Recover from transaction error before trying to update status!
         job_err = db.query(Job).filter(Job.id == job_id).first()
         if job_err:
             job_err.status = JobStatus.FAILED
@@ -70,6 +72,7 @@ def run_profile_task(job_id: uuid.UUID, db: Session):
         db.commit()
     except Exception as e:
         logger.error(f"Background Profiling failed for job {job_id}: {e}")
+        db.rollback()  # Recover from transaction error
         job.status = JobStatus.FAILED
         job.log = str(e)
         db.commit()
@@ -236,3 +239,40 @@ async def profile_job(job_id: str, background_tasks: BackgroundTasks, db: Sessio
     
     background_tasks.add_task(run_profile_task, job.id, db)
     return {"id": str(job.id), "status": "processing", "message": "Profiling started in background"}
+
+# Register debug routes
+api_router.include_router(debug.router, prefix="/debug", tags=["debug"])
+
+# Register export routes
+from apps.api.routers import export
+api_router.include_router(export.router, prefix="/jobs", tags=["jobs", "export"])
+
+# Register explorer routes
+from apps.api.routers import explorer
+api_router.include_router(explorer.router, prefix="/explorer", tags=["jobs", "explorer"])
+
+class LayoutRequest(BaseModel):
+    positions: list
+
+@api_router.post("/jobs/{job_id}/layout", tags=["jobs"], summary="Save schema visualizer layout positions")
+async def save_layout(job_id: str, request: LayoutRequest, db: Session = Depends(get_db)):
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if not job.profile or "graph" not in job.profile:
+        raise HTTPException(status_code=400, detail="Job has no profiling graph to layout")
+
+    # Update positions in the graph nodes
+    for pos_data in request.positions:
+        for node in job.profile["graph"]["nodes"]:
+            if node["id"] == pos_data["id"]:
+                node["position"] = pos_data["position"]
+
+    # Mark profile as modified for SQLAlchemy
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(job, "profile")
+    
+    db.commit()
+    return {"status": "success", "message": "Industrial layout synchronized."}
+

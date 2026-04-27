@@ -27,6 +27,7 @@ SQAuto/
 │   └── web/
 │       ├── app/
 │       ├── components/
+│       │   ├── SchemaVisualizer.tsx
 │       ├── hooks/
 │       ├── lib/
 │       └── types/

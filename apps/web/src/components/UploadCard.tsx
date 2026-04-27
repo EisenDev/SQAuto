@@ -13,10 +13,28 @@ export default function UploadCard() {
   const [file, setFile] = useState<File | null>(null);
   const [showDebugger, setShowDebugger] = useState(false);
   const [currentTime, setCurrentTime] = useState("");
+  const [debugLogs, setDebugLogs] = useState({ restoration: "", trace: "" });
 
   React.useEffect(() => {
     setCurrentTime(new Date().toLocaleTimeString());
-  }, []);
+    
+    let debugInterval: NodeJS.Timeout;
+    if (showDebugger && activeJob?.status === 'restoring') {
+      debugInterval = setInterval(async () => {
+        try {
+          const resLog = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/restoration-log`).then(r => r.json());
+          const traceLog = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/debug/pipe-trace`).then(r => r.json());
+          setDebugLogs({
+            restoration: resLog.log || "No activity yet...",
+            trace: traceLog.log || "No trace yet..."
+          });
+        } catch (e) {
+          console.error("Debug poll failed", e);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(debugInterval);
+  }, [showDebugger, activeJob?.status]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -172,53 +190,29 @@ export default function UploadCard() {
 
             {/* Industrial Restoration Progress Bar */}
             {activeJob.status === 'restoring' && (
-              <div className="max-w-md mx-auto p-4 bg-teal-50/50 rounded-xl border border-teal-100 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="flex justify-between text-[11px] font-bold text-teal-700 mb-2 uppercase tracking-widest">
-                  <span>Extracting Stream</span>
-                  <span>
-                    {activeJob.profile?.metadata?.compressed_processed_mb && activeJob.file_size 
-                      ? `${Math.round((activeJob.profile.metadata.compressed_processed_mb / (activeJob.file_size / (1024 * 1024))) * 100)}%`
-                      : '0%'}
+              <div className="max-w-md mx-auto p-6 bg-teal-50/50 rounded-xl border border-teal-100 animate-in fade-in slide-in-from-bottom-2 duration-500 text-center">
+                <div className="flex items-center justify-center mb-3">
+                  <span className="relative flex h-4 w-4 mr-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-teal-500"></span>
+                  </span>
+                  <span className="text-[13px] font-bold text-teal-800 uppercase tracking-widest">
+                    Wait for a minute...
                   </span>
                 </div>
                 
-                <div className="w-full bg-white rounded-full h-4 mb-2 overflow-hidden border border-teal-100 p-0.5">
-                  <div 
-                    className="bg-gradient-to-r from-teal-400 to-teal-600 h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
-                    style={{ 
-                      width: `${activeJob.profile?.metadata?.compressed_processed_mb && activeJob.file_size 
-                        ? Math.min(100, Math.round((activeJob.profile.metadata.compressed_processed_mb / (activeJob.file_size / (1024 * 1024))) * 100)) 
-                        : 0}%` 
-                    }}
-                  />
-                </div>
+                <p className="text-[11px] text-teal-700/80 font-medium">
+                  We are decompressing and mapping the structural integrity of your massive SQL databank natively into the staging environment.
+                </p>
                 
-                <div className="flex justify-between items-center text-[10px] text-teal-600/80 font-medium">
-                  <div className="flex items-center">
-                    <span className="w-2 h-2 bg-teal-500 rounded-full mr-2 animate-ping" />
-                    {activeJob.profile?.metadata?.compressed_processed_mb || 0} MB / {Math.round((activeJob.file_size || 0) / (1024 * 1024))} MB
+                <div className="mt-4 border-t border-teal-100 pt-3 flex justify-between items-center text-[10px] text-teal-600/80 font-medium px-4">
+                  <div className="flex items-center space-x-1">
+                    <Database className="w-3 h-3" />
+                    <span>Handling Industrial Load</span>
                   </div>
-                  <div>
-                    {(() => {
-                      const metadata = activeJob.profile?.metadata;
-                      const startTime = activeJob.profile?.restore_start_time;
-                      const fileSizeMb = (activeJob.file_size || 0) / (1024 * 1024);
-                      const processedMb = metadata?.compressed_processed_mb || 0;
-                      
-                      if (startTime && processedMb > 1 && fileSizeMb > 0) {
-                        const elapsedSeconds = Date.now() / 1000 - startTime;
-                        const speed = processedMb / elapsedSeconds; // MB/s
-                        const remainingMb = fileSizeMb - processedMb;
-                        const remainingSeconds = Math.ceil(remainingMb / speed);
-                        
-                        if (remainingSeconds > 0 && remainingSeconds < 3600) {
-                          const mins = Math.floor(remainingSeconds / 60);
-                          const secs = remainingSeconds % 60;
-                          return `⚡ ETA: ${mins}m ${secs}s`;
-                        }
-                      }
-                      return "⚡ Estimating Time...";
-                    })()}
+                  <div className="flex items-center space-x-1">
+                    <Layers className="w-3 h-3 animate-bounce" />
+                    <span>Processing Chunks</span>
                   </div>
                 </div>
                 
@@ -250,6 +244,18 @@ export default function UploadCard() {
                       <span className="text-white mt-1 block bg-teal-900/20 p-2 rounded border border-teal-900/30">
                         {activeJob.profile?.metadata?.status_message || "Industrial stream active and processing chunks..."}
                       </span>
+                      <div className="mt-4 border-t border-gray-800 pt-4">
+                        <span className="text-teal-500 font-bold block mb-2">LIVE PSQL LOG (restoration.log):</span>
+                        <div className="bg-black/50 p-3 rounded border border-gray-800 h-48 overflow-y-auto font-mono text-[10px] text-gray-300">
+                          {debugLogs.restoration}
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <span className="text-amber-500 font-bold block mb-2">PIPE TRACE (industrial_trace.log):</span>
+                        <div className="bg-black/50 p-3 rounded border border-gray-800 h-24 overflow-y-auto font-mono text-[10px] text-gray-400">
+                          {debugLogs.trace}
+                        </div>
+                      </div>
                     </pre>
                   </div>
                 )}

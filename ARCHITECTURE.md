@@ -22,6 +22,7 @@ Responsible only for:
 - Upload workflows
 - Job monitoring
 - Review screens
+- Schema Visualization
 - Export controls
 
 The frontend must NOT contain business logic, transformation pipelines, or migration rules.
@@ -136,6 +137,7 @@ Provide reusable, isolated logic for each domain area:
 ### 3. Analysis
 - The worker runs schema profiling
 - Tables, columns, constraints, and candidate keys are identified
+- Graph-ready JSON (nodes and edges) is generated
 - Profiling results are stored and made available through the API
 
 ### 4. Extraction

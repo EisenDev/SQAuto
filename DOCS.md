@@ -43,6 +43,7 @@ Responsible for:
 - Detecting duplicates
 - Proposing candidate keys
 - Identifying possible foreign key relationships
+- Generating graph-ready metadata (Nodes/Edges)
 
 ### 3. Extraction Engine
 Responsible for:
@@ -144,6 +145,7 @@ Allows users to:
 - View row counts
 - Filter and sort
 - Inspect table health and status
+- Open Schema Visualizer to see relationships
 
 ### AI Explanation Panel
 Displays:

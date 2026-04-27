@@ -1,6 +1,7 @@
 import '@/styles/globals.css';
 import Header from '@/components/Header';
 import { JobProvider } from '@/components/JobProvider';
+import { Toaster } from 'sonner';
 
 export const metadata = {
   title: 'SQAuto Dashboard',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1 container mx-auto p-4">
             {children}
           </main>
+          <Toaster richColors closeButton position="top-right" />
         </JobProvider>
       </body>
     </html>

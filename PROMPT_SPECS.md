@@ -169,4 +169,36 @@ Return JSON only:
 - **duplicate_check**: `pass`, `fail`
 - **relationship_check**: `pass`, `fail`
 - **null_check**: `pass`, `fail`
-- **final_status**: `ready`, `needs_review`, `failed`
+---
++
++## 8. SCHEMA GRAPH OUTPUT
++
++Return JSON only:
++
++```json
++{
++  "nodes": [
++    {
++      "id": "",
++      "label": "",
++      "columns": [],
++      "primary_keys": [],
++      "foreign_keys": []
++    }
++  ],
++  "edges": [
++    {
++      "id": "",
++      "source": "",
++      "target": "",
++      "relation_type": "deterministic",
++      "status": "valid"
++    }
++  ]
++}
++```
++
++### Field notes
++- **relation_type**: `deterministic` (native FK), `inferred` (AI suggest)
++- **status**: `valid`, `broken`, `orphan`
++
