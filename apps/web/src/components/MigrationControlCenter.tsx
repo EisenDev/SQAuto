@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useJob } from '@/components/JobProvider';
 import Skeleton from './Skeleton';
+import Tooltip from './Tooltip';
 import { 
   Database, Server, Play, RefreshCw, AlertTriangle, CheckCircle2, 
   XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info
@@ -117,7 +118,10 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
     <div className="bg-white border border-teal-100 rounded-2xl shadow-xl overflow-hidden">
       <div className="bg-gradient-to-r from-teal-800 to-teal-900 p-5 flex items-center space-x-3">
         <Server className="w-5 h-5 text-teal-400" />
-        <h3 className="font-black text-sm text-white tracking-widest uppercase italic">Target Database Connection</h3>
+        <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
+          Destination Database Connection
+          <Tooltip content="This is the destination database where your data will be migrated." />
+        </h3>
       </div>
       <div className="p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -138,7 +142,7 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center space-x-2">
             <Shield className="w-4 h-4 text-teal-600" />
-            <span className="text-[10px] font-black text-teal-700 uppercase tracking-widest">PostgreSQL · Phase 1 Dry-Run Only</span>
+            <span className="text-[10px] font-black text-teal-700 uppercase tracking-widest">PostgreSQL · Phase 1 Simulation Only</span>
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -255,7 +259,10 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
     <div className="bg-white border border-teal-100 rounded-2xl shadow-xl overflow-hidden">
       <div className="bg-gradient-to-r from-indigo-800 to-indigo-900 p-5 flex items-center space-x-3">
         <Play className="w-5 h-5 text-indigo-400" />
-        <h3 className="font-black text-sm text-white tracking-widest uppercase italic">Dry-Run Migration Validation</h3>
+        <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
+          Simulation (No Data Changes)
+          <Tooltip content="This simulates migration without modifying your database. It compares structure and data safely." />
+        </h3>
       </div>
       <div className="p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -279,7 +286,7 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all flex items-center justify-center space-x-2 shadow-lg active:scale-[0.98]"
         >
           {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-          <span>{running ? 'EXECUTING DRY-RUN...' : 'RUN DRY-RUN VALIDATION'}</span>
+          <span>{running ? 'SIMULATING...' : 'RUN SIMULATION'}</span>
         </button>
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 animate-in fade-in">
@@ -288,7 +295,7 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
           </div>
         )}
         {!jobId && (
-          <p className="text-[10px] text-gray-400 mt-3 text-center font-bold uppercase">Upload and profile a SQL dump first to enable dry-run</p>
+          <p className="text-[10px] text-gray-400 mt-3 text-center font-bold uppercase">Upload and profile a SQL dump first to enable simulation</p>
         )}
       </div>
     </div>
@@ -301,8 +308,11 @@ function ReconciliationPanel({ run }: { run: MigrationRun | null }) {
     return (
       <div className="bg-white border border-gray-100 rounded-2xl shadow-xl p-12 text-center">
         <Database className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-        <p className="text-sm font-black text-gray-300 uppercase tracking-widest">No Reconciliation Data</p>
-        <p className="text-[10px] text-gray-400 mt-2">Run a dry-run validation to generate a reconciliation summary</p>
+        <p className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">No reconciliation data</p>
+        <div className="max-w-xs mx-auto text-left bg-gray-50 p-4 rounded-xl text-[11px] text-gray-600 font-mono leading-relaxed mb-6">
+          <p className="font-bold text-gray-800 mb-2">Instructions:</p>
+          <p>Run a simulation first to generate validation results and a reconciliation summary.</p>
+        </div>
       </div>
     );
   }
@@ -325,14 +335,14 @@ function ReconciliationPanel({ run }: { run: MigrationRun | null }) {
             <span className={`text-3xl font-black ${run.mode === 'execute' ? 'text-indigo-600' : 'text-gray-800'}`}>{s.tables_processed ?? s.tables_checked ?? 0}</span>
           </div>
           <div className="p-5 flex flex-col justify-center items-center">
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{s.total_rows_affected !== undefined ? 'Rows Affected' : 'Missing in Target'}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Rows Affected</span>
             <span className="text-3xl font-black text-gray-800">
-              {s.total_rows_affected !== undefined ? s.total_rows_affected : (s.tables_missing_in_target?.length || 0)}
+              {s.total_rows_affected ?? 0}
             </span>
           </div>
-          <div className="p-5 flex flex-col justify-center items-center bg-amber-50/30">
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-1">Warnings</span>
-            <span className="text-3xl font-black text-amber-600">{s.warnings_count ?? 0}</span>
+          <div className="bg-amber-50 rounded-xl p-4 text-center border border-amber-100 flex flex-col justify-center items-center">
+            <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mb-1">Warnings</p>
+            <span className="text-3xl font-black text-amber-700">{s.warnings_count ?? 0}</span>
           </div>
           <div className="p-5 flex flex-col justify-center items-center bg-red-50/30">
             <span className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Errors</span>
@@ -485,12 +495,15 @@ function LogsPanel({ logs }: { logs: MigrationLog[] }) {
 // ============================================================
 
 export default function MigrationControlCenter() {
+  const { activeJob } = useJob();
   const [targets, setTargets] = useState<Target[]>([]);
   const [selectedTargetId, setSelectedTargetId] = useState<string>('');
   const [runs, setRuns] = useState<MigrationRun[]>([]);
   const [activeRun, setActiveRun] = useState<MigrationRun | null>(null);
   const [logs, setLogs] = useState<MigrationLog[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const jobId = activeJob?.id || activeJob?.job_id || "";
 
   const fetchTargets = useCallback(async () => {
     try {
@@ -501,8 +514,14 @@ export default function MigrationControlCenter() {
   }, []);
 
   const fetchRuns = useCallback(async () => {
+    if (!jobId) {
+      setRuns([]);
+      setActiveRun(null);
+      setLogs([]);
+      return;
+    }
     try {
-      const res = await fetch(`${API_URL}/migration/runs`);
+      const res = await fetch(`${API_URL}/migration/runs?source_job_id=${jobId}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setRuns(data);
@@ -511,10 +530,13 @@ export default function MigrationControlCenter() {
           const latest = data[0];
           setActiveRun(latest);
           fetchLogs(latest.id);
+        } else {
+          setActiveRun(null);
+          setLogs([]);
         }
       }
     } catch (e) { console.error("Failed to fetch runs:", e); }
-  }, []);
+  }, [jobId]);
 
   const fetchLogs = async (runId: string) => {
     try {
@@ -531,6 +553,11 @@ export default function MigrationControlCenter() {
       if (selectedTargetId === id) setSelectedTargetId('');
     } catch (e) { console.error("Delete failed:", e); }
   };
+
+  // Session Reset - Re-fetch whenever Job ID changes
+  useEffect(() => {
+    fetchRuns();
+  }, [fetchRuns, jobId]);
 
   // Poll for active run status (if running)
   useEffect(() => {

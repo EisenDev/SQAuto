@@ -21,11 +21,21 @@ interface TableMapping {
   mappings: ColumnMapping[];
 }
 
+import Tooltip from './Tooltip';
+
 export default function SchemaMappingPanel() {
   const { activeJob } = useJob();
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [mappings, setMappings] = useState<Record<string, TableMapping>>({});
   const [saved, setSaved] = useState(false);
+
+  const jobId = activeJob?.id || activeJob?.job_id;
+
+  // Reset session mapping state if the active Job changes
+  useEffect(() => {
+    setSelectedTable('');
+    setMappings({});
+  }, [jobId]);
 
   // Extract table info from active job profile
   const tables = useMemo(() => {
@@ -107,7 +117,7 @@ export default function SchemaMappingPanel() {
   const saveConfig = () => {
     // Store to localStorage for now (Phase 2 — backend persistence in Phase 3+)
     try {
-      const jobId = activeJob?.id || activeJob?.job_id || 'unknown';
+      if (!jobId) return;
       localStorage.setItem(`sqauto_mapping_${jobId}`, JSON.stringify(mappings));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -118,7 +128,6 @@ export default function SchemaMappingPanel() {
 
   // Load saved config on mount
   useEffect(() => {
-    const jobId = activeJob?.id || activeJob?.job_id;
     if (!jobId) return;
     try {
       const stored = localStorage.getItem(`sqauto_mapping_${jobId}`);
@@ -126,7 +135,7 @@ export default function SchemaMappingPanel() {
         setMappings(JSON.parse(stored));
       }
     } catch (e) { /* ignore */ }
-  }, [activeJob?.id, activeJob?.job_id]);
+  }, [jobId]);
 
   // Stats
   const mappedCount = currentMappings.filter(m => m.status === 'mapped').length;
@@ -137,8 +146,15 @@ export default function SchemaMappingPanel() {
     return (
       <div className="bg-white border border-violet-100 rounded-2xl shadow-xl p-12 text-center">
         <Columns className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-        <p className="text-sm font-black text-gray-300 uppercase tracking-widest">No Schema Data</p>
-        <p className="text-[10px] text-gray-400 mt-2">Upload and profile a SQL dump to enable schema mapping</p>
+        <p className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">No schema data</p>
+        <div className="max-w-xs mx-auto text-left bg-gray-50 p-4 rounded-xl text-[11px] text-gray-600 font-mono leading-relaxed">
+          <p className="font-bold text-gray-800 mb-2">Steps:</p>
+          <ol className="list-decimal pl-4 space-y-1">
+            <li>Upload a SQL dump</li>
+            <li>Wait for extraction processing</li>
+            <li>Mapping table will appear automatically</li>
+          </ol>
+        </div>
       </div>
     );
   }
@@ -148,7 +164,10 @@ export default function SchemaMappingPanel() {
       <div className="bg-gradient-to-r from-violet-800 to-purple-900 p-5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Columns className="w-5 h-5 text-violet-300" />
-          <h3 className="font-black text-sm text-white tracking-widest uppercase italic">Schema Mapping Layer</h3>
+          <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
+            Schema Mapping Layer
+            <Tooltip content="This defines how columns from your source map to your destination database." />
+          </h3>
         </div>
         <button
           onClick={saveConfig}

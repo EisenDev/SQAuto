@@ -22,7 +22,8 @@
 11. **Schema Mapping Panel** – Editable mapping table (source column → target column) with type match indicators.
 13. **Migration Plan Panel** – Summary of tables, row counts, risk level, and warnings prior to execution.
 14. **Execution Controls** – "Run Preview" and "Execute Migration" mode buttons, along with Blocking UI state.
-15. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
+15. **Pipeline Flow Indicator** – Top progress visualization showing [Upload] → [Analyze] → [Validate] → [Execute].
+16. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
 
 ## Main Pages
 - **Dashboard** – Home view containing the layout above.
@@ -60,8 +61,9 @@
 - **Modals**: Confirmation dialogs for destructive actions (e.g., *Delete Job*).
 - **Loading States**: Skeleton loaders or spinners centered within cards.
 - **Graph Nodes**: Custom React Flow nodes showing Table Name, PKs, and FKs.
-- **Empty States**: Friendly illustration with a short call‑to‑action.
+- **Empty States**: Guided instructional steps instead of generic "No Data" messages. Guides user to prerequisite actions.
 - **Error States**: Inline error message with retry button.
+- **Tooltips**: Small `Tooltip.tsx` icon component rendering a popover containing contextual guidance per section.
 - **Integrity Issues**: Expandable `IssueSection` component with icon, count badge, and collapsible content area.
 - **Schema Mapping Table**: Sortable mapping rows with editable target column input and type‐match toggle button.
 - **Dialect Badge**: Pill‐shaped badge component showing emoji + dialect name + confidence percentage.

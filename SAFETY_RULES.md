@@ -107,3 +107,9 @@ Manual review is required when:
 4. **Auto-Rollback**: If ANY error occurs during execution, an automatic `ROLLBACK` must happen immediately.
 5. **Execution Blocking**: Execution MUST be blocked if critical integrity issues are detected (duplicate primary keys, complete lack of primary keys on a target table, or orphan foreign keys).
 6. **Parameterized Queries Check**: Never execute raw concatenated SQL strings. Parameterization must be used to mitigate injection risks during execution.
+
+## USER CLARITY & SESSION SAFETY (Phase 3.1)
+
+1. **User clarity is a safety feature**: Confusing UX leads to accidental destructive operations. Terminology must be accurate and unambiguous (e.g. Simulation vs Dry-Run).
+2. **Context Isolation**: The system must NOT display misleading, stale, or cross-session data. Logs, integrity issue reports, and plans must be scoped strictly to the currently active job (`source_job_id`).
+3. **Session Reset**: Uploading a new SQL dump must explicitly clear all prior simulation results, metrics, and schema mapping configurations in the UI to prevent misapplication of legacy state.

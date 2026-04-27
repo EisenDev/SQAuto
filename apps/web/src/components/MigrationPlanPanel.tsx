@@ -4,6 +4,8 @@ import { Play, AlertTriangle, ShieldCheck, Loader2, PlayCircle, ShieldAlert, Fil
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+import Tooltip from './Tooltip';
+
 type MigrationTablePlan = {
   name: string;
   action: string;
@@ -29,6 +31,12 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
+
+  // Reset plan when job changes
+  React.useEffect(() => {
+    setPlan(null);
+    setError(null);
+  }, [jobId]);
 
   const generatePlan = async () => {
     if (!jobId || !selectedTargetId) return;
@@ -77,9 +85,12 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
     <>
       <div className="bg-white border-2 border-indigo-100 rounded-2xl shadow-xl overflow-hidden mt-6">
         <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 p-4 flex items-center justify-between shadow-inner">
-          <div className="flex items-center space-x-3 text-white">
-            <ShieldCheck className="w-5 h-5 text-indigo-200" />
-            <h3 className="text-sm font-black uppercase tracking-widest">Phase 3: Migration Execution Engine</h3>
+          <div className="flex items-center text-white">
+            <ShieldCheck className="w-5 h-5 text-indigo-200 mr-3" />
+            <h3 className="text-sm font-black uppercase tracking-widest flex items-center">
+              Migration Execution Engine
+              <Tooltip content="This executes migration inside a transaction. No changes are committed unless confirmed." />
+            </h3>
           </div>
         </div>
 
@@ -87,7 +98,11 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
           {!plan ? (
             <div className="text-center py-10">
               <FileJson className="w-12 h-12 text-indigo-100 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium mb-6">Generate a migration plan to assess risks and preview changes before execution.</p>
+              <p className="text-gray-400 font-black uppercase tracking-widest mb-4">No migration plan</p>
+              <div className="max-w-md mx-auto text-left bg-gray-50 p-4 rounded-xl text-[11px] text-gray-600 font-mono leading-relaxed mb-6">
+                <p className="font-bold text-gray-800 mb-2">Instructions:</p>
+                <p>Run a plan generation first to assess data logic and prepare mapping configurations.</p>
+              </div>
               <button 
                 onClick={generatePlan}
                 disabled={loadingPlan}
@@ -166,7 +181,7 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
                   className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
                 >
                   {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
-                  <span>{executing ? 'Simulating...' : 'Run Preview (Rollback Default)'}</span>
+                  <span>{executing ? 'Simulating...' : 'Run Simulation (Rollback Validation)'}</span>
                 </button>
                 <button 
                   onClick={() => setShowConfirm(true)}
@@ -191,9 +206,9 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
               <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-100 shadow-inner">
                 <AlertTriangle className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-black text-center text-gray-800 mb-2">CONFIRM TARGET EXECUTION</h2>
+              <h2 className="text-xl font-black text-center text-gray-800 mb-2">CONFIRM DESTINATION EXECUTION</h2>
               <p className="text-center text-sm text-gray-600 font-medium mb-6">
-                You are about to modify the target database. This operation will be wrapped in a transaction and automatically rolled back on error.
+                You are about to modify the destination database. This operation will be wrapped in a transaction and automatically rolled back on error.
               </p>
               
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-6">

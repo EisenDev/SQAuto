@@ -60,6 +60,8 @@ function IssueSection({
   );
 }
 
+import Tooltip from './Tooltip';
+
 export default function IntegrityIssuesPanel() {
   const { activeJob } = useJob();
   const [report, setReport] = useState<IntegrityReport | null>(null);
@@ -67,6 +69,12 @@ export default function IntegrityIssuesPanel() {
   const [error, setError] = useState<string | null>(null);
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
+
+  // Reset session data on new job upload
+  React.useEffect(() => {
+    setReport(null);
+    setError(null);
+  }, [jobId]);
 
   const runCheck = async () => {
     if (!jobId) return;
@@ -93,7 +101,10 @@ export default function IntegrityIssuesPanel() {
       <div className="bg-gradient-to-r from-orange-700 to-amber-800 p-5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <Shield className="w-5 h-5 text-orange-300" />
-          <h3 className="font-black text-sm text-white tracking-widest uppercase italic">Data Integrity Detection</h3>
+          <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
+            Data Quality Check
+            <Tooltip content="This checks data quality issues such as missing values (NULL), duplicates, and broken relationships." />
+          </h3>
         </div>
         <button
           onClick={runCheck}
@@ -101,7 +112,7 @@ export default function IntegrityIssuesPanel() {
           className="px-4 py-2 bg-white/10 backdrop-blur text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 disabled:opacity-40 transition-all flex items-center space-x-2 border border-white/20"
         >
           {loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
-          <span>{loading ? 'SCANNING...' : 'RUN INTEGRITY CHECK'}</span>
+          <span>{loading ? 'SCANNING...' : 'RUN QUALITY CHECK'}</span>
         </button>
       </div>
 
@@ -116,8 +127,15 @@ export default function IntegrityIssuesPanel() {
         {!report && !loading && !error && (
           <div className="text-center py-8">
             <Shield className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm font-black text-gray-300 uppercase tracking-widest">No Scan Data</p>
-            <p className="text-[10px] text-gray-400 mt-1">Click "Run Integrity Check" to scan for data quality issues</p>
+            <p className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">No scan data yet</p>
+            <div className="max-w-xs mx-auto text-left bg-gray-50 p-4 rounded-xl text-[11px] text-gray-600 font-mono leading-relaxed">
+              <p className="font-bold text-gray-800 mb-2">Steps:</p>
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Upload SQL dump</li>
+                <li>Wait for extraction</li>
+                <li>Click 'RUN QUALITY CHECK'</li>
+              </ol>
+            </div>
           </div>
         )}
 

@@ -254,10 +254,12 @@ def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db:
     return serialize_run(run)
 
 
-@router.get("/runs", summary="List migration runs")
-def list_runs(db: Session = Depends(get_db)):
-    """List all migration runs, ordered by most recent first."""
-    runs = db.query(MigrationRun).order_by(MigrationRun.created_at.desc()).all()
+@router.get("/runs", summary="List migration runs for a specific job")
+def list_runs(source_job_id: str, db: Session = Depends(get_db)):
+    """List all migration runs for a specific job, ordered by most recent first."""
+    if not source_job_id:
+        return []
+    runs = db.query(MigrationRun).filter(MigrationRun.source_job_id == source_job_id).order_by(MigrationRun.created_at.desc()).all()
     return [serialize_run(r) for r in runs]
 
 

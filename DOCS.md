@@ -185,6 +185,12 @@ Extends Phase 1 row-count comparison with:
 - Rollback System: always rollback on failure, preview, or cancellation.
 - Smart execution blocking based on Data Intelligence integrity checks (duplicate PKs, orphan FKs, etc).
 
+### Phase 3.1: UX Stabilization & Guidance Layer
+- Fixes session-based data isolation restricting logs and plans to the current active job.
+- Introduces Tooltip help system across the application.
+- Updates empty-states to provide guided user flows.
+- Improves terminology (Simulation instead of Dry-Run, Destination Database, Data Quality Check).
+
 ### Phase 4: Transformation Layer
 - Allow mapping old columns to new columns
 - Allow simple transformation rules (e.g., `committee_name` → `committee_id`)

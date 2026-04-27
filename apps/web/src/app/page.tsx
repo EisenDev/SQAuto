@@ -12,6 +12,7 @@ import MigrationControlCenter from '@/components/MigrationControlCenter';
 import { useJob } from '@/components/JobProvider';
 import { getJob } from '@/lib/api';
 import Skeleton from '@/components/Skeleton';
+import PipelineFlow from '@/components/PipelineFlow';
 
 export default function Dashboard() {
   const { activeJob, setActiveJob } = useJob();
