@@ -105,7 +105,7 @@ export default function SchemaVisualizer({ jobId, graph }: SchemaVisualizerProps
       };
     });
 
-    const initialEdges = graph.edges.map(edge => ({
+    const initialEdges: Edge[] = graph.edges.map(edge => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
@@ -132,14 +132,13 @@ export default function SchemaVisualizer({ jobId, graph }: SchemaVisualizerProps
     if (!jobId) return;
     setIsSaving(true);
     
-    try {
-      // We extract only the positions to keep the payload clean
-      const nodePositions = nodes.map(n => ({
-        id: n.id,
-        position: n.position
-      }));
+    // We extract only the positions to keep the payload clean
+    const nodePositions = nodes.map(n => ({
+      id: n.id,
+      position: n.position
+    }));
 
-      // Update the backend profile with persistent positions
+    // Update the backend profile with persistent positions
     const result = await safeFetch(`${API_URL}/jobs/${jobId}/layout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

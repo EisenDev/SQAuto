@@ -44,7 +44,7 @@ export default function SourceTruthExplorer({ jobId, profile }: SourceTruthExplo
         if (result.success) {
           setTableData(result.data);
         } else {
-          setError({ detail: result.error, code: result.status || 500 });
+          setError({ detail: result.error || "Unknown Error", code: result.status || 500 });
           setTableData(null);
         }
         setLoading(false);

@@ -1,0 +1,28 @@
+
+> @sqauto/web@0.1.0 build
+> next build
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/4) ...
+   Generating static pages (1/4) 
+   Generating static pages (2/4) 
+   Generating static pages (3/4) 
+ ✓ Generating static pages (4/4) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    72.4 kB         164 kB
+└ ○ /_not-found                          874 B          81.6 kB
++ First Load JS shared by all            80.7 kB
+  ├ chunks/1dd3208c-f7addfcd946c1ec0.js  51.1 kB
+  ├ chunks/53-917dfcffff96eee9.js        27.5 kB
+  ├ chunks/main-app-f63c332ad9945c25.js  230 B
+  └ chunks/webpack-5c71724e75e7501f.js   1.93 kB
+
+
+○  (Static)  automatically rendered as static HTML (uses no initial props)
+
