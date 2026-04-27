@@ -259,6 +259,10 @@ api_router.include_router(migration.router, prefix="/migration", tags=["migratio
 from apps.api.routers import analysis
 api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 
+# Register fix routes (Phase 4: Smart Fix Engine)
+from apps.api.routers import fixes
+api_router.include_router(fixes.router, prefix="/fixes", tags=["fixes", "smart_fix"])
+
 
 class LayoutRequest(BaseModel):
     positions: list

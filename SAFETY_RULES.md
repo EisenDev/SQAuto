@@ -113,3 +113,11 @@ Manual review is required when:
 1. **User clarity is a safety feature**: Confusing UX leads to accidental destructive operations. Terminology must be accurate and unambiguous (e.g. Simulation vs Dry-Run).
 2. **Context Isolation**: The system must NOT display misleading, stale, or cross-session data. Logs, integrity issue reports, and plans must be scoped strictly to the currently active job (`source_job_id`).
 3. **Session Reset**: Uploading a new SQL dump must explicitly clear all prior simulation results, metrics, and schema mapping configurations in the UI to prevent misapplication of legacy state.
+
+## PRE-EXECUTION FIX PIPELINE SAFETY (Phase 4)
+
+1. **Explicit Fix Approval**: No automatic fixes are permitted without explicit user review and approval (no one-click destructive auto-fixes).
+2. **Preview Mandate**: All structural fixes and transformations must be previewed visually inside the UI prior to inclusion in the fix configuration.
+3. **Staging Boundary Enclosure**: Fix actions may exclusively mutate the internal *staging* database layer to rectify structures prior to simulation.
+4. **Original Source Preservation**: The initial source dump must unconditionally remain fully read-only and preserved for potential audits.
+5. **Destination DB Isolation**: Resolving anomalies and preparing fixes must never modify the target destination database architecture; it only conforms staging representations.

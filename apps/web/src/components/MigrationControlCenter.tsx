@@ -3,10 +3,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useJob } from '@/components/JobProvider';
 import Skeleton from './Skeleton';
 import Tooltip from './Tooltip';
+import DatabasePresetSelector, { DatabasePreset } from './DatabasePresetSelector';
+import DestinationConnectionModal from './DestinationConnectionModal';
+import { GUIDANCE } from '@/lib/guidance';
 import { 
   Database, Server, Play, RefreshCw, AlertTriangle, CheckCircle2, 
-  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info
+  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit
 } from 'lucide-react';
+
+// ... (skipping some lines for brevity here, wait, I can't skip within replacement chunks unless I target correctly)
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -54,11 +60,24 @@ interface MigrationLog {
 
 function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
   const [form, setForm] = useState({
-    name: '', host: '', port: '5432', database_name: '', username: '', password: '', ssl_mode: 'prefer'
+    name: '', host: '', port: '5432', database_name: '', username: '', password: '', ssl_mode: 'prefer', db_type: 'postgresql'
   });
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
+  const [selectedPreset, setSelectedPreset] = useState<DatabasePreset | null>(null);
+
+  const handlePresetSelect = (preset: DatabasePreset) => {
+    setSelectedPreset(preset);
+    if (preset === 'postgresql') {
+      setForm(prev => ({ ...prev, name: 'PostgreSQL Target', host: '127.0.0.1', port: '5432', database_name: 'postgres', username: 'postgres', password: '', db_type: 'postgresql' }));
+    } else if (preset === 'mysql') {
+      setForm(prev => ({ ...prev, name: 'MySQL Target', host: '127.0.0.1', port: '3306', database_name: 'mysql', username: 'root', password: '', db_type: 'mysql' }));
+    } else if (preset === 'sqlite') {
+      setForm(prev => ({ ...prev, name: 'SQLite Target', host: 'local', port: '', database_name: '/path/to/database.sqlite', username: '', password: '', db_type: 'sqlite' }));
+    }
+    setTestResult(null);
+  };
 
   const updateField = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -95,7 +114,7 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, port: parseInt(form.port) })
       });
-      setForm({ name: '', host: '', port: '5432', database_name: '', username: '', password: '', ssl_mode: 'prefer' });
+      setForm({ name: '', host: '', port: '5432', database_name: '', username: '', password: '', ssl_mode: 'prefer', db_type: 'postgresql' });
       setTestResult(null);
       onTargetSaved();
     } catch (e) {
@@ -108,10 +127,10 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
   const fields = [
     { key: 'name', label: 'CONNECTION NAME', placeholder: 'Production-DB', type: 'text' },
     { key: 'host', label: 'HOST', placeholder: '192.168.1.100', type: 'text' },
-    { key: 'port', label: 'PORT', placeholder: '5432', type: 'text' },
+    { key: 'port', label: 'PORT', placeholder: '5432', type: 'text', disabled: form.db_type === 'sqlite' },
     { key: 'database_name', label: 'DATABASE', placeholder: 'my_production_db', type: 'text' },
-    { key: 'username', label: 'USERNAME', placeholder: 'postgres', type: 'text' },
-    { key: 'password', label: 'PASSWORD', placeholder: '••••••••', type: 'password' },
+    { key: 'username', label: 'USERNAME', placeholder: 'postgres', type: 'text', disabled: form.db_type === 'sqlite' },
+    { key: 'password', label: 'PASSWORD', placeholder: '••••••••', type: 'password', disabled: form.db_type === 'sqlite' },
   ];
 
   return (
@@ -119,11 +138,20 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
       <div className="bg-gradient-to-r from-teal-800 to-teal-900 p-5 flex items-center space-x-3">
         <Server className="w-5 h-5 text-teal-400" />
         <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
-          Destination Database Connection
-          <Tooltip content="This is the destination database where your data will be migrated." />
+          {GUIDANCE.CONNECTION.TITLE}
+          <Tooltip content={GUIDANCE.CONNECTION.HELP} />
         </h3>
       </div>
       <div className="p-6">
+        <DatabasePresetSelector selectedPreset={selectedPreset} onSelect={handlePresetSelect} />
+
+        {selectedPreset && selectedPreset !== 'postgresql' && (
+          <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-800 text-xs px-3 py-2 rounded-xl flex items-center shadow-inner font-mono">
+            <Info className="w-4 h-4 mr-2 text-orange-500 shrink-0" />
+            Only PostgreSQL connection testing is supported in this version. MySQL and SQLite presets are prepared for upcoming support.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {fields.map(f => (
             <div key={f.key}>
@@ -132,8 +160,9 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
                 type={f.type}
                 placeholder={f.placeholder}
                 value={(form as any)[f.key]}
+                disabled={f.disabled}
                 onChange={e => updateField(f.key, e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-800 font-mono placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all shadow-inner"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-800 font-mono placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 transition-all shadow-inner disabled:opacity-50 disabled:bg-gray-100"
               />
             </div>
           ))}
@@ -188,7 +217,7 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
 }
 
 
-function TargetList({ targets, onDelete, onSelect, selectedId }: { targets: Target[], onDelete: (id: string) => void, onSelect: (id: string) => void, selectedId: string }) {
+function TargetList({ targets, onDelete, onSelect, onEdit, selectedId }: { targets: Target[], onDelete: (id: string) => void, onSelect: (id: string) => void, onEdit: (t: Target) => void, selectedId: string }) {
   if (targets.length === 0) return null;
 
   return (
@@ -212,6 +241,12 @@ function TargetList({ targets, onDelete, onSelect, selectedId }: { targets: Targ
               </div>
             </div>
             <div className="flex items-center space-x-2 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(t); }}
+                className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+              >
+                <Edit className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
                 className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
@@ -260,8 +295,8 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
       <div className="bg-gradient-to-r from-indigo-800 to-indigo-900 p-5 flex items-center space-x-3">
         <Play className="w-5 h-5 text-indigo-400" />
         <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
-          Simulation (No Data Changes)
-          <Tooltip content="This simulates migration without modifying your database. It compares structure and data safely." />
+          {GUIDANCE.SIMULATION.TITLE}
+          <Tooltip content={GUIDANCE.SIMULATION.HELP} />
         </h3>
       </div>
       <div className="p-6">
@@ -502,6 +537,7 @@ export default function MigrationControlCenter() {
   const [activeRun, setActiveRun] = useState<MigrationRun | null>(null);
   const [logs, setLogs] = useState<MigrationLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTarget, setEditingTarget] = useState<Target | null>(null);
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
 
@@ -554,6 +590,31 @@ export default function MigrationControlCenter() {
     } catch (e) { console.error("Delete failed:", e); }
   };
 
+  const handleEditTargetSave = async (id: string, updates: any) => {
+    const res = await fetch(`${API_URL}/migration/targets/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to update target');
+    }
+    fetchTargets();
+  };
+
+  const handleEditTargetTest = async (id: string, updates: any) => {
+    const res = await fetch(`${API_URL}/migration/targets/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Connection failed');
+    }
+  };
+
   // Session Reset - Re-fetch whenever Job ID changes
   useEffect(() => {
     fetchRuns();
@@ -595,6 +656,8 @@ export default function MigrationControlCenter() {
   const IntegrityIssuesPanel = require('@/components/IntegrityIssuesPanel').default;
   const SchemaMappingPanel = require('@/components/SchemaMappingPanel').default;
   const MigrationPlanPanel = require('@/components/MigrationPlanPanel').default;
+  const FixSuggestionsPanel = require('@/components/FixSuggestionsPanel').default;
+  const MappingSuggestionsPanel = require('@/components/MappingSuggestionsPanel').default;
 
   return (
     <div className="space-y-6 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -606,7 +669,16 @@ export default function MigrationControlCenter() {
         targets={targets} 
         onDelete={deleteTarget} 
         onSelect={setSelectedTargetId} 
+        onEdit={setEditingTarget}
         selectedId={selectedTargetId} 
+      />
+
+      <DestinationConnectionModal
+        connection={editingTarget as any}
+        onClose={() => setEditingTarget(null)}
+        onSave={handleEditTargetSave}
+        onTest={handleEditTargetTest}
+        onDelete={async (id) => { await deleteTarget(id); }}
       />
 
       {/* Phase 1: Dry-Run Panel */}
@@ -617,6 +689,12 @@ export default function MigrationControlCenter() {
 
       {/* Phase 2: Data Integrity Detection */}
       <IntegrityIssuesPanel />
+
+      {/* Phase 4: Smart Fix Panel */}
+      <FixSuggestionsPanel />
+
+      {/* Phase 4: Mapping Suggestions Panel */}
+      {selectedTargetId && <MappingSuggestionsPanel targetId={selectedTargetId} />}
 
       {/* Phase 2: Schema Mapping Layer */}
       <SchemaMappingPanel />

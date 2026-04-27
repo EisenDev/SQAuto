@@ -190,11 +190,15 @@ Extends Phase 1 row-count comparison with:
 - Introduces Tooltip help system across the application.
 - Updates empty-states to provide guided user flows.
 - Improves terminology (Simulation instead of Dry-Run, Destination Database, Data Quality Check).
+- **Destination Database Presets**: Auto-fill options for PostgreSQL, MySQL, and SQLite connections.
+- **Saved Connections Modal**: View and edit modal for saved destination connections preserving password security.
 
-### Phase 4: Transformation Layer
-- Allow mapping old columns to new columns
-- Allow simple transformation rules (e.g., `committee_name` → `committee_id`)
-- Column mapping editor UI
+### Phase 4: Smart Fix + Mapping Assistance Layer
+- **Smart Fix Suggestions**: Suggests specific fixes based on data quality reports (e.g. duplicating handling, null handling).
+- **Fix Preview System**: Visually presents a bounded limit preview of what the Fix action changes before applying.
+- **Smart Mapping Suggestions**: Automatically fuzzy-matches existing mapping gaps recommending direct column connections.
+- **Pre-Execution Fix Pipeline**: Infrastructure limiting approved fix mutations strictly to the active 'Staging' copy, preserving the initial upload.
+- **Strict User Verification**: All fixes require explicit user preview and approval before ever executing.
 
 ### Phase 5: SQL Dialect Translation Studio
 - Detect source SQL dialect from uploaded `.sql` file

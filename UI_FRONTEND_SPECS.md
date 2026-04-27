@@ -68,4 +68,31 @@
 - **Schema Mapping Table**: Sortable mapping rows with editable target column input and type‐match toggle button.
 - **Dialect Badge**: Pill‐shaped badge component showing emoji + dialect name + confidence percentage.
 - **Execution Confirmation Dialog**: Modal with risk summary (rows affected, warnings, risk level color-coding) requiring explicit confirmation to override default rollback.
-- **Blocking UI**: High-visibility block overlay indicating critical issues (e.g. duplicate PKs) requiring resolution before execution.
+- **Blocking UI**: High-visibility block overlay indicating critical issues (e.g. duplicate PKs) requiring resolution before execution.## PHASE 4: SMART FIX & MAPPING ASSISTANCE
+
+### 1. FixSuggestionsPanel
+- **Placement**: Integrates into the Data Quality Check panel.
+- **Sections**: Groups identified issues broadly by type (e.g. Missing Values / NULLs, Duplicate Keys, Broken Relationships, Missing Primary Keys).
+- **Suggestion Cards**: Displays discrete issues (e.g., table, column, severity) alongside categorized dropdown actions ("Keep NULL values", "Replace NULL with default", "Exclude column").
+- **Language Requirements**: Strict avoidance of one-click destructive wording. Uses "Preview Fix" and "Prepare Fix". Asserts explicit pre-execution boundaries.
+
+### 2. FixPreviewPanel
+- **Placement**: Overlay or inline panel invoked by "Preview Fix".
+- **Fields**: Shows exact structural projections bounded by Row Limits, computing before/after outputs conceptually for user review. Tracks estimated row capacities visually.
+- **Components**: Safe badges indicating limits. Standard Cancel / Add to Fix Plan commands governing safe continuation mapping.
+
+### 3. MappingSuggestionsPanel
+- **Placement**: Nested inside Schema Mapping Layer (`SchemaMappingPanel.tsx`).
+- **Functionality**: Overlays dynamic algorithmic maps (fuzzy match strings + types match) proposing automatic column binds. Highlights scoring confidence per-column using Accept/Reject buttons pushing directly toward local mapping memory states.
+
+### 4. DatabasePresetSelector
+- **Placement**: Dropdown/radio toggles housed inside Destination Database connection forms.
+- **Presets**:
+  - `PostgreSQL` (Host: 127.0.0.1, Port: 5432, User: postgres)
+  - `MySQL` (Host: 127.0.0.1, Port: 3306, User: root)
+  - `SQLite` (Host: local, Port disabled)
+- **Constraint Messaging**: Forces frontend validation notices asserting "Only PostgreSQL connection testing is supported in this version" explicitly. Maintains standard interactivity to map target details safely.
+
+### 5. DestinationConnectionModal
+- **Placement**: Invoked upon clicking listed stored connection tiles in "Saved Connections".
+- **Functionality**: Floating unified UI to securely edit target definitions or execute connectivity assessments without deleting existing references or losing password context.

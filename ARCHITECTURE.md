@@ -92,6 +92,17 @@ The system handles uploaded SQL dumps and generated exports:
 - **Processed Artifacts:** Generated exports and intermediate transformation logs are stored in an `exports/` volume.
 - **Temporary Storage:** Local disk space is used for transient processing files that do not need persistence beyond the job lifecycle.
 
+### 8. Smart Fix Engine (`services/smart_fix`)
+Responsible for:
+- Suggesting fixes based on data quality reports (duplicate primary keys, orphan foreign keys, etc.)
+- Generating pre-execution preview projections (LIMIT sampled) to show the exact before-and-after of a fix.
+- Supplying a safe "Pre-Execution Fix Pipeline" boundary restricting all validated changes exclusively to the staging-copy environment.
+
+### 9. Mapping Suggestion Engine (`services/smart_fix`)
+Responsible for:
+- Automatically generating mapping confidence scores comparing Source column structure to Destination column schemas.
+- Using fuzzy matching, snake_case conversion logic, and type correlation.
+
 ## SERVICE BOUNDARIES
 
 ### Frontend

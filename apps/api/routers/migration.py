@@ -44,6 +44,17 @@ class TargetCreateRequest(BaseModel):
     ssl_mode: Optional[str] = "prefer"
 
 
+class TargetUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    database_name: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    db_type: Optional[str] = None
+    ssl_mode: Optional[str] = None
+
+
 class TargetTestRequest(BaseModel):
     host: str
     port: int = 5432
@@ -165,6 +176,31 @@ def list_targets(db: Session = Depends(get_db)):
     """List all saved target connections. Passwords are excluded."""
     targets = db.query(MigrationTarget).order_by(MigrationTarget.created_at.desc()).all()
     return [serialize_target(t) for t in targets]
+
+
+@router.patch("/targets/{target_id}", summary="Update a saved target connection")
+def update_target(target_id: str, request: TargetUpdateRequest, db: Session = Depends(get_db)):
+    """Update a saved target connection.
+    If password is empty or not provided, it keeps the existing password.
+    """
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+        
+    update_data = request.dict(exclude_unset=True)
+    if "password" in update_data:
+        if not update_data["password"]:
+            del update_data["password"]  # Do not overwrite with empty strings
+            
+    for key, value in update_data.items():
+        setattr(target, key, value)
+        
+    target.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    
+    logger.info(f"Target updated: {target.name} ({target.host}:{target.port})")
+    return serialize_target(target)
 
 
 @router.delete("/targets/{target_id}", summary="Delete a saved target connection")
@@ -377,3 +413,43 @@ def start_execution(request: MigrationExecuteRequest, background_tasks: Backgrou
     logger.info(f"Execution {run.id} queued for mode: {request.mode.upper()}")
     
     return serialize_run(run)
+
+
+class MappingSuggestRequest(BaseModel):
+    source_job_id: str
+    target_id: str
+
+
+@router.post("/mapping/suggest", summary="Suggest Schema Mappings")
+def suggest_mappings(request: MappingSuggestRequest, db: Session = Depends(get_db)):
+    """
+    Generates intelligent mapping suggestions linking source columns to destination structure.
+    Currently returns dummy schema data to the mapping suggester engine for the MVP.
+    """
+    from services.smart_fix.mapping_suggester import suggest_schema_mappings
+    
+    job = db.query(Job).filter(Job.id == request.source_job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Source job not found")
+
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target connection not found")
+
+    # In a full implementation, you'd pull actual schema definitions here:
+    # source_schema = extract_source_schema(job)
+    # target_schema = inspect_target_schema(target)
+    
+    # We provide an example set showing fuzzy compatibility finding.
+    source_mock = {
+        "users": [{"name": "usr_nm", "type": "varchar"}, {"name": "UserEmail", "type": "varchar"}],
+        "documents": [{"name": "doc_description", "type": "varchar"}]
+    }
+    
+    target_mock = {
+        "users": [{"name": "user_name", "type": "varchar"}, {"name": "user_email", "type": "varchar"}],
+        "documents": [{"name": "description", "type": "varchar"}]
+    }
+
+    results = suggest_schema_mappings(source_mock, target_mock)
+    return {"suggestions": results}

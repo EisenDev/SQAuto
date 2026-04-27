@@ -22,6 +22,7 @@ interface TableMapping {
 }
 
 import Tooltip from './Tooltip';
+import { GUIDANCE } from '@/lib/guidance';
 
 export default function SchemaMappingPanel() {
   const { activeJob } = useJob();
@@ -165,8 +166,8 @@ export default function SchemaMappingPanel() {
         <div className="flex items-center space-x-3">
           <Columns className="w-5 h-5 text-violet-300" />
           <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
-            Schema Mapping Layer
-            <Tooltip content="This defines how columns from your source map to your destination database." />
+            {GUIDANCE.MAPPING.TITLE}
+            <Tooltip content={GUIDANCE.MAPPING.HELP} />
           </h3>
         </div>
         <button
