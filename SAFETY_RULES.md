@@ -98,3 +98,12 @@ Manual review is required when:
 6. Schema mapping configurations are user-controlled and must never be auto-applied without explicit operator confirmation.
 7. Enhanced reconciliation queries against the target database are **read-only** (`SELECT` only) and must use sampling (`LIMIT`) to prevent performance degradation.
 8. Passwords in reconciliation error messages must be scrubbed before logging or returning to the API.
+
+## CONTROLLED EXECUTION SAFETY (Phase 3)
+
+1. **Transaction Enforcement**: ALL execution actions must be wrapped in an explicit database transaction (`BEGIN; ... COMMIT; / ROLLBACK;`).
+2. **Default Rollback**: The default behavior for all execution modes and previews is `ROLLBACK`.
+3. **Explicit Confirmation**: `COMMIT` is ONLY executed if the user explicitly clicked "Confirm Execution" AND no runtime errors occurred.
+4. **Auto-Rollback**: If ANY error occurs during execution, an automatic `ROLLBACK` must happen immediately.
+5. **Execution Blocking**: Execution MUST be blocked if critical integrity issues are detected (duplicate primary keys, complete lack of primary keys on a target table, or orphan foreign keys).
+6. **Parameterized Queries Check**: Never execute raw concatenated SQL strings. Parameterization must be used to mitigate injection risks during execution.

@@ -317,26 +317,41 @@ function ReconciliationPanel({ run }: { run: MigrationRun | null }) {
       </div>
       <div className="p-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-            <p className="text-2xl font-black text-teal-900">{s.tables_checked || 0}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Tables Checked</p>
+          <div className="p-5 flex flex-col justify-center items-center">
+            <span className={`text-[10px] font-black uppercase tracking-widest ${run.mode === 'execute' ? 'text-indigo-400' : 'text-gray-400'} mb-1`}>Tables Processed</span>
+            <span className={`text-3xl font-black ${run.mode === 'execute' ? 'text-indigo-600' : 'text-gray-800'}`}>{s.tables_processed ?? s.tables_checked ?? 0}</span>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-            <p className="text-2xl font-black text-amber-600">{s.tables_missing_in_target?.length || 0}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Missing in Target</p>
+          <div className="p-5 flex flex-col justify-center items-center">
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{s.total_rows_affected !== undefined ? 'Rows Affected' : 'Missing in Target'}</span>
+            <span className="text-3xl font-black text-gray-800">
+              {s.total_rows_affected !== undefined ? s.total_rows_affected : (s.tables_missing_in_target?.length || 0)}
+            </span>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-            <p className="text-2xl font-black text-amber-600">{s.warnings_count || 0}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Warnings</p>
+          <div className="p-5 flex flex-col justify-center items-center bg-amber-50/30">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-1">Warnings</span>
+            <span className="text-3xl font-black text-amber-600">{s.warnings_count ?? 0}</span>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100">
-            <p className="text-2xl font-black text-red-600">{s.errors_count || 0}</p>
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-1">Errors</p>
+          <div className="p-5 flex flex-col justify-center items-center bg-red-50/30">
+            <span className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1">Errors</span>
+            <span className="text-3xl font-black text-red-600">{s.errors_count ?? s.execution_errors ?? 0}</span>
           </div>
         </div>
 
         {/* Missing Tables */}
-        {s.tables_missing_in_target?.length > 0 && (
+        {s.status === 'failed' || s.status === 'rolled_back' || s.status === 'blocked' ? (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
+            <h5 className="text-[10px] font-black text-red-800 uppercase tracking-widest flex items-center space-x-2 mb-1">
+              <XCircle className="w-4 h-4" />
+              <span>{s.status.toUpperCase()} ERROR</span>
+            </h5>
+            <p className="text-xs text-red-600 font-mono">{s.error || s.msg || 'Unknown execution failure.'}</p>
+            {s.blocking_reasons && (
+              <ul className="list-disc pl-5 mt-2 text-xs text-red-800 font-mono">
+                {s.blocking_reasons.map((r: string, idx: number) => <li key={idx}>{r}</li>)}
+              </ul>
+            )}
+          </div>
+        ) : (s.tables_missing_in_target?.length > 0 && (
           <div className="mb-6">
             <h5 className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center space-x-1">
               <AlertTriangle className="w-3 h-3" />
@@ -348,7 +363,7 @@ function ReconciliationPanel({ run }: { run: MigrationRun | null }) {
               ))}
             </div>
           </div>
-        )}
+        ))}
 
         {/* Row Count Comparison */}
         {s.row_count_comparison?.length > 0 && (
@@ -430,6 +445,22 @@ function LogsPanel({ logs }: { logs: MigrationLog[] }) {
                   <span className="font-black text-gray-800 uppercase text-[9px] tracking-wider">{log.level}</span>
                   {log.table_name && (
                     <span className="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{log.table_name}</span>
+                  )}
+                  {log.transaction_status && (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest ml-1 ${
+                      log.transaction_status === 'rolled_back' ? 'bg-red-100 text-red-700' :
+                      log.transaction_status === 'committed' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                    }`}>{log.transaction_status}</span>
+                  )}
+                  {log.rows_affected !== null && log.rows_affected !== undefined && (
+                    <span className="text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-black uppercase ml-1">
+                      {log.rows_affected} rows
+                    </span>
+                  )}
+                  {log.execution_time_ms && (
+                    <span className="text-[8px] bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded font-mono ml-1">
+                      {log.execution_time_ms}ms
+                    </span>
                   )}
                   <span className="text-[9px] text-gray-400 ml-auto font-mono shrink-0">
                     {new Date(log.created_at).toLocaleTimeString()}
@@ -530,9 +561,10 @@ export default function MigrationControlCenter() {
     );
   }
 
-  // Lazy import Phase 2 components
+  // Lazy import new components
   const IntegrityIssuesPanel = require('@/components/IntegrityIssuesPanel').default;
   const SchemaMappingPanel = require('@/components/SchemaMappingPanel').default;
+  const MigrationPlanPanel = require('@/components/MigrationPlanPanel').default;
 
   return (
     <div className="space-y-6 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -559,7 +591,13 @@ export default function MigrationControlCenter() {
       {/* Phase 2: Schema Mapping Layer */}
       <SchemaMappingPanel />
 
-      {/* Phase 1: Reconciliation Summary */}
+      {/* Phase 3: Migration Execution Plan & UI */}
+      <MigrationPlanPanel 
+        selectedTargetId={selectedTargetId} 
+        onRunCreated={() => { fetchRuns(); }} 
+      />
+
+      {/* Phase 1+3: Run Summary */}
       <ReconciliationPanel run={activeRun} />
 
       {/* Phase 1: Migration Logs */}

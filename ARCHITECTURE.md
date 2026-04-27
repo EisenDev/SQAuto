@@ -227,6 +227,23 @@ Upload → Extract → Restore → Profile → Analyze (Integrity) → Detect Is
 - All heavy queries are LIMIT-capped
 - No data modification in any phase
 
+## COMPONENT: EXECUTION ENGINE (Phase 3)
+
+The Execution Engine is the final transaction layer responsible for safely writing data to the target database in a controlled, reversible manner.
+
+**Submodules:**
+- `execution_engine.py` — Handles generation of migration plans, preview simulations, and the transaction commit/rollback execution lifecycle.
+
+**Data Flow:**
+```
+Analyze → Generate Plan → Preview → Execute → Commit/Rollback
+```
+
+**Transaction Layer:**
+All operations in the Execution Engine are explicitly wrapped in a single database transaction. 
+- In **Preview Mode**, the transaction simulates execution and explicitly calls `ROLLBACK`. 
+- In **Execute Mode**, the transaction queries are executed and, if no errors occur and user confirmed, calls `COMMIT`. Any error immediately forces a `ROLLBACK`.
+
 ## DATABASE LAYER
 
 The system uses PostgreSQL and is logically split into:

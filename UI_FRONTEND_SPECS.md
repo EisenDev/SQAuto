@@ -20,8 +20,9 @@
 9. **Migration Control Center** – Target DB connection, dry‑run validation, reconciliation summary, migration logs.
 10. **Integrity Issues Panel** – Expandable sections showing duplicate PKs, orphan FKs, missing PKs, and high‐NULL columns.
 11. **Schema Mapping Panel** – Editable mapping table (source column → target column) with type match indicators.
-12. **Dialect Detection Badge** – Small badge on upload card showing detected SQL dialect (e.g., "🐘 PostgreSQL 92%").
-13. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
+13. **Migration Plan Panel** – Summary of tables, row counts, risk level, and warnings prior to execution.
+14. **Execution Controls** – "Run Preview" and "Execute Migration" mode buttons, along with Blocking UI state.
+15. **Collapsed Advanced Tools** – Accordion containing optional settings (chunk size, confidence thresholds, custom mappings).
 
 ## Main Pages
 - **Dashboard** – Home view containing the layout above.
@@ -64,3 +65,5 @@
 - **Integrity Issues**: Expandable `IssueSection` component with icon, count badge, and collapsible content area.
 - **Schema Mapping Table**: Sortable mapping rows with editable target column input and type‐match toggle button.
 - **Dialect Badge**: Pill‐shaped badge component showing emoji + dialect name + confidence percentage.
+- **Execution Confirmation Dialog**: Modal with risk summary (rows affected, warnings, risk level color-coding) requiring explicit confirmation to override default rollback.
+- **Blocking UI**: High-visibility block overlay indicating critical issues (e.g. duplicate PKs) requiring resolution before execution.

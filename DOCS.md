@@ -178,9 +178,12 @@ Extends Phase 1 row-count comparison with:
 - Extra IDs: records in target but not in staging
 - Sampled with LIMIT clauses for performance safety
 
-### Phase 3: Error Logs & Diagnostics UI
-- Show failed operations with table name, row id, error message, severity, timestamp
-- Allow export of failed rows/logs
+### Phase 3: Controlled Migration Execution (Current)
+- Execution modes: preview (default, rollback) vs commit (execute, commit)
+- Migration Plan System details affected tables, rows, mappings, and integrity risks.
+- Execution preview UI to show the planned migration.
+- Rollback System: always rollback on failure, preview, or cancellation.
+- Smart execution blocking based on Data Intelligence integrity checks (duplicate PKs, orphan FKs, etc).
 
 ### Phase 4: Transformation Layer
 - Allow mapping old columns to new columns

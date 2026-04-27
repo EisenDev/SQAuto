@@ -17,13 +17,16 @@ from sqlalchemy.orm import Session
 from apps.api.database import get_db, SessionLocal
 from apps.api.models import (
     Job, MigrationTarget, MigrationRun, MigrationRunMode, 
-    MigrationRunStatus, MigrationLog, MigrationLogLevel
+    MigrationRunStatus, MigrationLog, MigrationLogLevel,
+    MigrationPlan
 )
 from services.migration_engine.service import MigrationEngineService
+from services.migration_engine.execution_engine import ExecutionEngineService
 
 router = APIRouter()
 logger = logging.getLogger("sqauto.migration_router")
 engine_service = MigrationEngineService()
+execution_service = ExecutionEngineService()
 
 
 # ============================================================
@@ -53,6 +56,15 @@ class TargetTestRequest(BaseModel):
 class DryRunRequest(BaseModel):
     source_job_id: str
     target_id: str
+
+class MigrationPlanRequest(BaseModel):
+    source_job_id: str
+    target_id: str
+
+class MigrationExecuteRequest(BaseModel):
+    source_job_id: str
+    target_id: str
+    mode: str = Field(..., description="Must be 'preview' or 'execute'")
 
 
 # ============================================================
@@ -272,3 +284,94 @@ def get_run_logs(run_id: str, db: Session = Depends(get_db)):
         .all()
     )
     return [serialize_log(l) for l in logs]
+
+
+# ============================================================
+# Phase 3: Controlled Execution Endpoints
+# ============================================================
+
+@router.post("/plan", summary="Generate a migration plan")
+def generate_migration_plan(request: MigrationPlanRequest, db: Session = Depends(get_db)):
+    """Generate a data intelligence backed migration plan."""
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target connection not found")
+        
+    plan_data = execution_service.generate_migration_plan(db, request.source_job_id, request.target_id)
+    return plan_data
+
+
+@router.get("/plan/{plan_id}", summary="Get saved migration plan")
+def get_migration_plan(plan_id: str, db: Session = Depends(get_db)):
+    """Fetch an existing migration plan artifact."""
+    plan = db.query(MigrationPlan).filter(MigrationPlan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Migration plan not found")
+        
+    return {
+        "id": str(plan.id),
+        "source_job_id": str(plan.source_job_id),
+        "target_id": str(plan.target_id),
+        "plan": plan.plan,
+        "risk_level": plan.risk_level,
+        "blocked": plan.blocked,
+        "blocking_reasons": plan.blocking_reasons,
+        "created_at": plan.created_at.isoformat() if plan.created_at else None
+    }
+
+
+def _execute_migration_bg(run_id, target_config, mode):
+    """Background task for safe execution."""
+    db = SessionLocal()
+    try:
+        execution_service.execute_migration(
+            db_session=db,
+            run_id=run_id,
+            target_config=target_config,
+            mode=mode
+        )
+    except Exception as e:
+        logger.error(f"Background execution failed: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/execute", summary="Execute controlled migration (preview or commit)")
+def start_execution(request: MigrationExecuteRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Start either a transaction-backed preview or actual commit execution."""
+    if request.mode not in ["preview", "execute"]:
+        raise HTTPException(status_code=400, detail="Mode must be 'preview' or 'execute'")
+        
+    job = db.query(Job).filter(Job.id == request.source_job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Source job not found")
+        
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target connection not found")
+        
+    run_mode = MigrationRunMode.PREVIEW if request.mode == "preview" else MigrationRunMode.EXECUTE
+    
+    run = MigrationRun(
+        source_job_id=request.source_job_id,
+        target_id=request.target_id,
+        mode=run_mode,
+        status=MigrationRunStatus.PENDING,
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    
+    target_config = {
+        "host": target.host,
+        "port": target.port,
+        "database_name": target.database_name,
+        "username": target.username,
+        "password": target.password,
+        "ssl_mode": target.ssl_mode,
+    }
+    
+    background_tasks.add_task(_execute_migration_bg, run.id, target_config, request.mode)
+    logger.info(f"Execution {run.id} queued for mode: {request.mode.upper()}")
+    
+    return serialize_run(run)

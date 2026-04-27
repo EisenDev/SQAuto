@@ -1,7 +1,7 @@
 # apps/api/models.py
 """SQLAlchemy models for the SQAuto API.
 Includes Job model with status tracking and optional profiling data.
-Includes Migration models for target connections, runs, and logs.
+Includes Migration models for target connections, runs, logs, and plans.
 """
 
 import enum
@@ -66,6 +66,8 @@ class MigrationTarget(Base):
 
 class MigrationRunMode(str, enum.Enum):
     DRY_RUN = "dry_run"
+    PREVIEW = "preview"
+    EXECUTE = "execute"
 
 
 class MigrationRunStatus(str, enum.Enum):
@@ -73,6 +75,8 @@ class MigrationRunStatus(str, enum.Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    ROLLED_BACK = "rolled_back"
+    BLOCKED = "blocked"
 
 
 class MigrationRun(Base):
@@ -110,5 +114,28 @@ class MigrationLog(Base):
     row_identifier = Column(String, nullable=True)
     message = Column(Text, nullable=False)
     context = Column(JSON, nullable=True)
+    rows_affected = Column(Integer, nullable=True)  # Phase 3: rows modified by this operation
+    execution_time_ms = Column(Integer, nullable=True)  # Phase 3: milliseconds taken
+    transaction_status = Column(String, nullable=True)  # Phase 3: 'committed', 'rolled_back', 'preview'
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+
+# ============================================================
+# Migration Plan Model (Phase 3)
+# ============================================================
+
+class MigrationPlan(Base):
+    """Stores a generated migration plan as an audit artifact.
+    Plans are generated before execution and saved for traceability.
+    """
+    __tablename__ = "migration_plans"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    source_job_id = Column(UUID(as_uuid=True), ForeignKey("public.jobs.id"), nullable=False)
+    target_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_targets.id"), nullable=False)
+    plan = Column(JSON, nullable=False)  # Full plan JSON
+    risk_level = Column(String, nullable=False, default="LOW")  # LOW, MEDIUM, HIGH, CRITICAL
+    blocked = Column(Boolean, default=False, nullable=False)
+    blocking_reasons = Column(JSON, nullable=True)  # List of strings
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
