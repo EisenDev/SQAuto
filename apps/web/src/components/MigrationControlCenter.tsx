@@ -42,6 +42,9 @@ interface MigrationLog {
   table_name: string | null;
   message: string;
   created_at: string;
+  transaction_status?: string;
+  rows_affected?: number;
+  execution_time_ms?: number;
 }
 
 // ============================================================
