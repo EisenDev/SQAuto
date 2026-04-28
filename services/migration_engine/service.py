@@ -241,15 +241,16 @@ class MigrationEngineService:
             err_msg = str(e)
             
             # Detect timeouts in background task too
-            if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower():
-                if any(x in target_config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
+            is_local = any(x in target_config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."])
+            if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower() or "can't connect" in err_msg.lower():
+                if is_local:
                     err_msg = (
-                        "Connection timed out. The SQAuto server cannot reach this database host/port. "
-                        "If SQAuto is deployed on Azure, local/LAN IPs like 127.0.0.1 or 192.168.x.x will not work "
-                        "unless exposed through VPN/tunnel/firewall."
+                        "Connection timed out. The SQAuto CLOUD server cannot reach your LOCAL database host. "
+                        "Addresses like 192.168.x.x or localhost are private to your home network. "
+                        "Please use a public database endpoint (e.g. Supabase, Neon, AWS RDS) or a tunnel."
                     )
                 else:
-                    err_msg = f"Connection timed out. Ensure the database host is reachable from SQAuto server."
+                    err_msg = f"Connection timed out. Ensure the database host {target_config.get('host')} is reachable and accepting connections from the SQAuto server."
 
             if target_config.get("password"):
                 err_msg = err_msg.replace(target_config["password"], "***")
