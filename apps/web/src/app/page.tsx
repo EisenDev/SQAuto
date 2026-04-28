@@ -3,8 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { ArrowRight, Database, Shield, Zap, Layout } from 'lucide-react';
+import { useJob } from '@/components/JobProvider';
 
 export default function Home() {
+  const { activeJob } = useJob();
+  
+  const statusColor = activeJob?.status === 'completed' 
+    ? 'text-teal-400 border-teal-400/20 bg-teal-400/5' 
+    : activeJob?.status === 'failed'
+    ? 'text-red-400 border-red-400/20 bg-red-400/5'
+    : 'text-teal-500 border-teal-500/20 bg-teal-500/5 animate-pulse';
+
   return (
     <div className="flex-1 flex flex-col bg-slate-950 overflow-hidden relative">
       {/* Background Decor */}
@@ -38,13 +47,17 @@ export default function Home() {
             Start your project
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <div className="flex items-center space-x-3">
-            {activeJob && (
-              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-md border ${statusColor} transition-all`}>
+          
+          {activeJob && (
+            <div className="flex items-center space-x-3 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl">
+              <div className={`text-[10px] font-bold px-2 py-0.5 rounded border ${statusColor} transition-all`}>
                 {activeJob.status.toUpperCase()}
               </div>
-            )}
-          </div>
+              <span className="text-[10px] text-slate-500 font-mono font-bold tracking-tighter">
+                ID: {activeJob.id?.substring(0, 8)}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Feature Grid Mockup */}
