@@ -8,7 +8,7 @@ import DestinationConnectionModal from './DestinationConnectionModal';
 import { GUIDANCE } from '@/lib/guidance';
 import { 
   Database, Server, Play, RefreshCw, AlertTriangle, CheckCircle2, 
-  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit, Globe, FileDown, Download, FileText, ShieldAlert
+  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit, Globe
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { safeFetch } from '@/lib/api_client';
@@ -20,12 +20,14 @@ const MigrationPlanPanel = dynamic(() => import('./MigrationPlanPanel'), { ssr: 
 const FixSuggestionsPanel = dynamic(() => import('./FixSuggestionsPanel'), { ssr: false });
 const MappingSuggestionsPanel = dynamic(() => import('./MappingSuggestionsPanel'), { ssr: false });
 
+// ... (skipping some lines for brevity here, wait, I can't skip within replacement chunks unless I target correctly)
+
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 // ============================================================
 // Types
 // ============================================================
-type MigrationMode = 'export' | 'live';
 interface Target {
   id: string;
   name: string;
@@ -231,6 +233,179 @@ function ConnectionPanel({ onTargetSaved }: { onTargetSaved: () => void }) {
   );
 }
 
+
+function TargetList({ targets, onDelete, onSelect, onEdit, selectedId }: { targets: Target[], onDelete: (id: string) => void, onSelect: (id: string) => void, onEdit: (t: Target) => void, selectedId: string }) {
+  if (targets.length === 0) return null;
+
+  return (
+    <div className="bg-white border border-teal-100 rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-gray-50 border-b border-gray-100 p-4 flex items-center justify-between">
+        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Saved Target Connections</h4>
+        <span className="text-[10px] bg-teal-100 text-teal-800 px-2 py-0.5 rounded-full font-black">{targets.length}</span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {targets.map(t => (
+          <div 
+            key={t.id} 
+            onClick={() => onSelect(t.id)}
+            className={`p-4 flex items-center justify-between cursor-pointer transition-all group ${selectedId === t.id ? 'bg-teal-50 border-l-4 border-l-teal-600' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}
+          >
+            <div className="flex items-center space-x-3 min-w-0">
+              <Database className={`w-4 h-4 shrink-0 ${selectedId === t.id ? 'text-teal-600' : 'text-gray-400'}`} />
+              <div className="min-w-0">
+                <p className="text-sm font-black text-gray-800 truncate">{t.name}</p>
+                <p className="text-[10px] text-gray-400 font-mono truncate">{t.host}:{t.port}/{t.database_name}</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(t); }}
+                className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+              >
+                <Edit className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              <ChevronRight className={`w-4 h-4 ${selectedId === t.id ? 'text-teal-600' : 'text-gray-300'}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function DryRunPanel({ 
+  selectedTarget, 
+  onRunCreated,
+  isTested,
+  onTestSuccess
+}: { 
+  selectedTarget: Target | null, 
+  onRunCreated: () => void,
+  isTested: boolean,
+  onTestSuccess: () => void
+}) {
+  const { activeJob } = useJob();
+  const [running, setRunning] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const jobId = activeJob?.id || activeJob?.job_id || "";
+  const selectedTargetId = selectedTarget?.id || "";
+
+  const isLocalIP = selectedTarget && (['localhost', '127.0.0.1', '0.0.0.0'].includes(selectedTarget.host) || selectedTarget.host.startsWith('192.168.') || selectedTarget.host.startsWith('10.'));
+  const isDeployed = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+  const showLocalWarning = isDeployed && isLocalIP;
+
+  const handleTestConnection = async () => {
+    if (!selectedTarget) return;
+    setTesting(true);
+    setError(null);
+    const result = await safeFetch(`${API_URL}/migration/targets/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(selectedTarget)
+    });
+    if (result.success && result.data?.success) {
+      onTestSuccess();
+    } else {
+      setError(result.error || result.data?.error || "Connection failed");
+    }
+    setTesting(false);
+  };
+
+  const handleDryRun = async () => {
+    if (!jobId || !selectedTargetId) return;
+    setRunning(true);
+    setError(null);
+    const result = await safeFetch(`${API_URL}/migration/runs/dry-run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_job_id: jobId, target_id: selectedTargetId })
+    });
+    if (result.success) {
+      onRunCreated();
+    } else {
+      setError(result.error);
+    }
+    setRunning(false);
+  };
+
+  return (
+    <div className="bg-white border border-teal-100 rounded-2xl shadow-xl overflow-hidden">
+      <div className="bg-gradient-to-r from-indigo-800 to-indigo-900 p-5 flex items-center space-x-3">
+        <Play className="w-5 h-5 text-indigo-400" />
+        <h3 className="font-black text-sm text-white tracking-widest uppercase italic flex items-center">
+          {GUIDANCE.SIMULATION.TITLE}
+          <Tooltip content={GUIDANCE.SIMULATION.HELP} />
+        </h3>
+      </div>
+      <div className="p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">SOURCE JOB</label>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-600 font-mono shadow-inner">
+              {jobId ? `${jobId.slice(0, 8)}...` : 'No active job selected'}
+              {activeJob?.status && <span className="ml-2 text-[10px] bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded font-black uppercase">{activeJob.status}</span>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">TARGET</label>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-600 font-mono shadow-inner flex justify-between items-center">
+              <span>{selectedTargetId ? `${selectedTargetId.slice(0, 8)}... (${selectedTarget?.host})` : 'Select a target above'}</span>
+              {selectedTargetId && (
+                isTested ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black uppercase flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Tested Ready
+                  </span>
+                ) : (
+                  <button 
+                    onClick={handleTestConnection}
+                    disabled={testing}
+                    className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-1 rounded font-black uppercase transition-colors flex items-center"
+                  >
+                    {testing ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <ShieldAlert className="w-3 h-3 mr-1" />}
+                    Test Reachability
+                  </button>
+                )
+              )}
+            </div>
+            {showLocalWarning && (
+              <p className="text-[10px] font-bold text-red-500 mt-1.5 animate-pulse">
+                WARNING: This database address is local/private and cannot be reached by the Azure SQAuto backend.
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={handleDryRun}
+          disabled={running || !jobId || !selectedTargetId || !isTested || activeJob?.status !== 'completed'}
+          className="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all flex items-center justify-center space-x-2 shadow-lg active:scale-[0.98]"
+        >
+          {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+          <span>{running ? 'SIMULATING...' : (!isTested && selectedTargetId) ? 'TEST CONNECTION FIRST' : 'RUN SIMULATION'}</span>
+        </button>
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-xs text-red-700 font-mono">{error}</p>
+          </div>
+        )}
+        {!jobId && (
+          <p className="text-[10px] text-gray-400 mt-3 text-center font-bold uppercase">Upload and profile a SQL dump first to enable simulation</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function ReconciliationPanel({ run }: { run: MigrationRun | null }) {
   if (!run || !run.summary) {
     return (
@@ -424,34 +599,24 @@ function LogsPanel({ logs }: { logs: MigrationLog[] }) {
 
 export default function MigrationControlCenter() {
   const { activeJob } = useJob();
-  const [mode, setMode] = useState<'export' | 'live'>('export');
-  const [exporting, setExporting] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
-
-  const [runs, setRuns] = useState<any[]>([]);
-  const [activeRun, setActiveRun] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [isFetchingTargets, setIsFetchingTargets] = useState(false);
-  const [selectedTargetId, setSelectedTargetId] = useState<string>("");
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [targets, setTargets] = useState<any[]>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>('');
+  const [runs, setRuns] = useState<MigrationRun[]>([]);
+  const [activeRun, setActiveRun] = useState<MigrationRun | null>(null);
+  const [logs, setLogs] = useState<MigrationLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTarget, setEditingTarget] = useState<Target | null>(null);
   const [testedTargets, setTestedTargets] = useState<Record<string, boolean>>({});
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
   const selectedTarget = targets.find(t => t.id === selectedTargetId) || null;
 
   const fetchTargets = useCallback(async () => {
-    setIsFetchingTargets(true);
     const result = await safeFetch(`${API_URL}/migration/targets`);
     if (result.success && Array.isArray(result.data)) {
       setTargets(result.data);
-      if (result.data.length > 0 && !selectedTargetId) {
-        setSelectedTargetId(result.data[0].id);
-      }
     }
-    setIsFetchingTargets(false);
-  }, [selectedTargetId]);
+  }, []);
 
   const fetchRuns = useCallback(async () => {
     if (!jobId) {
@@ -514,23 +679,6 @@ export default function MigrationControlCenter() {
     setTestedTargets(prev => ({ ...prev, [id]: true }));
   };
 
-  const handleExport = async (type: 'clean' | 'translated' | 'migration') => {
-    if (!jobId) return;
-    setExporting(type);
-    try {
-      const endpoint = type === 'clean' ? 'export/clean' : type === 'translated' ? 'export/translated' : 'export/migration';
-      window.location.href = `${API_URL}/migration/${endpoint}/${jobId}`;
-    } finally {
-      setTimeout(() => setExporting(null), 2000);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    fetchTargets();
-    fetchRuns();
-  }, [fetchTargets, fetchRuns]);
-
   // Session Reset - Re-fetch whenever Job ID changes
   useEffect(() => {
     fetchRuns();
@@ -556,128 +704,32 @@ export default function MigrationControlCenter() {
     return () => clearInterval(interval);
   }, [activeRun?.id, activeRun?.status]);
 
+  // Initial load
+  useEffect(() => {
+    Promise.all([fetchTargets(), fetchRuns()]).finally(() => setLoading(false));
+  }, [fetchTargets, fetchRuns]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 mt-6">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-2xl" />)}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* Mode Switcher */}
-      <div className="bg-white/80 backdrop-blur-md p-1.5 rounded-2xl border-2 border-indigo-100 shadow-xl flex max-w-md mx-auto">
-        <button 
-          onClick={() => setMode('export')}
-          className={`flex-1 py-3 px-6 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center space-x-2 ${
-            mode === 'export' ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]' : 'text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>Export SQL File</span>
-        </button>
-        <button 
-          onClick={() => setMode('live')}
-          className={`flex-1 py-3 px-6 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center space-x-2 ${
-            mode === 'live' ? 'bg-indigo-600 text-white shadow-lg scale-[1.02]' : 'text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          <Server className="w-4 h-4" />
-          <span>Push to Live Database</span>
-        </button>
-      </div>
+    <div className="space-y-6 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Phase 1: Connection Panel */}
+      <ConnectionPanel onTargetSaved={fetchTargets} />
 
-      {mode === 'export' ? (
-        <div className="bg-white border-2 border-dashed border-indigo-100 rounded-3xl p-10 text-center animate-in zoom-in duration-300">
-          <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner transform rotate-3">
-            <Database className="w-10 h-10" />
-          </div>
-          <h3 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tight">Generate SQL Dumps</h3>
-          <p className="text-gray-500 text-sm mb-10 max-w-lg mx-auto leading-relaxed">
-            Download your staging data as portable SQL files. These files are optimized for the <code>public</code> schema and ready for import into any PostgreSQL environment.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button 
-              onClick={() => handleExport('clean')}
-              disabled={exporting !== null}
-              className="bg-gray-50 hover:bg-white border-2 border-gray-100 hover:border-indigo-500 p-6 rounded-2xl transition-all group text-left shadow-sm hover:shadow-xl"
-            >
-              <div className="bg-white p-2 w-10 h-10 rounded-lg shadow-sm mb-4 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Trash2 className="w-5 h-5 text-gray-400" />
-              </div>
-              <h4 className="font-black text-gray-800 text-sm mb-1 uppercase tracking-widest">Clean Dump</h4>
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Original schema structure</p>
-            </button>
-            <button 
-              onClick={() => handleExport('translated')}
-              disabled={exporting !== null}
-              className="bg-gray-50 hover:bg-white border-2 border-gray-100 hover:border-indigo-500 p-6 rounded-2xl transition-all group text-left shadow-sm hover:shadow-xl"
-            >
-              <div className="bg-white p-2 w-10 h-10 rounded-lg shadow-sm mb-4 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <RefreshCw className="w-5 h-5 text-blue-500" />
-              </div>
-              <h4 className="font-black text-gray-800 text-sm mb-1 uppercase tracking-widest">Translated SQL</h4>
-              <p className="text-[10px] text-gray-400 font-bold uppercase">Dialect compatible (Soon)</p>
-            </button>
-            <button 
-              onClick={() => handleExport('migration')}
-              disabled={exporting !== null}
-              className="bg-indigo-50 hover:bg-white border-2 border-indigo-100 hover:border-indigo-600 p-6 rounded-2xl transition-all group text-left shadow-sm hover:shadow-xl"
-            >
-              <div className="bg-white p-2 w-10 h-10 rounded-lg shadow-sm mb-4 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-5 h-5 text-indigo-600" />
-              </div>
-              <h4 className="font-black text-indigo-900 text-sm mb-1 uppercase tracking-widest">Migration Ready</h4>
-              <p className="text-[10px] text-indigo-400 font-bold uppercase">Sanitized Public Schema</p>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          {/* Guidance Alert */}
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-start space-x-4">
-            <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-black text-blue-800 uppercase tracking-widest mb-1">Live Destination Connection</h4>
-              <p className="text-xs text-blue-700 leading-relaxed uppercase font-medium">
-                This is optional. Use this only if you want SQAuto to directly push data into a live database. 
-                If you only want a migrated .sql file, use <strong>Export SQL File</strong> mode above.
-              </p>
-            </div>
-          </div>
-
-          <ConnectionPanel onTargetSaved={fetchTargets} />
-          <TargetsPanel 
-            targets={targets} 
-            onDelete={deleteTarget} 
-            onSelect={setSelectedTargetId} 
-            onEdit={setEditingTarget}
-            selectedId={selectedTargetId} 
-          />
-          <DryRunPanel 
-            selectedTarget={selectedTarget}
-            isTested={testedTargets[selectedTargetId] || false}
-            onTestSuccess={() => setTestedTargets(prev => ({...prev, [selectedTargetId]: true}))}
-            onRunCreated={() => { fetchRuns(); }} 
-          />
-          <MigrationPlanPanel 
-            selectedTarget={selectedTarget} 
-            isTested={testedTargets[selectedTargetId] || false}
-            onRunCreated={() => { fetchRuns(); }} 
-          />
-        </div>
-      )}
-
-      {/* Shared Panels (Bottom) */}
-      <div className="pt-10 border-t-2 border-gray-100 space-y-6">
-        <div className="flex items-center space-x-4 mb-2">
-          <div className="h-px bg-gray-200 flex-1"></div>
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Execution History & Analysis</span>
-          <div className="h-px bg-gray-200 flex-1"></div>
-        </div>
-        
-        <IntegrityIssuesPanel />
-        <FixSuggestionsPanel />
-        {selectedTargetId && <MappingSuggestionsPanel targetId={selectedTargetId} />}
-        <SchemaMappingPanel />
-        <ReconciliationPanel run={activeRun} />
-        <LogsPanel logs={logs} />
-      </div>
+      {/* Saved Targets */}
+      <TargetList 
+        targets={targets} 
+        onDelete={deleteTarget} 
+        onSelect={setSelectedTargetId} 
+        onEdit={setEditingTarget}
+        selectedId={selectedTargetId} 
+      />
 
       <DestinationConnectionModal
         connection={editingTarget as any}
@@ -686,6 +738,39 @@ export default function MigrationControlCenter() {
         onTest={handleEditTargetTest}
         onDelete={async (id) => { await deleteTarget(id); }}
       />
+
+      {/* Phase 1: Dry-Run Panel */}
+      <DryRunPanel 
+        selectedTarget={selectedTarget}
+        isTested={testedTargets[selectedTargetId] || false}
+        onTestSuccess={() => setTestedTargets(prev => ({...prev, [selectedTargetId]: true}))}
+        onRunCreated={() => { fetchRuns(); }} 
+      />
+
+      {/* Phase 2: Data Integrity Detection */}
+      <IntegrityIssuesPanel />
+
+      {/* Phase 4: Smart Fix Panel */}
+      <FixSuggestionsPanel />
+
+      {/* Phase 4: Mapping Suggestions Panel */}
+      {selectedTargetId && <MappingSuggestionsPanel targetId={selectedTargetId} />}
+
+      {/* Phase 2: Schema Mapping Layer */}
+      <SchemaMappingPanel />
+
+      {/* Phase 3: Migration Execution Plan & UI */}
+      <MigrationPlanPanel 
+        selectedTarget={selectedTarget} 
+        isTested={testedTargets[selectedTargetId] || false}
+        onRunCreated={() => { fetchRuns(); }} 
+      />
+
+      {/* Phase 1+3: Run Summary */}
+      <ReconciliationPanel run={activeRun} />
+
+      {/* Phase 1: Migration Logs */}
+      <LogsPanel logs={logs} />
     </div>
   );
 }
