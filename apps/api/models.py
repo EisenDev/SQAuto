@@ -1,5 +1,6 @@
 # apps/api/models.py
 """SQLAlchemy models for the SQAuto API.
+Includes Organization and Project models for the new product structure.
 Includes Job model with status tracking and optional profiling data.
 Includes Migration models for target connections, runs, logs, and plans.
 """
@@ -14,6 +15,40 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from apps.api.database import Base
 
+# ============================================================
+# Product Hierarchy Models
+# ============================================================
+
+class Organization(Base):
+    """Top-level container for multiple projects."""
+    __tablename__ = "organizations"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class Project(Base):
+    """Specific migration initiative belonging to an organization."""
+    __tablename__ = "projects"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("public.organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    optional_password_hash = Column(String, nullable=True)  # Future: project-level security
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+# ============================================================
+# Core Pipeline Models
+# ============================================================
+
 class JobStatus(str, enum.Enum):
     UPLOADED = "uploaded"
     RESTORING = "restoring"
@@ -26,6 +61,8 @@ class Job(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    # Scoping to project
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True) # Switch to False after migration
     filename = Column(String, nullable=False)
     original_filename = Column(String, nullable=True)
     is_compressed = Column(Boolean, default=False, nullable=False)
@@ -33,31 +70,26 @@ class Job(Base):
     status = Column(Enum(JobStatus), nullable=False, default=JobStatus.UPLOADED)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    # Optional JSON field to store profiling results
     profile = Column(JSON, nullable=True)
-    # Optional text field for logs / error messages
     log = Column(Text, nullable=True)
 
 
 # ============================================================
-# Migration Control Center Models (Phase 1)
+# Migration Control Center Models
 # ============================================================
 
 class MigrationTarget(Base):
-    """Stores target database connection metadata.
-    Passwords are stored in DB but NEVER returned in API responses.
-    Future: implement encrypted storage for credentials.
-    """
     __tablename__ = "migration_targets"
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
     name = Column(String, nullable=False)
     host = Column(String, nullable=False)
     port = Column(Integer, nullable=False, default=5432)
     database_name = Column(String, nullable=False)
     username = Column(String, nullable=False)
-    password = Column(String, nullable=False)  # TODO: encrypt in future phase
+    password = Column(String, nullable=False)
     db_type = Column(String, nullable=False, default="postgresql")
     ssl_mode = Column(String, nullable=True, default="prefer")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -80,11 +112,11 @@ class MigrationRunStatus(str, enum.Enum):
 
 
 class MigrationRun(Base):
-    """Tracks each migration run (dry-run or future execution)."""
     __tablename__ = "migration_runs"
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
     source_job_id = Column(UUID(as_uuid=True), ForeignKey("public.jobs.id"), nullable=False)
     target_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_targets.id"), nullable=False)
     mode = Column(Enum(MigrationRunMode), nullable=False, default=MigrationRunMode.DRY_RUN)
@@ -103,39 +135,33 @@ class MigrationLogLevel(str, enum.Enum):
 
 
 class MigrationLog(Base):
-    """Individual log entries per migration run."""
     __tablename__ = "migration_logs"
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
     migration_run_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_runs.id"), nullable=False)
     level = Column(Enum(MigrationLogLevel), nullable=False, default=MigrationLogLevel.INFO)
     table_name = Column(String, nullable=True)
     row_identifier = Column(String, nullable=True)
     message = Column(Text, nullable=False)
     context = Column(JSON, nullable=True)
-    rows_affected = Column(Integer, nullable=True)  # Phase 3: rows modified by this operation
-    execution_time_ms = Column(Integer, nullable=True)  # Phase 3: milliseconds taken
-    transaction_status = Column(String, nullable=True)  # Phase 3: 'committed', 'rolled_back', 'preview'
+    rows_affected = Column(Integer, nullable=True)
+    execution_time_ms = Column(Integer, nullable=True)
+    transaction_status = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
-# ============================================================
-# Migration Plan Model (Phase 3)
-# ============================================================
-
 class MigrationPlan(Base):
-    """Stores a generated migration plan as an audit artifact.
-    Plans are generated before execution and saved for traceability.
-    """
     __tablename__ = "migration_plans"
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
     source_job_id = Column(UUID(as_uuid=True), ForeignKey("public.jobs.id"), nullable=False)
     target_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_targets.id"), nullable=False)
-    plan = Column(JSON, nullable=False)  # Full plan JSON
-    risk_level = Column(String, nullable=False, default="LOW")  # LOW, MEDIUM, HIGH, CRITICAL
+    plan = Column(JSON, nullable=False)
+    risk_level = Column(String, nullable=False, default="LOW")
     blocked = Column(Boolean, default=False, nullable=False)
-    blocking_reasons = Column(JSON, nullable=True)  # List of strings
+    blocking_reasons = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -78,10 +78,28 @@ def export_clean_sql(job_id: str, db: Session = Depends(get_db)):
     cmd = ["pg_dump", db_url, "-n", "staging", "-O", "-x", "-f", tmp_path]
     try:
         subprocess.run(cmd, check=True, capture_output=True)
+        
+        # Post-process the dump to make it "public" schema ready
+        # We replace the search_path and any explicit staging. prefixes
+        # This allows the user to import this dump directly into their destination DB's public schema.
+        processed_path = tmp_path.replace(".sql", "_portable.sql")
+        with open(tmp_path, "r") as f_in, open(processed_path, "w") as f_out:
+            for line in f_in:
+                # Replace the schema creation and search path
+                if "CREATE SCHEMA staging;" in line:
+                    continue
+                line = line.replace("SET search_path = staging", "SET search_path = public")
+                # Replace staging.table_name with table_name or public.table_name
+                # pg_dump usually uses schema.table for constraints and indices
+                line = line.replace("staging.", "public.")
+                f_out.write(line)
+        
+        return FileResponse(processed_path, filename=f"{job_id}_migrated_dump.sql", content_type="application/sql")
+        
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"pg_dump failed: {e.stderr.decode('utf-8')}")
-        
-    return FileResponse(tmp_path, filename=f"{job_id}_clean_dump.sql", content_type="application/sql")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export post-processing failed: {e}")
 
 
 @router.get("/{job_id}/export/translated-sql", summary="Export and transpile SQL")
