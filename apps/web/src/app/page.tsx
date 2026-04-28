@@ -32,15 +32,19 @@ export default function Home() {
 
         <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
           <Link 
-            href="/organizations"
-            className="group relative px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl transition-all duration-200 flex items-center shadow-xl shadow-teal-500/20 active:scale-95"
+            href="/dashboard/organizations"
+            className="group relative px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl transition-all duration-200 flex items-center shadow-xl shadow-teal-500/20 active:scale-95 text-sm"
           >
             Start your project
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
-          <button className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold rounded-xl border border-slate-800 transition-all active:scale-95">
-            View Documentation
-          </button>
+          <div className="flex items-center space-x-3">
+            {activeJob && (
+              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-md border ${statusColor} transition-all`}>
+                {activeJob.status.toUpperCase()}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Feature Grid Mockup */}

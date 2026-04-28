@@ -38,9 +38,11 @@ export default function Header() {
           )}
           
           <div className="flex items-center space-x-3">
-            <div className={`text-[10px] font-bold px-2.5 py-1 rounded-md border ${statusColor} transition-all`}>
-              {activeJob ? activeJob.status.toUpperCase() : 'SYSTEM STANDBY'}
-            </div>
+            {activeJob && (
+              <div className={`text-[10px] font-bold px-2.5 py-1 rounded-md border ${statusColor} transition-all`}>
+                {activeJob.status.toUpperCase()}
+              </div>
+            )}
           </div>
         </div>
       </div>
