@@ -6,7 +6,7 @@ import {
   Plus, Upload, Search, Database, 
   Settings, History, Terminal, Play,
   ChevronRight, LayoutGrid, FileCode,
-  ShieldCheck, ArrowRight
+  ShieldCheck, ArrowRight, Activity
 } from 'lucide-react';
 
 export default function ProjectDashboardPage() {
