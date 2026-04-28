@@ -235,6 +235,19 @@ class ExecutionEngineService:
         except Exception as e:
             # Automatic Rollback if literally any query or structural process failed during batch operations
             err_msg = str(e)
+            
+            # Detect timeouts and provide guidance
+            is_local = any(x in target_config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."])
+            if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower() or "can't connect" in err_msg.lower():
+                if is_local:
+                    err_msg = (
+                        "Connection timed out. The SQAuto CLOUD server cannot reach your LOCAL database host. "
+                        "Addresses like 192.168.x.x or localhost are private to your home network. "
+                        "Please use a public database endpoint (e.g. Supabase, Neon, AWS RDS) or a tunnel."
+                    )
+                else:
+                    err_msg = f"Connection timed out. Ensure the database host {target_config.get('host')} is reachable from the SQAuto server."
+
             logger.error(f"Run {run_id} FATAL EXECUTION ERROR -> TRANSACTION ROLLED BACK: {err_msg}")
             
             run.status = MigrationRunStatus.ROLLED_BACK
