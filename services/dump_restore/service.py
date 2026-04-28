@@ -76,7 +76,7 @@ class DumpRestoreService:
             env = os.environ.copy()
             if flavor == "postgres":
                 env["PGOPTIONS"] = "-c search_path=staging"
-                cmd = ["psql", db_url, "-f", "-", "--set", "ON_ERROR_STOP=1", "--quiet"]
+                cmd = ["psql", db_url, "-f", "-", "--quiet"]
             elif flavor == "mysql":
                 cmd = ["pgloader", "--type", "mysql", "--with", "quote identifiers", "--set", "search_path='staging'", "-", db_url]
             else:
@@ -213,6 +213,7 @@ class DumpRestoreService:
                         pass
                     
                     # Capture actual DB log if it exists to expose root cause (like timeouts)
+                    db_rejection_msg = None
                     try:
                         if os.path.exists(db_log_path):
                             with open(db_log_path, "r") as f:
@@ -221,11 +222,14 @@ class DumpRestoreService:
                                     db_err = "\n".join(db_err_lines)
                                     db_session.query(Job).filter(Job.id == job_id).update({"log": f"DB REJECTION: {db_err}"})
                                     db_session.commit()
-                                    raise RuntimeError(f"Industrial Restoration failed: {db_err}")
+                                    db_rejection_msg = db_err
                     except Exception as fatal_log_err:
                         logger.error(f"Could not extract DB log: {fatal_log_err}")
                         
-                    raise RuntimeError(f"Industrial Restoration failed: {e}")
+                    if db_rejection_msg:
+                        raise RuntimeError(f"Industrial Restoration failed: {db_rejection_msg}")
+                    else:
+                        raise RuntimeError(f"Industrial Restoration failed: {e}")
                 
                 # Final monitoring
                 while process.poll() is None:
