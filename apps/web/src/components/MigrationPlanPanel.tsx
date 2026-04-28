@@ -23,7 +23,7 @@ type MigrationPlan = {
   warnings: string[];
 };
 
-export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: string, onRunCreated: () => void }) {
+export default function MigrationPlanPanel({ selectedTarget, isTested, onRunCreated }: { selectedTarget: any, isTested: boolean, onRunCreated: () => void }) {
   const { activeJob } = useJob();
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [executing, setExecuting] = useState(false);
@@ -32,6 +32,7 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
+  const selectedTargetId = selectedTarget?.id || "";
 
   // Reset plan when job changes
   React.useEffect(() => {
@@ -157,7 +158,7 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
                 </div>
               </div>
 
-              {plan.warnings.length > 0 && !plan.blocking_issues.length && (
+              {plan.warnings.length > 0 && (
                 <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                   <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest flex items-center space-x-2 mb-2">
                     <AlertTriangle className="w-3 h-3" />
@@ -169,10 +170,24 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
                 </div>
               )}
 
-              <div className="flex border-t border-gray-100 pt-6 space-x-4">
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-relaxed mb-6">
+                You are about to modify the destination database. A safety transaction will be opened.
+              </p>
+
+              {!isTested ? (
+                <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl relative overflow-hidden flex items-center mb-6">
+                  <ShieldAlert className="w-5 h-5 text-amber-500 mr-3" />
+                  <div>
+                    <h5 className="text-xs font-black text-amber-800 uppercase tracking-widest">CONNECTION UNTESTED</h5>
+                    <p className="text-[10px] text-amber-700 mt-1 uppercase">Please test the destination connection in the panel above before executing.</p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col sm:flex-row border-t border-gray-100 pt-6 gap-4">
                 <button 
                   onClick={() => handleExecute('preview')}
-                  disabled={executing || plan.blocking_issues.length > 0}
+                  disabled={executing || plan.blocking_issues.length > 0 || !isTested}
                   className="flex-1 py-3.5 bg-gray-100 text-gray-700 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-200 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
                 >
                   {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
@@ -180,7 +195,7 @@ export default function MigrationPlanPanel({ selectedTargetId, onRunCreated }: {
                 </button>
                 <button 
                   onClick={() => setShowConfirm(true)}
-                  disabled={executing || plan.blocking_issues.length > 0}
+                  disabled={executing || plan.blocking_issues.length > 0 || !isTested}
                   className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-50 transition-all shadow hover:shadow-lg flex items-center justify-center space-x-2"
                 >
                   <Play className="w-4 h-4" />

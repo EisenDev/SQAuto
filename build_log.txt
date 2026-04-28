@@ -5,24 +5,15 @@
    Creating an optimized production build ...
  ✓ Compiled successfully
    Linting and checking validity of types ...
-   Collecting page data ...
-   Generating static pages (0/4) ...
-   Generating static pages (1/4) 
-   Generating static pages (2/4) 
-   Generating static pages (3/4) 
- ✓ Generating static pages (4/4) 
-   Finalizing page optimization ...
-   Collecting build traces ...
+Failed to compile.
 
-Route (app)                              Size     First Load JS
-┌ ○ /                                    72.4 kB         164 kB
-└ ○ /_not-found                          874 B          81.6 kB
-+ First Load JS shared by all            80.7 kB
-  ├ chunks/1dd3208c-f7addfcd946c1ec0.js  51.1 kB
-  ├ chunks/53-917dfcffff96eee9.js        27.5 kB
-  ├ chunks/main-app-f63c332ad9945c25.js  230 B
-  └ chunks/webpack-5c71724e75e7501f.js   1.93 kB
+./src/components/MigrationControlCenter.tsx:373:87
+Type error: Cannot find name 'ShieldAlert'.
 
-
-○  (Static)  automatically rendered as static HTML (uses no initial props)
-
+[0m [90m 371 | [39m                    className[33m=[39m[32m"text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-1 rounded font-black uppercase transition-colors flex items-center"[39m[0m
+[0m [90m 372 | [39m                  [33m>[39m[0m
+[0m[31m[1m>[22m[39m[90m 373 | [39m                    {testing [33m?[39m [33m<[39m[33mRefreshCw[39m className[33m=[39m[32m"w-3 h-3 animate-spin mr-1"[39m [35m/> : <ShieldAlert className="w-3 h-3 mr-1" /[39m[33m>[39m}[0m
+[0m [90m     | [39m                                                                                      [31m[1m^[22m[39m[0m
+[0m [90m 374 | [39m                    [33mTest[39m [33mReachability[39m[0m
+[0m [90m 375 | [39m                  [33m<[39m[33m/[39m[33mbutton[39m[33m>[39m[0m
+[0m [90m 376 | [39m                )[0m

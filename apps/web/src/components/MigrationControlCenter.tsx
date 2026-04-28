@@ -280,12 +280,45 @@ function TargetList({ targets, onDelete, onSelect, onEdit, selectedId }: { targe
 }
 
 
-function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: string, onRunCreated: () => void }) {
+function DryRunPanel({ 
+  selectedTarget, 
+  onRunCreated,
+  isTested,
+  onTestSuccess
+}: { 
+  selectedTarget: Target | null, 
+  onRunCreated: () => void,
+  isTested: boolean,
+  onTestSuccess: () => void
+}) {
   const { activeJob } = useJob();
   const [running, setRunning] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
+  const selectedTargetId = selectedTarget?.id || "";
+
+  const isLocalIP = selectedTarget && (['localhost', '127.0.0.1', '0.0.0.0'].includes(selectedTarget.host) || selectedTarget.host.startsWith('192.168.') || selectedTarget.host.startsWith('10.'));
+  const isDeployed = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+  const showLocalWarning = isDeployed && isLocalIP;
+
+  const handleTestConnection = async () => {
+    if (!selectedTarget) return;
+    setTesting(true);
+    setError(null);
+    const result = await safeFetch(`${API_URL}/migration/targets/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(selectedTarget)
+    });
+    if (result.success && result.data?.success) {
+      onTestSuccess();
+    } else {
+      setError(result.error || result.data?.error || "Connection failed");
+    }
+    setTesting(false);
+  };
 
   const handleDryRun = async () => {
     if (!jobId || !selectedTargetId) return;
@@ -324,18 +357,39 @@ function DryRunPanel({ selectedTargetId, onRunCreated }: { selectedTargetId: str
           </div>
           <div>
             <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">TARGET</label>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-600 font-mono shadow-inner">
-              {selectedTargetId ? `${selectedTargetId.slice(0, 8)}...` : 'Select a target above'}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-4 text-sm text-gray-600 font-mono shadow-inner flex justify-between items-center">
+              <span>{selectedTargetId ? `${selectedTargetId.slice(0, 8)}... (${selectedTarget?.host})` : 'Select a target above'}</span>
+              {selectedTargetId && (
+                isTested ? (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-black uppercase flex items-center">
+                    <CheckCircle2 className="w-3 h-3 mr-1" /> Tested Ready
+                  </span>
+                ) : (
+                  <button 
+                    onClick={handleTestConnection}
+                    disabled={testing}
+                    className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-800 px-2 py-1 rounded font-black uppercase transition-colors flex items-center"
+                  >
+                    {testing ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <ShieldAlert className="w-3 h-3 mr-1" />}
+                    Test Reachability
+                  </button>
+                )
+              )}
             </div>
+            {showLocalWarning && (
+              <p className="text-[10px] font-bold text-red-500 mt-1.5 animate-pulse">
+                WARNING: This database address is local/private and cannot be reached by the Azure SQAuto backend.
+              </p>
+            )}
           </div>
         </div>
         <button
           onClick={handleDryRun}
-          disabled={running || !jobId || !selectedTargetId || activeJob?.status !== 'completed'}
+          disabled={running || !jobId || !selectedTargetId || !isTested || activeJob?.status !== 'completed'}
           className="w-full py-3.5 bg-indigo-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all flex items-center justify-center space-x-2 shadow-lg active:scale-[0.98]"
         >
           {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-          <span>{running ? 'SIMULATING...' : 'RUN SIMULATION'}</span>
+          <span>{running ? 'SIMULATING...' : (!isTested && selectedTargetId) ? 'TEST CONNECTION FIRST' : 'RUN SIMULATION'}</span>
         </button>
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 animate-in fade-in">
@@ -552,8 +606,10 @@ export default function MigrationControlCenter() {
   const [logs, setLogs] = useState<MigrationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTarget, setEditingTarget] = useState<Target | null>(null);
+  const [testedTargets, setTestedTargets] = useState<Record<string, boolean>>({});
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
+  const selectedTarget = targets.find(t => t.id === selectedTargetId) || null;
 
   const fetchTargets = useCallback(async () => {
     const result = await safeFetch(`${API_URL}/migration/targets`);
@@ -620,6 +676,7 @@ export default function MigrationControlCenter() {
     if (!result.success || !result.data?.success) {
       throw new Error(result.error || result.data?.error || 'Connection failed');
     }
+    setTestedTargets(prev => ({ ...prev, [id]: true }));
   };
 
   // Session Reset - Re-fetch whenever Job ID changes
@@ -684,7 +741,9 @@ export default function MigrationControlCenter() {
 
       {/* Phase 1: Dry-Run Panel */}
       <DryRunPanel 
-        selectedTargetId={selectedTargetId} 
+        selectedTarget={selectedTarget}
+        isTested={testedTargets[selectedTargetId] || false}
+        onTestSuccess={() => setTestedTargets(prev => ({...prev, [selectedTargetId]: true}))}
         onRunCreated={() => { fetchRuns(); }} 
       />
 
@@ -702,7 +761,8 @@ export default function MigrationControlCenter() {
 
       {/* Phase 3: Migration Execution Plan & UI */}
       <MigrationPlanPanel 
-        selectedTargetId={selectedTargetId} 
+        selectedTarget={selectedTarget} 
+        isTested={testedTargets[selectedTargetId] || false}
         onRunCreated={() => { fetchRuns(); }} 
       />
 
