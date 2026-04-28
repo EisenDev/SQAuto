@@ -428,6 +428,15 @@ export default function MigrationControlCenter() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
 
+  const [runs, setRuns] = useState<any[]>([]);
+  const [activeRun, setActiveRun] = useState<any>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isFetchingTargets, setIsFetchingTargets] = useState(false);
+  const [selectedTargetId, setSelectedTargetId] = useState<string>("");
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [targets, setTargets] = useState<any[]>([]);
+
   const jobId = activeJob?.id || activeJob?.job_id || "";
   const selectedTarget = targets.find(t => t.id === selectedTargetId) || null;
 
