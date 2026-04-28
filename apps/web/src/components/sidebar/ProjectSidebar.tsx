@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart2, Databases, Layout, Settings, FileSearch, 
+  BarChart2, Database, Layout, Settings, FileSearch, 
   Map, Activity, Share2, Upload, AlertCircle, CheckCircle2,
   Lock, ChevronRight, ClipboardList
 } from 'lucide-react';
@@ -59,7 +59,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
     <div className="flex flex-col w-64 bg-slate-900 border-r border-slate-800 h-screen overflow-y-auto">
       <div className="flex items-center h-16 px-4 border-b border-slate-800">
         <div className="flex items-center space-x-2">
-          <Databases className="h-6 w-6 text-teal-500" />
+          <Database className="h-6 w-6 text-teal-500" />
           <span className="text-xl font-bold text-white tracking-tight">SQ<span className="text-teal-500">Auto</span></span>
         </div>
       </div>
