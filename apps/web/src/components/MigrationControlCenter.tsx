@@ -556,13 +556,6 @@ export default function MigrationControlCenter() {
     return () => clearInterval(interval);
   }, [activeRun?.id, activeRun?.status]);
 
-  if (loading) {
-    return (
-      <div className="space-y-6 mt-6">
-        {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-2xl" />)}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
