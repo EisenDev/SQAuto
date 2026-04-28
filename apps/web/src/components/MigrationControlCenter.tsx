@@ -436,16 +436,23 @@ export default function MigrationControlCenter() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [targets, setTargets] = useState<any[]>([]);
+  const [isFetchingTargets, setIsFetchingTargets] = useState(false);
+  const [testedTargets, setTestedTargets] = useState<Record<string, boolean>>({});
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
   const selectedTarget = targets.find(t => t.id === selectedTargetId) || null;
 
   const fetchTargets = useCallback(async () => {
+    setIsFetchingTargets(true);
     const result = await safeFetch(`${API_URL}/migration/targets`);
     if (result.success && Array.isArray(result.data)) {
       setTargets(result.data);
+      if (result.data.length > 0 && !selectedTargetId) {
+        setSelectedTargetId(result.data[0].id);
+      }
     }
-  }, []);
+    setIsFetchingTargets(false);
+  }, [selectedTargetId]);
 
   const fetchRuns = useCallback(async () => {
     if (!jobId) {
