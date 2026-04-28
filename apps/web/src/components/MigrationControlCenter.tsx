@@ -8,7 +8,7 @@ import DestinationConnectionModal from './DestinationConnectionModal';
 import { GUIDANCE } from '@/lib/guidance';
 import { 
   Database, Server, Play, RefreshCw, AlertTriangle, CheckCircle2, 
-  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit, Globe
+  XCircle, Trash2, ChevronRight, Shield, Zap, Clock, Info, Edit, Globe, FileDown, Download, FileText, ShieldAlert
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { safeFetch } from '@/lib/api_client';
