@@ -4,7 +4,7 @@ import React from 'react';
 import { useJob } from '@/components/JobProvider';
 import { 
   Activity, BarChart3, Clock, Database, 
-  FileText, ShieldCheck, Zap, Layers 
+  FileText, ShieldCheck, Zap, Layers, ArrowRight 
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 
