@@ -642,7 +642,7 @@ export default function MigrationControlCenter() {
           </div>
 
           <ConnectionPanel onTargetSaved={fetchTargets} />
-          <TargetList 
+          <TargetsPanel 
             targets={targets} 
             onDelete={deleteTarget} 
             onSelect={setSelectedTargetId} 
