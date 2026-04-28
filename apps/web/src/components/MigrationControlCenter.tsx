@@ -527,8 +527,8 @@ export default function MigrationControlCenter() {
 
   // Initial load
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchTargets(), fetchRuns()]).finally(() => setLoading(false));
+    fetchTargets();
+    fetchRuns();
   }, [fetchTargets, fetchRuns]);
 
   // Session Reset - Re-fetch whenever Job ID changes
