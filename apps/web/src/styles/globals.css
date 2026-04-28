@@ -2,17 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global reset and base styles */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@layer base {
+  :root {
+    --brand-teal: 20 184 166; /* #14b8a6 */
+    --supabase-bg: 0 0 0;
+    --supabase-slate: 226 232 240;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-200 antialiased selection:bg-teal-500/30 selection:text-teal-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Premium Frosted Glass Effect */
+  .glass-panel {
+    @apply bg-slate-900/40 backdrop-blur-md border border-slate-800/50;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+  }
 }
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
