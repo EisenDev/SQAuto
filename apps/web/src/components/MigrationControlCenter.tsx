@@ -436,7 +436,6 @@ export default function MigrationControlCenter() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [targets, setTargets] = useState<any[]>([]);
-  const [isFetchingTargets, setIsFetchingTargets] = useState(false);
   const [testedTargets, setTestedTargets] = useState<Record<string, boolean>>({});
 
   const jobId = activeJob?.id || activeJob?.job_id || "";
