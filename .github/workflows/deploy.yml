@@ -44,8 +44,14 @@ jobs:
         run: |
           set -eu
           mkdir -p ~/.ssh
-          printf '%s\n' '${{ secrets.VM_SSH_KEY }}' > ~/.ssh/sqauto_vm_key
+          if printf '%s' '${{ secrets.VM_SSH_KEY }}' | grep -q 'BEGIN .* PRIVATE KEY'; then
+            printf '%s\n' '${{ secrets.VM_SSH_KEY }}' > ~/.ssh/sqauto_vm_key
+          else
+            printf '%s' '${{ secrets.VM_SSH_KEY }}' | base64 -d > ~/.ssh/sqauto_vm_key
+          fi
           chmod 600 ~/.ssh/sqauto_vm_key
+          ssh-keygen -y -f ~/.ssh/sqauto_vm_key >/tmp/sqauto_vm_key.pub
+          ssh-keygen -lf ~/.ssh/sqauto_vm_key
           ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
 
       - name: Rebuild and restart on VM
