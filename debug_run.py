@@ -2,7 +2,10 @@ import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-db_url = "postgresql+psycopg://postgres.lcijmzschmnzghxqnpsd:SqAuTO2556hkeygen@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+db_url = os.getenv("DATABASE_URL")
+
+if not db_url:
+    raise RuntimeError("DATABASE_URL is required")
 
 engine = create_engine(db_url)
 Session = sessionmaker(bind=engine)
