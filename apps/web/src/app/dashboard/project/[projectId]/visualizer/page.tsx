@@ -2,7 +2,7 @@
 
 import React from "react";
 import "reactflow/dist/style.css";
-import ReactFlow, { Background, Controls, MarkerType, MiniMap } from "reactflow";
+import ReactFlow, { Background, Controls, MarkerType, MiniMap, useEdgesState, useNodesState } from "reactflow";
 import { RefreshCw, UploadCloud } from "lucide-react";
 import {
   DataTable,
@@ -61,6 +61,8 @@ export default function VisualizerPage() {
   const [graph, setGraph] = React.useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [issues, setIssues] = React.useState<any[]>([]);
   const [pageError, setPageError] = React.useState<string | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -95,24 +97,33 @@ export default function VisualizerPage() {
     };
   }, [workspace.sourceStatus.active_job_id]);
 
-  const flowNodes = graph.nodes.map((node, index) => ({
+  const flowNodes = React.useMemo(() => graph.nodes.map((node, index) => ({
     id: node.id,
     position: node.position || { x: (index % 3) * 260, y: Math.floor(index / 3) * 180 },
     type: "schemaNode",
     data: { label: node.label, columns: node.columns || [], primaryKeys: node.primary_keys || [] },
-  }));
+  })), [graph.nodes]);
 
-  const flowEdges = graph.edges.map((edge) => ({
+  const flowEdges = React.useMemo(() => graph.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
     label: edge.label,
     type: "smoothstep",
-    style: { stroke: "#2dd4bf", strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: "#2dd4bf" },
+    animated: edge.relation_type === "inferred",
+    style: { stroke: edge.relation_type === "inferred" ? "#60a5fa" : "#2dd4bf", strokeWidth: 2.2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: edge.relation_type === "inferred" ? "#60a5fa" : "#2dd4bf" },
     labelStyle: { fill: "#cbd5e1", fontSize: 11 },
-  }));
+  })), [graph.edges]);
   const nodeTypes = React.useMemo(() => ({ schemaNode: SchemaNode }), []);
+
+  React.useEffect(() => {
+    setNodes(flowNodes);
+  }, [flowNodes, setNodes]);
+
+  React.useEffect(() => {
+    setEdges(flowEdges);
+  }, [flowEdges, setEdges]);
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -153,9 +164,19 @@ export default function VisualizerPage() {
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
           <SectionCard title="Schema Graph" description="Detected tables and deterministic relationships">
-            {flowNodes.length > 0 ? (
+            {nodes.length > 0 ? (
             <div className="h-[720px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
-              <ReactFlow nodes={flowNodes} edges={flowEdges} nodeTypes={nodeTypes} fitView>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                nodesDraggable
+                panOnDrag
+                fitView
+                fitViewOptions={{ padding: 0.16 }}
+              >
                 <Background color="rgba(148,163,184,0.15)" gap={24} />
                 <MiniMap nodeColor="#2dd4bf" maskColor="rgba(2,6,23,0.55)" />
                 <Controls />

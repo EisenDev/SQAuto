@@ -159,8 +159,27 @@ def _build_graph_from_tables(job: Job) -> dict:
     inspector = inspect(staging_engine)
     profile_tables = _profile_tables(job)
     table_names = _table_names(job)
+    table_name_set = set(table_names)
     nodes = []
     edges = []
+
+    def infer_target(column_name: str) -> str | None:
+        if not column_name.endswith("_id"):
+            return None
+        base = column_name[:-3]
+        candidates = [
+            base,
+            f"{base}s",
+            f"{base}es",
+            base.replace("_", ""),
+            f"{base}_list",
+            f"{base}_types",
+        ]
+        for candidate in candidates:
+            if candidate in table_name_set:
+                return candidate
+        return None
+
     for index, table_name in enumerate(table_names):
         table_info = profile_tables.get(table_name) or {}
         columns = _get_table_columns(job, table_name)
@@ -194,6 +213,21 @@ def _build_graph_from_tables(job: Job) -> dict:
                     "status": "valid",
                 }
             )
+        if not foreign_keys:
+            for column in columns:
+                target = infer_target(column["name"])
+                if not target or target == table_name:
+                    continue
+                edges.append(
+                    {
+                        "id": f"{table_name}-{target}-inferred-{column['name']}",
+                        "source": table_name,
+                        "target": target,
+                        "label": f"{column['name']} -> id",
+                        "relation_type": "inferred",
+                        "status": "inferred",
+                    }
+                )
     return {"nodes": nodes, "edges": edges}
 
 

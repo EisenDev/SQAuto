@@ -215,25 +215,27 @@ export default function ExplorerPage() {
           >
             {selected && preview ? (
               <div className={`flex h-full flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
-                <DataTable
-                  className="flex-1"
-                  columns={preview.columns.map((column) => ({
-                    key: column.name,
-                    label: column.name,
-                    render: (row) => <span className="font-mono text-[13px]">{String(row[column.name] ?? "NULL")}</span>,
-                  }))}
-                  rows={preview.rows || []}
-                />
-                <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-4 text-sm text-slate-400">
-                  <span>{loadingPreview ? "Loading preview…" : `${preview.total.toLocaleString()} total rows`}</span>
-                  <div className="flex items-center gap-2">
-                    <button className={workspaceActions.secondary} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-                      Prev
-                    </button>
-                    <span>Page {page}</span>
-                    <button className={workspaceActions.secondary} onClick={() => setPage((current) => current + 1)}>
-                      Next
-                    </button>
+                <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10">
+                  <DataTable
+                    className="flex-1 border-0 rounded-none"
+                    columns={preview.columns.map((column) => ({
+                      key: column.name,
+                      label: column.name,
+                      render: (row) => <span className="font-mono text-[13px]">{String(row[column.name] ?? "NULL")}</span>,
+                    }))}
+                    rows={preview.rows || []}
+                  />
+                  <div className="flex items-center justify-between border-t border-white/5 bg-slate-950/70 px-4 py-4 text-sm text-slate-400">
+                    <span>{loadingPreview ? "Loading preview…" : `${preview.total.toLocaleString()} total rows`}</span>
+                    <div className="flex items-center gap-2">
+                      <button className={workspaceActions.secondary} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                        Prev
+                      </button>
+                      <span>Page {page}</span>
+                      <button className={workspaceActions.secondary} onClick={() => setPage((current) => current + 1)}>
+                        Next
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
