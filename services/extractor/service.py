@@ -6,7 +6,7 @@ Converts database tables into structured formats (Polars DataFrames) for cleanin
 import logging
 from sqlalchemy.orm import Session
 import polars as pl
-from apps.api.database import engine
+from apps.api.database import staging_engine
 
 logger = logging.getLogger("sqauto.extractor")
 
@@ -32,8 +32,8 @@ class ExtractorService:
         logger.info(f"Extracting table: {table_name}")
         # Using a read_database approach with polars
         # For simplicity in MVP, we read everything.
-        query = f"SELECT * FROM {table_name}"
-        df = pl.read_database(query=query, connection=engine.connect())
+        query = f'SELECT * FROM staging."{table_name}"'
+        df = pl.read_database(query=query, connection=staging_engine.connect())
         return df
 
     def list_extractable_tables(self, profile: dict) -> list:

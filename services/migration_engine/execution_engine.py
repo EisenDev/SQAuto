@@ -13,7 +13,7 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from apps.api.database import engine as staging_engine
+from apps.api.database import staging_engine
 from services.data_intelligence.integrity_checker import run_integrity_checks
 from apps.api.models import MigrationPlan, MigrationRunMode, MigrationRunStatus, MigrationLog, MigrationLogLevel, MigrationTarget, Job
 

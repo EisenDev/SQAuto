@@ -9,13 +9,15 @@ SAFETY: All operations are READ-ONLY. No writes to staging or target.
 
 import os
 import logging
+import time
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 
 from apps.api.database import get_db, SessionLocal
 from apps.api.models import Job, MigrationTarget, MigrationRun
+from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 router = APIRouter()
 logger = logging.getLogger("sqauto.analysis_router")
@@ -44,7 +46,7 @@ class EnhancedReconRequest(BaseModel):
 # ============================================================
 
 @router.post("/integrity", summary="Run data integrity checks on staging")
-def run_integrity(request: IntegrityRequest, db: Session = Depends(get_db)):
+def run_integrity(request: IntegrityRequest, http_request: Request, db: Session = Depends(get_db)):
     """Run data integrity checks against the staging database.
 
     Detects: duplicate PKs, missing PKs, orphan FKs, high-NULL columns.
@@ -57,10 +59,19 @@ def run_integrity(request: IntegrityRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Job must be completed before integrity check")
 
     from services.data_intelligence.integrity_checker import run_integrity_checks
+    started_at = time.perf_counter()
     try:
         result = run_integrity_checks(db, request.source_job_id)
+        log_endpoint_audit(
+            path=str(http_request.url.path),
+            project_id=str(job.project_id) if job.project_id else None,
+            job_id=str(job.id),
+            started_at=started_at,
+            row_count=int(result.get("total_issues", 0)),
+        )
         return result
     except Exception as e:
+        raise_if_database_resource_exhausted(e)
         logger.error(f"Integrity check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Integrity check failed: {str(e)}")
 

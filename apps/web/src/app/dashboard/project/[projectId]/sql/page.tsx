@@ -3,11 +3,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
-  getProjectJobs, getJob, activateJob, resetProject, 
-  Job, JobStatus, restoreJob 
+  getProjectJobs, activateJob, resetProject, getProjectLogs,
+  Job
 } from '@/lib/api';
 import { safeFetch } from '@/lib/api_client';
 import { Loader2, AlertCircle, Zap, ShieldCheck } from 'lucide-react';
+import { useJob } from '@/components/JobProvider';
 
 import SqlSourceHeader from '@/components/SqlSourceHeader';
 import SqlEmptyState from '@/components/SqlEmptyState';
@@ -20,21 +21,19 @@ export default function SqlManagementPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params.projectId as string;
+  const { activeJob, syncWarning, syncError, consecutiveFailures, loading: statusLoading, refreshJob } = useJob();
   
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [project, setProject] = useState<any>(null);
   const [organization, setOrganization] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
+  const [logLines, setLogLines] = useState<string[]>([]);
 
-  const fetchData = useCallback(async (isRetry = false) => {
+  const fetchData = useCallback(async () => {
     if (!projectId) return;
-    if (isRetry) setLoading(true);
-    setError(null);
+    setLoading(true);
     try {
-      // 1. Fetch Project & Org Details
       const projectRes = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/projects/${projectId}`);
       if (projectRes.success) {
         setProject(projectRes.data);
@@ -42,42 +41,34 @@ export default function SqlManagementPage() {
         if (orgRes.success) setOrganization(orgRes.data);
       }
 
-      // 2. Fetch Jobs
       const allJobs = await getProjectJobs(projectId);
       setJobs(allJobs);
-      
-      const currentActive = allJobs.find(j => j.is_active) || (allJobs.length > 0 ? allJobs[0] : null);
-      setActiveJob(currentActive);
-
-      // 3. Determine if we need to poll
-      const needsPolling = allJobs.some(j => j.status === 'restoring' || j.status === 'analyzing');
-      setPolling(needsPolling);
-
     } catch (err: any) {
       console.error("Failed to fetch SQL management data:", err);
-      setError("Unable to retrieve project source status.");
+      setError("Unable to load project source metadata.");
     } finally {
       setLoading(false);
     }
   }, [projectId]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
-  // Poll for job status if processing (REDUCED FREQUENCY)
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (polling && activeJob?.status && ['restoring', 'analyzing'].includes(activeJob.status)) {
-      interval = setInterval(() => fetchData(false), 10000);
+    if (!projectId || !activeJob?.id) {
+      setLogLines([]);
+      return;
     }
-    return () => clearInterval(interval);
-  }, [polling, fetchData, activeJob?.status]);
+    void getProjectLogs(projectId, 10, 1)
+      .then((response) => setLogLines(response.lines))
+      .catch(() => setLogLines([]));
+  }, [activeJob?.id, projectId]);
 
   const handleActivate = async (jobId: string) => {
     try {
       await activateJob(jobId);
-      await fetchData();
+      await Promise.all([fetchData(), refreshJob()]);
     } catch (err) {
       alert("Failed to switch active source.");
     }
@@ -87,18 +78,19 @@ export default function SqlManagementPage() {
     if (!confirm("CAUTION: This will delete all uploaded SQL dumps and staging data for this project. This action cannot be undone. Continue?")) return;
     try {
       await resetProject(projectId);
-      await fetchData();
+      await Promise.all([fetchData(), refreshJob()]);
     } catch (err) {
       alert("Failed to reset project data.");
     }
   };
 
-  const handleUploadSuccess = async (job: Job) => {
-    setLoading(true);
-    await fetchData();
+  const handleUploadSuccess = async (_job: Job) => {
+    await Promise.all([fetchData(), refreshJob()]);
   };
 
-  if (loading && !polling) {
+  const pageError = error || (consecutiveFailures >= 3 ? syncError : null);
+
+  if (loading && !activeJob && statusLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <Loader2 className="h-10 w-10 text-teal-500 animate-spin" />
@@ -107,7 +99,7 @@ export default function SqlManagementPage() {
     );
   }
 
-  if (error) {
+  if (pageError && !activeJob) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6 max-w-md mx-auto text-center p-8">
         <div className="h-16 w-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20">
@@ -115,10 +107,13 @@ export default function SqlManagementPage() {
         </div>
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">Sync Error</h2>
-          <p className="text-slate-400">{error}</p>
+          <p className="text-slate-400">{pageError}</p>
         </div>
         <button 
-          onClick={() => fetchData(true)}
+          onClick={() => {
+            void fetchData();
+            void refreshJob();
+          }}
           className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 transition-all"
         >
           RETRY SYNC
@@ -127,13 +122,13 @@ export default function SqlManagementPage() {
     );
   }
 
-  const activeStatus = activeJob 
-    ? (activeJob.status.charAt(0).toUpperCase() + activeJob.status.slice(1)) 
-    : 'No Data';
-
   return (
     <div className="p-8 md:p-12 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in duration-700">
-      {/* Header removed as requested */}
+      {activeJob && syncWarning && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          {syncWarning}
+        </div>
+      )}
 
       {!activeJob ? (
         <SqlEmptyState projectId={projectId} onSuccess={handleUploadSuccess} />
@@ -150,8 +145,8 @@ export default function SqlManagementPage() {
           />
 
           <ExtractionLogPreview 
-            logs={activeJob.log || ""} 
-            onViewFullLogs={() => alert(activeJob.log || "No logs available.")} 
+            logs={logLines.join('\n')}
+            onViewFullLogs={() => alert(logLines.join('\n') || "No logs available.")} 
           />
 
           <SqlJobHistory 

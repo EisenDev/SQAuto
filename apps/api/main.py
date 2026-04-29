@@ -7,8 +7,11 @@ All heavy logic is delegated to service modules.
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+
 from apps.api.database import Base, engine
 from apps.api.router import api_router
+from apps.api.utils import database_resource_exhausted_response, is_database_resource_exhausted_message
 
 app = FastAPI(title="SQAuto API", version="0.1.0")
 
@@ -16,6 +19,8 @@ app = FastAPI(title="SQAuto API", version="0.1.0")
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler to ensure JSON is always returned."""
     print(f"[!] Uncaught Exception: {str(exc)}")
+    if is_database_resource_exhausted_message(str(exc)):
+        return database_resource_exhausted_response()
     return JSONResponse(
         status_code=500,
         content={
@@ -44,6 +49,13 @@ app.add_middleware(
 def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
+        with engine.begin() as conn:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_jobs_project_id_status ON public.jobs (project_id, status)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_jobs_project_id_created_at ON public.jobs (project_id, created_at DESC)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_runs_project_id ON public.migration_runs (project_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_logs_project_id ON public.migration_logs (project_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_logs_project_id_created_at ON public.migration_logs (project_id, created_at DESC)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_targets_project_id ON public.migration_targets (project_id)"))
         print("[+] PostgreSQL connected and tables verified.")
     except Exception as e:
         print(f"[!] Database connection failed on startup: {e}")

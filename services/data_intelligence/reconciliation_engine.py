@@ -11,7 +11,7 @@ SAFETY: Uses only SELECT queries. All heavy queries are LIMIT-capped.
 import logging
 from sqlalchemy import inspect, text, create_engine
 from sqlalchemy.orm import Session
-from apps.api.database import engine as staging_engine
+from apps.api.database import staging_engine
 
 logger = logging.getLogger("sqauto.reconciliation")
 

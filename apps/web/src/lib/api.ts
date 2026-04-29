@@ -47,6 +47,30 @@ export interface Job {
   file_size?: number;
 }
 
+export interface ProjectSourceStatus {
+  project_id: string;
+  active_job_id: string | null;
+  status: JobStatus | null;
+  filename: string | null;
+  file_size: number;
+  dialect: string | null;
+  metrics: {
+    tables: number;
+    rows: number;
+    data_size_mb: number;
+  };
+  updated_at: string | null;
+}
+
+export interface ProjectLogsResponse {
+  project_id: string;
+  active_job_id: string | null;
+  page: number;
+  limit: number;
+  total_lines: number;
+  lines: string[];
+}
+
 /** 
  * Upload a SQL dump file with real-time progress tracking.
  * Uses chunked uploads to bypass Cloudflare/Proxy limits.
@@ -121,6 +145,14 @@ export async function listJobs(): Promise<Job[]> {
 /** List jobs for a specific project */
 export async function getProjectJobs(projectId: string): Promise<Job[]> {
   return apiFetch<Job[]>(`/projects/${projectId}/jobs`);
+}
+
+export async function getProjectSourceStatus(projectId: string): Promise<ProjectSourceStatus> {
+  return apiFetch<ProjectSourceStatus>(`/projects/${projectId}/source-status`);
+}
+
+export async function getProjectLogs(projectId: string, limit = 10, page = 1): Promise<ProjectLogsResponse> {
+  return apiFetch<ProjectLogsResponse>(`/projects/${projectId}/logs?limit=${limit}&page=${page}`);
 }
 
 /** Get job details */

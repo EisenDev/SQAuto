@@ -689,6 +689,7 @@ export default function MigrationControlCenter() {
     if (!activeRun || activeRun.status === 'completed' || activeRun.status === 'failed') return;
     
     const interval = setInterval(async () => {
+      if (document.hidden) return;
       const result = await safeFetch(`${API_URL}/migration/runs/${activeRun.id}`);
       if (result.success) {
         setActiveRun(result.data);
@@ -699,7 +700,7 @@ export default function MigrationControlCenter() {
       } else {
         clearInterval(interval);
       }
-    }, 2000);
+    }, 5000);
     
     return () => clearInterval(interval);
   }, [activeRun?.id, activeRun?.status]);
@@ -774,4 +775,3 @@ export default function MigrationControlCenter() {
     </div>
   );
 }
-

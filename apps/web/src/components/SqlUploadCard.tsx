@@ -24,7 +24,7 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
   // Poll for logs when restoring
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (showConsole && job?.status === 'restoring') {
+    if (showConsole && job?.status === 'restoring' && !document.hidden) {
       interval = setInterval(async () => {
         const [resLog, traceLog] = await Promise.all([
           safeFetch(`${API_URL}/debug/restoration-log`),
@@ -34,7 +34,7 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
           restoration: resLog.success ? resLog.data.log : "Connecting to stream...",
           trace: traceLog.success ? traceLog.data.log : "Tracing pipe..."
         });
-      }, 2000);
+      }, 5000);
     }
     return () => clearInterval(interval);
   }, [showConsole, job?.status, API_URL]);

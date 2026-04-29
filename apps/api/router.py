@@ -4,13 +4,14 @@ Provides upload handling, job management, dump restore, and profiling.
 Updated to support project-scoped operations.
 """
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, BackgroundTasks, Form
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, BackgroundTasks, Form, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import os
 import shutil
 import uuid
 import logging
+import time
 
 from apps.api.database import get_db, SessionLocal
 from apps.api.models import Job, JobStatus, Project
@@ -19,6 +20,7 @@ from configs.settings import settings
 from services.dump_restore.service import DumpRestoreService
 from services.schema_profiler.service import SchemaProfilerService
 from apps.api.routers import debug, organizations, projects
+from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 api_router = APIRouter()
 
@@ -204,23 +206,36 @@ async def upload_dump(
     }
 
 @api_router.get("/jobs/{job_id}", tags=["jobs"], summary="Get job details")
-async def job_detail(job_id: str, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return {
-        "id": str(job.id),
-        "projectId": str(job.project_id),
-        "filename": job.filename,
-        "original_filename": job.original_filename,
-        "status": job.status.value,
-        "file_size": job.file_size,
-        "is_active": job.is_active,
-        "created_at": job.created_at,
-        "updated_at": job.updated_at,
-        "log": job.log,
-        "profile": job.profile,
-    }
+async def job_detail(job_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = db.query(Job).filter(Job.id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        payload = {
+            "id": str(job.id),
+            "projectId": str(job.project_id),
+            "filename": job.filename,
+            "original_filename": job.original_filename,
+            "status": job.status.value,
+            "file_size": job.file_size,
+            "is_active": job.is_active,
+            "created_at": job.created_at,
+            "updated_at": job.updated_at,
+            "log": job.log,
+            "profile": job.profile,
+        }
+        log_endpoint_audit(
+            path=str(request.url.path),
+            project_id=str(job.project_id) if job.project_id else None,
+            job_id=str(job.id),
+            started_at=started_at,
+            row_count=1,
+        )
+        return payload
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
 
 @api_router.post("/jobs/{job_id}/activate", tags=["jobs"], summary="Set a job as the active source of truth")
 async def activate_job(job_id: str, db: Session = Depends(get_db)):

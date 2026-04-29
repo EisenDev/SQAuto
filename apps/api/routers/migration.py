@@ -8,10 +8,11 @@ SAFETY: Passwords are NEVER returned in any API response.
 """
 
 import logging
+import time
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 
 from apps.api.database import get_db, SessionLocal
@@ -22,6 +23,7 @@ from apps.api.models import (
 )
 from services.migration_engine.service import MigrationEngineService
 from services.migration_engine.execution_engine import ExecutionEngineService
+from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 router = APIRouter()
 logger = logging.getLogger("sqauto.migration_router")
@@ -291,12 +293,25 @@ def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db:
 
 
 @router.get("/runs", summary="List migration runs for a specific job")
-def list_runs(source_job_id: str, db: Session = Depends(get_db)):
+def list_runs(source_job_id: str, request: Request, db: Session = Depends(get_db)):
     """List all migration runs for a specific job, ordered by most recent first."""
     if not source_job_id:
         return []
-    runs = db.query(MigrationRun).filter(MigrationRun.source_job_id == source_job_id).order_by(MigrationRun.created_at.desc()).all()
-    return [serialize_run(r) for r in runs]
+    started_at = time.perf_counter()
+    try:
+        runs = db.query(MigrationRun).filter(MigrationRun.source_job_id == source_job_id).order_by(MigrationRun.created_at.desc()).all()
+        payload = [serialize_run(r) for r in runs]
+        log_endpoint_audit(
+            path=str(request.url.path),
+            project_id=payload[0]["project_id"] if payload else None,
+            job_id=source_job_id,
+            started_at=started_at,
+            row_count=len(payload),
+        )
+        return payload
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
 
 
 @router.get("/runs/{run_id}", summary="Get migration run details")
@@ -309,19 +324,36 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/runs/{run_id}/logs", summary="Get logs for a migration run")
-def get_run_logs(run_id: str, db: Session = Depends(get_db)):
-    """Get all log entries for a specific migration run."""
-    run = db.query(MigrationRun).filter(MigrationRun.id == run_id).first()
-    if not run:
-        raise HTTPException(status_code=404, detail="Migration run not found")
-    
-    logs = (
-        db.query(MigrationLog)
-        .filter(MigrationLog.migration_run_id == run_id)
-        .order_by(MigrationLog.created_at.asc())
-        .all()
-    )
-    return [serialize_log(l) for l in logs]
+def get_run_logs(run_id: str, request: Request, limit: int = 10, page: int = 1, db: Session = Depends(get_db)):
+    """Get paginated log entries for a specific migration run."""
+    started_at = time.perf_counter()
+    limit = max(1, min(limit, 100))
+    page = max(1, page)
+    try:
+        run = db.query(MigrationRun).filter(MigrationRun.id == run_id).first()
+        if not run:
+            raise HTTPException(status_code=404, detail="Migration run not found")
+
+        logs = (
+            db.query(MigrationLog)
+            .filter(MigrationLog.migration_run_id == run_id)
+            .order_by(MigrationLog.created_at.asc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+            .all()
+        )
+        payload = [serialize_log(l) for l in logs]
+        log_endpoint_audit(
+            path=str(request.url.path),
+            project_id=str(run.project_id) if run.project_id else None,
+            job_id=str(run.source_job_id),
+            started_at=started_at,
+            row_count=len(payload),
+        )
+        return payload
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
 
 
 # ============================================================

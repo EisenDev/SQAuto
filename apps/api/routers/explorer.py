@@ -27,6 +27,7 @@ def get_table_data(job_id: str, table_name: str, limit: int = 50, offset: int = 
 
     # 2. Staging Content Validation
     active_staging_job = db.query(Job).filter(
+        Job.project_id == job.project_id,
         Job.status.in_(["completed", "analyzing", "restoring"])
     ).order_by(Job.updated_at.desc()).first()
 

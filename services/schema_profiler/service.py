@@ -78,14 +78,13 @@ class SchemaProfilerService:
                     logger.warning(f"Could not profile staging.\"{table_name}\": {e}")
                     primary_keys = []
                     foreign_keys = []
+                    schema_info[table_name] = {
+                        "columns": columns,
+                        "primary_keys": primary_keys,
+                        "foreign_keys": foreign_keys
+                    }
         finally:
             staging_db.close()
-
-            schema_info[table_name] = {
-                "columns": columns,
-                "primary_keys": primary_keys,
-                "foreign_keys": foreign_keys
-            }
             
         # Generate Graph-Ready Payload for React Flow
         nodes = []
@@ -133,7 +132,9 @@ class SchemaProfilerService:
                     "table_count": len(schema_info),
                     "data_size_mb": round(total_size_bytes / (1024 * 1024), 2),
                     "duplicate_count": 0, # Placeholder
-                    "status": "COMPLETED"
+                    "status": "COMPLETED",
+                    "schema_summary": f"{len(schema_info)} tables profiled",
+                    "diagnostics_summary": "Profiling completed and cached for workspace reuse."
                 },
                 "ai_insights": ai_insights
             }

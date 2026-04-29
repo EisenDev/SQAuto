@@ -52,3 +52,29 @@ class JobMinimal(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobMetrics(BaseModel):
+    tables: int = 0
+    rows: int = 0
+    data_size_mb: float = 0
+
+
+class ProjectSourceStatus(BaseModel):
+    project_id: UUID
+    active_job_id: Optional[UUID] = None
+    status: Optional[str] = None
+    filename: Optional[str] = None
+    file_size: int = 0
+    dialect: Optional[str] = None
+    metrics: JobMetrics
+    updated_at: Optional[str] = None
+
+
+class ProjectLogResponse(BaseModel):
+    project_id: UUID
+    active_job_id: Optional[UUID] = None
+    page: int
+    limit: int
+    total_lines: int
+    lines: List[str]

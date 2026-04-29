@@ -98,7 +98,7 @@ class MigrationEngineService:
             db_session: SQLAlchemy session for system DB updates
         """
         from apps.api.models import MigrationRun, MigrationRunStatus, MigrationLog, MigrationLogLevel
-        from apps.api.database import engine as staging_engine
+        from apps.api.database import staging_engine
         
         run = db_session.query(MigrationRun).filter(MigrationRun.id == run_id).first()
         if not run:
