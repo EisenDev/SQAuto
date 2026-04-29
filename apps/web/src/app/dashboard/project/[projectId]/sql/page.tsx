@@ -14,6 +14,7 @@ import SqlEmptyState from '@/components/SqlEmptyState';
 import SqlSourceOverview from '@/components/SqlSourceOverview';
 import SqlJobHistory from '@/components/SqlJobHistory';
 import ExtractionLogPreview from '@/components/ExtractionLogPreview';
+import SqlUploadCard from '@/components/SqlUploadCard';
 
 export default function SqlManagementPage() {
   const params = useParams();
