@@ -58,38 +58,16 @@ jobs:
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
-          METADATA_DATABASE_URL: ${{ secrets.METADATA_DATABASE_URL }}
-          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          REDIS_URL: ${{ secrets.REDIS_URL }}
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
           set -eu
 
-          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" \
-            "export METADATA_DATABASE_URL='${METADATA_DATABASE_URL}' \
-             STAGING_DATABASE_URL='${STAGING_DATABASE_URL}' \
-             DATABASE_URL='${DATABASE_URL}' \
-             REDIS_URL='${REDIS_URL}' \
-             SECRET_KEY='${SECRET_KEY}' \
-             NEXT_PUBLIC_API_URL='${NEXT_PUBLIC_API_URL}'; \
-             bash -se" <<'EOF'
+          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<'EOF'
           set -eu
 
           cd ~/SQAuto
 
           git fetch origin main
           git reset --hard origin/main
-
-          cat > .env <<ENVEOF
-          METADATA_DATABASE_URL=${METADATA_DATABASE_URL}
-          STAGING_DATABASE_URL=${STAGING_DATABASE_URL}
-          DATABASE_URL=${DATABASE_URL}
-          REDIS_URL=${REDIS_URL}
-          SECRET_KEY=${SECRET_KEY}
-          NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-          ENVEOF
 
           docker compose -f docker/docker-compose.yml down
           docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
