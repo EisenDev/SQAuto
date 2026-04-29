@@ -7,7 +7,7 @@ record's ``profile`` JSON field.
 import logging
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
-from apps.api.database import engine
+from apps.api.database import staging_engine as engine
 
 logger = logging.getLogger("sqauto.schema_profiler")
 
@@ -39,41 +39,47 @@ class SchemaProfilerService:
         total_rows = 0
         total_size_bytes = 0
         
-        # Get the job record
+        # Get the job record (from metadata DB)
         job = db_session.query(Job).filter(Job.id == job_id).first()
 
-        for table_name in table_names:
-            columns = []
-            try:
-                # Use inspector with schema='staging'
-                for col in inspector.get_columns(table_name, schema="staging"):
-                    columns.append({"name": col["name"], "type": str(col["type"])})
-                
-                # Extract PKs
-                pk_constraint = inspector.get_pk_constraint(table_name, schema="staging")
-                primary_keys = pk_constraint.get("constrained_columns", [])
+        from apps.api.database import StagingSession
+        staging_db = StagingSession()
 
-                # Extract FKs for relationship mapping
-                foreign_keys = []
-                for fk in inspector.get_foreign_keys(table_name, schema="staging"):
-                    foreign_keys.append({
-                        "constrained_columns": fk["constrained_columns"],
-                        "referred_schema": fk["referred_schema"],
-                        "referred_table": fk["referred_table"],
-                        "referred_columns": fk["referred_columns"]
-                    })
+        try:
+            for table_name in table_names:
+                columns = []
+                try:
+                    # Use inspector with schema='staging'
+                    for col in inspector.get_columns(table_name, schema="staging"):
+                        columns.append({"name": col["name"], "type": str(col["type"])})
+                    
+                    # Extract PKs
+                    pk_constraint = inspector.get_pk_constraint(table_name, schema="staging")
+                    primary_keys = pk_constraint.get("constrained_columns", [])
 
-                # Count rows
-                row_count = db_session.execute(text(f'SELECT COUNT(*) FROM staging."{table_name}"')).scalar()
-                total_rows += row_count or 0
+                    # Extract FKs for relationship mapping
+                    foreign_keys = []
+                    for fk in inspector.get_foreign_keys(table_name, schema="staging"):
+                        foreign_keys.append({
+                            "constrained_columns": fk["constrained_columns"],
+                            "referred_schema": fk["referred_schema"],
+                            "referred_table": fk["referred_table"],
+                            "referred_columns": fk["referred_columns"]
+                        })
 
-                # Data size (bytes)
-                size_bytes = db_session.execute(text(f'SELECT pg_total_relation_size(\'staging."{table_name}"\')')).scalar()
-                total_size_bytes += size_bytes or 0
-            except Exception as e:
-                logger.warning(f"Could not profile staging.\"{table_name}\": {e}")
-                primary_keys = []
-                foreign_keys = []
+                    # Count rows (ON STAGING DB)
+                    row_count = staging_db.execute(text(f'SELECT COUNT(*) FROM staging."{table_name}"')).scalar()
+                    total_rows += row_count or 0
+
+                    # Data size (bytes) (ON STAGING DB)
+                    size_bytes = staging_db.execute(text(f'SELECT pg_total_relation_size(\'staging."{table_name}"\')')).scalar()
+                    total_size_bytes += size_bytes or 0
+                except Exception as e:
+                    logger.warning(f"Could not profile staging.\"{table_name}\": {e}")
+                    primary_keys = []
+                    foreign_keys = []
+        finally:
+            staging_db.close()
 
             schema_info[table_name] = {
                 "columns": columns,

@@ -62,7 +62,7 @@ class Job(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     # Scoping to project
-    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True) # Switch to False after migration
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True, index=True) 
     filename = Column(String, nullable=False)
     original_filename = Column(String, nullable=True)
     is_compressed = Column(Boolean, default=False, nullable=False)
@@ -84,7 +84,7 @@ class MigrationTarget(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True, index=True)
     name = Column(String, nullable=False)
     host = Column(String, nullable=False)
     port = Column(Integer, nullable=False, default=5432)
@@ -117,7 +117,7 @@ class MigrationRun(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True, index=True)
     source_job_id = Column(UUID(as_uuid=True), ForeignKey("public.jobs.id"), nullable=False)
     target_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_targets.id"), nullable=False)
     mode = Column(Enum(MigrationRunMode), nullable=False, default=MigrationRunMode.DRY_RUN)
@@ -140,7 +140,7 @@ class MigrationLog(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True, index=True)
     migration_run_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_runs.id"), nullable=False)
     level = Column(Enum(MigrationLogLevel), nullable=False, default=MigrationLogLevel.INFO)
     table_name = Column(String, nullable=True)
@@ -158,7 +158,7 @@ class MigrationPlan(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=True, index=True)
     source_job_id = Column(UUID(as_uuid=True), ForeignKey("public.jobs.id"), nullable=False)
     target_id = Column(UUID(as_uuid=True), ForeignKey("public.migration_targets.id"), nullable=False)
     plan = Column(JSON, nullable=False)

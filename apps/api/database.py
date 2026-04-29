@@ -1,32 +1,58 @@
-# apps/api/database.py
-"""Database connection and session management for FastAPI.
-Uses SQLAlchemy 2.0 with Pydantic settings.
-"""
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from configs.settings import settings
 
-# Create engine; echo can be turned off for production
-engine = create_engine(
-    settings.DATABASE_URL,
+# Metadata Engine (Supabase - lightweight)
+metadata_url = settings.METADATA_DATABASE_URL or settings.DATABASE_URL
+metadata_engine = create_engine(
+    metadata_url,
     connect_args={
         "connect_timeout": 10,
-        "prepare_threshold": None  # CRITICAL for PgBouncer/Supabase compatibility
+        "prepare_threshold": None
     },
     echo=False,
     future=True
 )
 
-# SessionLocal class for dependency injection
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
+# Staging Engine (Local Postgres - heavy)
+staging_engine = create_engine(
+    settings.STAGING_DATABASE_URL,
+    connect_args={
+        "connect_timeout": 5
+    },
+    echo=False,
+    future=True
+)
 
-# Base class for models
+# Session factories
+MetadataSession = sessionmaker(bind=metadata_engine, autocommit=False, autoflush=False, future=True)
+StagingSession = sessionmaker(bind=staging_engine, autocommit=False, autoflush=False, future=True)
+
+# Compatibility: Default SessionLocal points to Metadata
+SessionLocal = MetadataSession
+
+# Base class for models (Metadata DB)
 Base = declarative_base()
 
 def get_db():
-    """FastAPI dependency that provides a DB session and ensures cleanup."""
-    db = SessionLocal()
+    """Default metadata DB dependency."""
+    db = MetadataSession()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_metadata_db():
+    """Explicit metadata DB dependency."""
+    db = MetadataSession()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_staging_db():
+    """Explicit staging DB dependency."""
+    db = StagingSession()
     try:
         yield db
     finally:

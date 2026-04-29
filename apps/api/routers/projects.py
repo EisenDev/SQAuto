@@ -24,8 +24,8 @@ def create_project(org_id: UUID, project: schemas.ProjectCreate, db: Session = D
     return db_project
 
 @router.get("/organizations/{org_id}/projects", response_model=List[schemas.Project])
-def list_org_projects(org_id: UUID, db: Session = Depends(get_db)):
-    return db.query(models.Project).filter(models.Project.organization_id == org_id).all()
+def list_org_projects(org_id: UUID, limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
+    return db.query(models.Project).filter(models.Project.organization_id == org_id).offset(offset).limit(limit).all()
 
 @router.get("/projects/{project_id}", response_model=schemas.Project)
 def get_project(project_id: UUID, db: Session = Depends(get_db)):
@@ -58,6 +58,6 @@ def delete_project(project_id: UUID, db: Session = Depends(get_db)):
     return {"status": "success"}
 
 @router.get("/projects/{project_id}/jobs", response_model=List[schemas.JobMinimal])
-def list_project_jobs(project_id: UUID, db: Session = Depends(get_db)):
-    jobs = db.query(models.Job).filter(models.Job.project_id == project_id).order_by(models.Job.created_at.desc()).all()
+def list_project_jobs(project_id: UUID, limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
+    jobs = db.query(models.Job).filter(models.Job.project_id == project_id).order_by(models.Job.created_at.desc()).offset(offset).limit(limit).all()
     return jobs

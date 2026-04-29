@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from apps.api.database import get_db, engine
+from apps.api.database import get_db, staging_engine as engine
 from apps.api.models import Job
 
 router = APIRouter()

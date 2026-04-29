@@ -8,8 +8,11 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 
 class Settings(BaseSettings):
-    # Core service URLs
-    DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/sqauto", alias="DATABASE_URL")
+    # Database Configuration (Decoupled)
+    METADATA_DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/sqauto", alias="METADATA_DATABASE_URL")
+    STAGING_DATABASE_URL: str = Field("postgresql+psycopg://postgres:postgres@localhost:5432/staging_db", alias="STAGING_DATABASE_URL")
+    DATABASE_URL: str = Field("", alias="DATABASE_URL") # Legacy/Fallback
+
     REDIS_URL: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
 
     # Application ports (used by Docker compose)

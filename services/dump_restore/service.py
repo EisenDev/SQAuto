@@ -50,21 +50,25 @@ class DumpRestoreService:
         is_gz = file_path.lower().endswith(".gz")
         logger.info(f"Detected SQL flavor: {flavor} (Compressed: {is_gz}) for job {job_id}")
 
-        db_url = settings.DATABASE_URL
+        db_url = settings.STAGING_DATABASE_URL
         if "+psycopg" in db_url:
             db_url = db_url.replace("+psycopg", "")
 
         from apps.api.models import Job
+        from apps.api.database import StagingSession
 
-        # 1. Industrial Wipe - Isolation into 'staging' schema
+        # 1. Industrial Wipe - Isolation into 'staging' schema on LOCAL STAGING DB
+        staging_db = StagingSession()
         try:
-            db_session.execute(text("DROP SCHEMA IF EXISTS staging CASCADE"))
-            db_session.execute(text("CREATE SCHEMA staging"))
-            db_session.commit()
-            logger.info(f"Staging schema wiped and recreated for job {job_id}")
+            staging_db.execute(text("DROP SCHEMA IF EXISTS staging CASCADE"))
+            staging_db.execute(text("CREATE SCHEMA staging"))
+            staging_db.commit()
+            logger.info(f"Staging schema wiped and recreated on LOCAL STAGING DB for job {job_id}")
         except Exception as e:
-            logger.error(f"Failed to wipe staging schema: {e}")
-            raise RuntimeError(f"Database preparation failed: {e}")
+            logger.error(f"Failed to wipe staging schema on local DB: {e}")
+            raise RuntimeError(f"Local staging database preparation failed: {e}")
+        finally:
+            staging_db.close()
 
         # 2. Prepare Log Files (Prevents Pipe Deadlock)
         uploads_dir = os.path.dirname(file_path)

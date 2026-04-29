@@ -65,14 +65,14 @@ export default function SqlManagementPage() {
     fetchData();
   }, [fetchData]);
 
-  // Poll for job status if processing
+  // Poll for job status if processing (REDUCED FREQUENCY)
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (polling) {
-      interval = setInterval(fetchData, 3000);
+    if (polling && activeJob?.status && ['restoring', 'analyzing'].includes(activeJob.status)) {
+      interval = setInterval(() => fetchData(false), 10000);
     }
     return () => clearInterval(interval);
-  }, [polling, fetchData]);
+  }, [polling, fetchData, activeJob?.status]);
 
   const handleActivate = async (jobId: string) => {
     try {
