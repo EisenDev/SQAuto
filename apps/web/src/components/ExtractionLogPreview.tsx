@@ -9,7 +9,7 @@ interface ExtractionLogPreviewProps {
 
 export default function ExtractionLogPreview({ logs, onViewFullLogs }: ExtractionLogPreviewProps) {
   const logLines = logs.split('\n').filter(l => l.trim()).slice(-10);
-  
+
   const getLogIcon = (line: string) => {
     if (line.toUpperCase().includes('ERROR')) return <XCircle className="h-3 w-3 text-red-500" />;
     if (line.toUpperCase().includes('WARN')) return <AlertTriangle className="h-3 w-3 text-amber-500" />;
@@ -17,13 +17,13 @@ export default function ExtractionLogPreview({ logs, onViewFullLogs }: Extractio
   };
 
   return (
-    <div className="space-y-4">
+    <div className="boos lobos">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center">
           <Terminal className="h-4 w-4 mr-2" />
           Extraction Log Preview
         </h4>
-        <button 
+        <button
           onClick={onViewFullLogs}
           className="text-[10px] font-black text-teal-500 hover:text-teal-400 uppercase tracking-widest flex items-center"
         >

@@ -21,6 +21,19 @@ services:
       - "6379"
     restart: always
 
+  db_staging:
+    image: postgres:15-alpine
+    container_name: sqauto_db_staging
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=staging_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - staging_data:/var/lib/postgresql/data
+    restart: always
+
   api:
     image: ${DOCKER_HUB_USERNAME:-sqauto}/sqauto-api:latest
     build:
@@ -37,6 +50,7 @@ services:
       - uploads:/app/uploads
     depends_on:
       - redis
+      - db_staging
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 10s
@@ -63,3 +77,4 @@ services:
 
 volumes:
   uploads:
+  staging_data:
