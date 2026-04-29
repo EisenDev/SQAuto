@@ -61,24 +61,40 @@ export const ProjectSidebar = () => {
   const extractionCompleted = activeJob?.status === 'completed';
 
   const getActiveTab = () => {
-    const parts = pathname.split('/');
-    const last = parts[parts.length - 1];
-    if (last === projectId) return 'overview';
-    return last || 'overview';
+    const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
+    if (pathname === `/dashboard/project/${normalizedProjectId}`) return 'overview';
+    if (pathname.endsWith('/sql')) return 'upload';
+    if (pathname.includes('/diagnostics')) return 'diagnostics';
+    if (pathname.includes('/explorer')) return 'explorer';
+    if (pathname.includes('/visualizer')) return 'visualizer';
+    if (pathname.includes('/quality')) return 'quality';
+    if (pathname.includes('/mapping')) return 'mapping';
+    if (pathname.includes('/export')) return 'export';
+    if (pathname.includes('/destination')) return 'destination';
+    if (pathname.includes('/simulation')) return 'simulation';
+    if (pathname.includes('/settings')) return 'settings';
+    return 'overview';
   };
 
   const handleNav = (tabId: string) => {
     if (!hasProject) return; // Guard
     
-    // Standardize routing to the dashboard project structure
-    if (tabId === 'upload') {
-      router.push(`/dashboard/project/${projectId}/sql`);
-    } else if (tabId === 'overview') {
-      router.push(`/dashboard/project/${projectId}`);
-    } else {
-      // Temporary fallback for tabs not yet migrated to the new structure
-      router.push(`/workspace/${projectId}/${tabId}`);
-    }
+    const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
+    const routeMap: Record<string, string> = {
+      overview: `/dashboard/project/${normalizedProjectId}`,
+      upload: `/dashboard/project/${normalizedProjectId}/sql`,
+      diagnostics: `/dashboard/project/${normalizedProjectId}/diagnostics`,
+      explorer: `/dashboard/project/${normalizedProjectId}/explorer`,
+      visualizer: `/dashboard/project/${normalizedProjectId}/visualizer`,
+      quality: `/dashboard/project/${normalizedProjectId}/quality`,
+      mapping: `/dashboard/project/${normalizedProjectId}/mapping`,
+      export: `/dashboard/project/${normalizedProjectId}/export`,
+      destination: `/dashboard/project/${normalizedProjectId}/destination`,
+      simulation: `/dashboard/project/${normalizedProjectId}/simulation`,
+      settings: `/dashboard/project/${normalizedProjectId}/settings`,
+    };
+
+    router.push(routeMap[tabId] || routeMap.overview);
   };
 
   return (

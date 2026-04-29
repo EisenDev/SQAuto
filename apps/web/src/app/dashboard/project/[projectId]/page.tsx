@@ -1,150 +1,224 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { 
-  Plus, Upload, Search, Database, 
-  Settings, History, Terminal, Play,
-  ChevronRight, LayoutGrid, FileCode,
-  ShieldCheck, ArrowRight, Activity
-} from 'lucide-react';
+import React from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ArrowRight,
+  BarChart3,
+  Database,
+  FileCode2,
+  PlayCircle,
+  RefreshCw,
+  Search,
+  UploadCloud,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ActionLink,
+  DataTable,
+  PageFrame,
+  PageHeader,
+  SectionCard,
+  StatCard,
+  StatusBadge,
+  useProjectWorkspaceData,
+  WorkspaceNote,
+  workspaceActions,
+} from "@/components/workspace/project-workspace";
 
 export default function ProjectDashboardPage() {
-  const params = useParams();
+  const params = useParams<{ projectId: string }>();
   const router = useRouter();
-  const projectId = params.projectId;
-  const [orgId, setOrgId] = React.useState<string | null>(null);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
-  React.useEffect(() => {
-    if (!projectId) return;
-    import('@/lib/api_client').then(({ safeFetch }) => {
-      safeFetch(`${API_URL}/projects/${projectId}`).then(res => {
-        if (res.success && res.data?.organization_id) {
-          setOrgId(res.data.organization_id);
-        }
-      });
-    });
-  }, [projectId, API_URL]);
+  const { projectId } = params;
+  const workspace = useProjectWorkspaceData(projectId);
 
   const quickActions = [
-    { id: 'upload', name: 'Upload SQL Dump', desc: 'Initialize your source database extraction', icon: Upload, color: 'text-teal-500', bg: 'bg-teal-500/10' },
-    { id: 'explorer', name: 'Schema Explorer', desc: 'Inspect identified entities and relations', icon: Search, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { id: 'transform', name: 'Define Rules', desc: 'Configure transformation & mapping logic', icon: FileCode, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { id: 'deploy', name: 'Target Deploy', desc: 'Execute migration to target database', icon: Rocket, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    {
+      id: "sql",
+      title: "Upload SQL Dump",
+      description: "Initialize or replace the active source for this project.",
+      icon: UploadCloud,
+      tone: "teal" as const,
+    },
+    {
+      id: "explorer",
+      title: "Truth Explorer",
+      description: "Browse staged tables and inspect representative rows.",
+      icon: Search,
+      tone: "blue" as const,
+    },
+    {
+      id: "mapping",
+      title: "Schema Mapping",
+      description: "Prepare source-to-target column bindings before export.",
+      icon: FileCode2,
+      tone: "violet" as const,
+    },
+    {
+      id: "simulation",
+      title: "Resume Last Job",
+      description: "Continue from the latest active extraction or dry-run path.",
+      icon: PlayCircle,
+      tone: "amber" as const,
+    },
   ];
 
+  const statusSeries = workspace.recentJobs.length > 0
+    ? workspace.recentJobs.map((job, index) => ({
+        label: `Job ${index + 1}`,
+        completed: job.status === "completed" ? 1 : 0,
+        processing: job.status === "restoring" || job.status === "analyzing" || job.status === "uploaded" ? 1 : 0,
+      }))
+    : [
+        { label: "Upload", completed: 1, processing: 0 },
+        { label: "Restore", completed: 1, processing: 0 },
+        { label: "Analyze", completed: 0, processing: 1 },
+      ];
+
   return (
-    <div className="p-8 md:p-12 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in duration-500">
-      
-      {/* Dynamic Sub-header for the page */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">
-            Project Instance
-            <span className="mx-2 opacity-50">/</span>
-            <span className="text-teal-500/80">{projectId}</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Project Overview</h1>
+    <PageFrame>
+      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+        <PageHeader
+          title={workspace.project.name}
+          description={workspace.project.description || "Project workspace overview for migration progress, source health, and next actions."}
+          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          actions={
+            <>
+              <button className={workspaceActions.secondary} onClick={workspace.reload}>
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+              <button
+                className={workspaceActions.primary}
+                onClick={() => router.push(`/dashboard/project/${projectId}/${workspace.sourceStatus.active_job_id ? "simulation" : "sql"}`)}
+              >
+                <PlayCircle className="h-4 w-4" />
+                Resume last job
+              </button>
+            </>
+          }
+        />
+
+        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard title="Current Status" value={(workspace.sourceStatus.status || "idle").replace(/_/g, " ")} hint={workspace.sourceStatus.filename || "No source attached"} tone="teal" />
+          <StatCard title="Tables" value={workspace.sourceStatus.metrics.tables} hint="Profiled in the latest workspace source" tone="blue" />
+          <StatCard title="Rows" value={workspace.sourceStatus.metrics.rows.toLocaleString()} hint="Current staged row volume" tone="violet" />
+          <StatCard title="Recent Jobs" value={workspace.recentJobs.length} hint={workspace.hasAnyJob ? "Jobs found in this project" : "Waiting for first upload"} tone="amber" />
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button className="p-2 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-800 transition-colors">
-            <Settings className="h-5 w-5 text-slate-400" />
-          </button>
-          <button 
-            onClick={() => router.push(orgId ? `/dashboard/org/${orgId}` : '/dashboard/organizations')}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg text-sm font-bold text-slate-300 transition-all active:scale-95 flex items-center space-x-2"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            <span>Exit Project</span>
-          </button>
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          {quickActions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => router.push(`/dashboard/project/${projectId}/${action.id}`)}
+              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
+            >
+              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
+                <action.icon className="h-5 w-5 text-teal-300" />
+              </div>
+              <div className="mt-5 text-lg font-semibold text-white">{action.title}</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">{action.description}</p>
+              <div className="mt-5">
+                <ActionLink>Open workspace</ActionLink>
+              </div>
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* Quick Launch Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {quickActions.map((action, i) => (
-          <div 
-            key={action.id}
-            style={{ animationDelay: `${i * 100}ms` }}
-            className="group relative p-6 bg-slate-900 border border-slate-800 rounded-2xl hover:border-slate-700 hover:bg-slate-800/50 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-4"
-          >
-            <div className={`h-12 w-12 rounded-xl ${action.bg} flex items-center justify-center mb-6 border border-slate-800/50 group-hover:scale-110 transition-transform`}>
-              <action.icon className={`h-6 w-6 ${action.color}`} />
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <SectionCard title="Activity Timeline" description="Recent workspace events and source transitions">
+            <div className="space-y-4">
+              {workspace.timeline.map((entry) => (
+                <div key={`${entry.title}-${entry.time}`} className="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
+                  <div className="mt-1 h-3 w-3 rounded-full bg-teal-400 shadow-[0_0_16px_rgba(45,212,191,0.55)]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="text-sm font-medium text-white">{entry.title}</div>
+                      <StatusBadge status={entry.status} />
+                    </div>
+                    <div className="mt-1 text-sm text-slate-400">{entry.subtitle}</div>
+                  </div>
+                  <div className="text-xs text-slate-500">{entry.time}</div>
+                </div>
+              ))}
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">{action.name}</h3>
-            <p className="text-sm text-slate-400 leading-relaxed h-10">{action.desc}</p>
-            
-            <div className="mt-6 flex items-center text-teal-400 text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-              Configure Now <ChevronRight className="h-3 w-3 ml-1" />
-            </div>
-          </div>
-        ))}
-      </section>
+          </SectionCard>
 
-      {/* Secondary Info Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Activity */}
-        <section className="lg:col-span-2 space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center">
-            <History className="h-5 w-5 mr-3 text-teal-500" />
-            Recent Migration Logs
-          </h2>
-          <div className="bg-slate-950/50 border border-slate-900 rounded-3xl overflow-hidden">
-            <div className="p-12 text-center space-y-4">
-              <div className="h-16 w-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto border border-slate-800">
-                <Terminal className="h-8 w-8 text-slate-700" />
+          <SectionCard title="Status Graph" description="Latest job progression snapshot">
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={statusSeries}>
+                  <defs>
+                    <linearGradient id="completedFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0.02} />
+                    </linearGradient>
+                    <linearGradient id="processingFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="rgba(148,163,184,0.08)" strokeDasharray="4 4" />
+                  <XAxis dataKey="label" stroke="#64748b" fontSize={12} />
+                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "#020617", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 16 }} />
+                  <Area type="monotone" dataKey="completed" stroke="#2dd4bf" fill="url(#completedFill)" />
+                  <Area type="monotone" dataKey="processing" stroke="#60a5fa" fill="url(#processingFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </SectionCard>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <SectionCard title="Recent Jobs" description="Most recent jobs attached to this project">
+            <DataTable
+              columns={[
+                { key: "filename", label: "Source File" },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (row) => <StatusBadge status={row.status}>{row.status}</StatusBadge>,
+                },
+                { key: "created_at", label: "Created", render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : "—" },
+              ]}
+              rows={workspace.recentJobs.length > 0 ? workspace.recentJobs : [{ filename: "No jobs yet", status: "idle", created_at: null }]}
+            />
+          </SectionCard>
+
+          <SectionCard title="Current Source" description="Latest active source-of-truth attachment">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                <div className="flex items-center gap-3">
+                  <Database className="h-5 w-5 text-teal-300" />
+                  <div>
+                    <div className="text-sm font-medium text-white">{workspace.sourceStatus.filename || "No source attached"}</div>
+                    <div className="text-xs text-slate-500">{workspace.sourceStatus.dialect || "Dialect pending"}</div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-slate-400 font-medium">Workspace is Clear</p>
-                <p className="text-sm text-slate-600">No active migrations or logs detected for this project.</p>
-              </div>
-              <button className="px-6 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-sm font-bold text-slate-300 transition-all">
-                Initialize Workflow
+              <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/diagnostics`)}>
+                <BarChart3 className="h-4 w-4" />
+                View diagnostics
+              </button>
+              <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
+                <ArrowRight className="h-4 w-4" />
+                Manage source upload
               </button>
             </div>
-          </div>
-        </section>
-
-        {/* Stats / System Standby */}
-        <section className="space-y-6">
-          <h2 className="text-xl font-bold text-white flex items-center">
-            <Activity className="h-5 w-5 mr-3 text-teal-500" />
-            Engine Status
-          </h2>
-          <div className="p-6 bg-slate-900 border border-slate-800 rounded-3xl space-y-8">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-slate-500">
-                <span>Engine Load</span>
-                <span className="text-teal-500">Idle</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full w-0 bg-teal-500" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-slate-800/50">
-                <div className="flex items-center space-x-3">
-                  <ShieldCheck className="h-4 w-4 text-teal-500" />
-                  <span className="text-sm text-slate-300">Integrity Lock</span>
-                </div>
-                <div className="h-2 w-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-slate-800/50">
-                <div className="flex items-center space-x-3">
-                  <LayoutGrid className="h-4 w-4 text-teal-500" />
-                  <span className="text-sm text-slate-300">Cluster Sync</span>
-                </div>
-                <div className="h-2 w-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.5)]" />
-              </div>
-            </div>
-          </div>
-        </section>
+          </SectionCard>
+        </div>
       </div>
-    </div>
+    </PageFrame>
   );
 }
-
-import { Rocket } from 'lucide-react';
