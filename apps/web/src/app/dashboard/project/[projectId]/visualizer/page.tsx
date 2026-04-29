@@ -20,6 +20,39 @@ import {
 import { getJobQualityReport, getJobSchemaGraph } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 
+function SchemaNode({ data }: { data: { label: string; columns?: Array<{ name: string; type?: string; primary?: boolean; foreign?: string | null }>; primaryKeys?: string[] } }) {
+  const columns = data.columns || [];
+  const primaryKeys = new Set(data.primaryKeys || []);
+  return (
+    <div className="w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-[0_24px_80px_rgba(2,6,23,0.5)]">
+      <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/90 px-4 py-3">
+        <div className="text-sm font-semibold text-white">{data.label}</div>
+        <span className="rounded-full border border-white/10 bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+          {columns.length} cols
+        </span>
+      </div>
+      <div className="max-h-72 overflow-y-auto">
+        {columns.map((column) => {
+          const isPrimary = column.primary || primaryKeys.has(column.name);
+          const isForeign = Boolean(column.foreign);
+          return (
+            <div key={column.name} className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-2.5 text-xs">
+              <div className="min-w-0">
+                <div className="truncate font-medium text-slate-100">{column.name}</div>
+                <div className="truncate text-slate-500">{String(column.type || "text").toUpperCase()}</div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {isPrimary ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300">PK</span> : null}
+                {isForeign ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">FK</span> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function VisualizerPage() {
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
@@ -65,16 +98,8 @@ export default function VisualizerPage() {
   const flowNodes = graph.nodes.map((node, index) => ({
     id: node.id,
     position: node.position || { x: (index % 3) * 260, y: Math.floor(index / 3) * 180 },
-    data: { label: node.label },
-    style: {
-      borderRadius: 18,
-      border: "1px solid rgba(45,212,191,0.25)",
-      background: "rgba(15,23,42,0.92)",
-      color: "#f8fafc",
-      padding: 16,
-      width: 190,
-      boxShadow: "0 20px 60px rgba(2,6,23,0.35)",
-    },
+    type: "schemaNode",
+    data: { label: node.label, columns: node.columns || [], primaryKeys: node.primary_keys || [] },
   }));
 
   const flowEdges = graph.edges.map((edge) => ({
@@ -87,6 +112,7 @@ export default function VisualizerPage() {
     markerEnd: { type: MarkerType.ArrowClosed, color: "#2dd4bf" },
     labelStyle: { fill: "#cbd5e1", fontSize: 11 },
   }));
+  const nodeTypes = React.useMemo(() => ({ schemaNode: SchemaNode }), []);
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -128,8 +154,8 @@ export default function VisualizerPage() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
           <SectionCard title="Schema Graph" description="Detected tables and deterministic relationships">
             {flowNodes.length > 0 ? (
-            <div className="h-[640px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
-              <ReactFlow nodes={flowNodes} edges={flowEdges} fitView>
+            <div className="h-[720px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
+              <ReactFlow nodes={flowNodes} edges={flowEdges} nodeTypes={nodeTypes} fitView>
                 <Background color="rgba(148,163,184,0.15)" gap={24} />
                 <MiniMap nodeColor="#2dd4bf" maskColor="rgba(2,6,23,0.55)" />
                 <Controls />

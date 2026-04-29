@@ -78,11 +78,11 @@ class SchemaProfilerService:
                     logger.warning(f"Could not profile staging.\"{table_name}\": {e}")
                     primary_keys = []
                     foreign_keys = []
-                    schema_info[table_name] = {
-                        "columns": columns,
-                        "primary_keys": primary_keys,
-                        "foreign_keys": foreign_keys
-                    }
+                schema_info[table_name] = {
+                    "columns": columns,
+                    "primary_keys": primary_keys,
+                    "foreign_keys": foreign_keys,
+                }
         finally:
             staging_db.close()
             

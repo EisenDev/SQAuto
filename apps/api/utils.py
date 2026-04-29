@@ -4,6 +4,9 @@ from typing import Any, Optional
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy import inspect
+
+from apps.api.database import staging_engine
 
 logger = logging.getLogger("sqauto.api")
 
@@ -45,9 +48,19 @@ def raise_if_database_resource_exhausted(exc: Exception) -> None:
 
 
 def summarize_job_metrics(job: Any) -> dict[str, float | int]:
-    metadata = ((getattr(job, "profile", None) or {}).get("metadata") or {})
+    profile = getattr(job, "profile", None) or {}
+    metadata = (profile.get("metadata") or {})
+    table_map = profile.get("tables") or {}
+    table_count = int(metadata.get("table_count") or len(table_map) or 0)
+    if table_count == 0 and getattr(job, "status", None):
+        status_value = job.status.value if hasattr(job.status, "value") else str(job.status)
+        if status_value in {"restoring", "analyzing", "completed"}:
+            try:
+                table_count = len(inspect(staging_engine).get_table_names(schema="staging"))
+            except Exception:
+                table_count = 0
     return {
-        "tables": int(metadata.get("table_count") or 0),
+        "tables": table_count,
         "rows": int(metadata.get("total_rows") or 0),
         "data_size_mb": float(metadata.get("data_size_mb") or metadata.get("extracted_size_mb") or 0),
     }

@@ -155,6 +155,48 @@ def _get_table_columns(job: Job, table_name: str) -> list[dict]:
     return columns
 
 
+def _build_graph_from_tables(job: Job) -> dict:
+    inspector = inspect(staging_engine)
+    profile_tables = _profile_tables(job)
+    table_names = _table_names(job)
+    nodes = []
+    edges = []
+    for index, table_name in enumerate(table_names):
+        table_info = profile_tables.get(table_name) or {}
+        columns = _get_table_columns(job, table_name)
+        primary_keys = table_info.get("primary_keys") or inspector.get_pk_constraint(table_name, schema="staging").get("constrained_columns", [])
+        nodes.append(
+            {
+                "id": table_name,
+                "label": table_name,
+                "columns": columns,
+                "primary_keys": primary_keys,
+                "position": {
+                    "x": 220 + (index % 4) * 280,
+                    "y": 80 + (index // 4) * 220,
+                },
+            }
+        )
+        foreign_keys = table_info.get("foreign_keys") or inspector.get_foreign_keys(table_name, schema="staging")
+        for fk_index, fk in enumerate(foreign_keys):
+            target = fk.get("referred_table")
+            source_cols = fk.get("constrained_columns") or []
+            target_cols = fk.get("referred_columns") or []
+            if not target:
+                continue
+            edges.append(
+                {
+                    "id": f"{table_name}-{target}-{fk_index}",
+                    "source": table_name,
+                    "target": target,
+                    "label": f"{', '.join(source_cols)} -> {', '.join(target_cols)}",
+                    "relation_type": "deterministic",
+                    "status": "valid",
+                }
+            )
+    return {"nodes": nodes, "edges": edges}
+
+
 @router.get("/projects/{project_id}/active-job")
 def get_project_active_job(project_id: str, request: Request, db: Session = Depends(get_db)):
     started_at = time.perf_counter()
@@ -325,7 +367,10 @@ def get_job_schema_graph(job_id: str, request: Request, db: Session = Depends(ge
     started_at = time.perf_counter()
     try:
         job = _get_job_or_404(job_id, db)
+        _ensure_job_has_live_staging(job, db)
         graph = ((job.profile or {}).get("graph") or {}) if job.profile else {}
+        if not graph.get("nodes"):
+            graph = _build_graph_from_tables(job)
         payload = {
             "nodes": graph.get("nodes") or [],
             "edges": graph.get("edges") or [],

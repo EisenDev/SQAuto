@@ -156,7 +156,7 @@ export default function ExplorerPage() {
 
         <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
           <SectionCard title="Tables" description="Search and select extracted tables">
-            <div className={`space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
+            <div className={`flex flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
@@ -166,7 +166,7 @@ export default function ExplorerPage() {
                   className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-2.5 pl-10 pr-4 text-sm text-slate-200 outline-none transition focus:border-teal-400/40"
                 />
               </div>
-              <div className="space-y-2 overflow-y-auto pr-1">
+              <div className="flex-1 space-y-2 overflow-y-auto pr-1">
                 {filteredTables.map((table) => (
                   <button
                     key={table.name}
@@ -214,8 +214,9 @@ export default function ExplorerPage() {
             }
           >
             {selected && preview ? (
-              <div className={`space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
+              <div className={`flex h-full flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
                 <DataTable
+                  className="flex-1"
                   columns={preview.columns.map((column) => ({
                     key: column.name,
                     label: column.name,
@@ -223,7 +224,7 @@ export default function ExplorerPage() {
                   }))}
                   rows={preview.rows || []}
                 />
-                <div className="flex items-center justify-between text-sm text-slate-400">
+                <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-4 text-sm text-slate-400">
                   <span>{loadingPreview ? "Loading preview…" : `${preview.total.toLocaleString()} total rows`}</span>
                   <div className="flex items-center gap-2">
                     <button className={workspaceActions.secondary} onClick={() => setPage((current) => Math.max(1, current - 1))}>
@@ -243,7 +244,7 @@ export default function ExplorerPage() {
 
           <SectionCard title="Table Metadata" description="Column types, keys, and relation hints">
             {selected ? (
-              <div className={`space-y-3 ${workspaceViewportHeight} overflow-y-auto pr-1`}>
+              <div className={`space-y-3 ${workspaceViewportHeight} overflow-y-auto pb-16 pr-1`}>
                 <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Row count</div>
                   <div className="mt-2 text-2xl font-semibold text-white">{selected.row_count.toLocaleString()}</div>
