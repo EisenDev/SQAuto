@@ -18,7 +18,7 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockRequirement }: SidebarItemProps) => (
   <div 
-    className={`group flex items-center pl-[30px] py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
+    className={`group flex items-center pl-[18px] py-2.5 text-sm font-medium rounded-md cursor-pointer transition-all ${
       active 
         ? 'bg-teal-900/40 text-teal-300 border-l-2 border-teal-500' 
         : disabled 
@@ -28,7 +28,7 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
     onClick={() => !disabled && onClick(id)}
     title={disabled ? `Requires ${unlockRequirement}` : ''}
   >
-    {/* Centered Icon Container (at 40px mark) */}
+    {/* Precisely centered icon in the narrow w-14 drawer (center at 28px) */}
     <div className="w-5 flex-shrink-0 flex items-center justify-center mr-3">
       <Icon className={`h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
     </div>
@@ -39,7 +39,7 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
 );
 
 const SectionLabel = ({ label }: { label: string }) => (
-  <h3 className="pl-[30px] mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+  <h3 className="pl-[18px] mt-6 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-[0.1em]">
     {label}
   </h3>
 );
@@ -65,7 +65,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`absolute inset-y-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-20 overflow-x-hidden ${
-        isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-20'
+        isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-14'
       }`}
     >
       <nav className="flex-1 px-0 py-4 space-y-1 overflow-x-hidden custom-scrollbar">

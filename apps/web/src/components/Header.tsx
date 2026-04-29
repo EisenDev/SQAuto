@@ -57,8 +57,8 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl h-12">
       <div className="w-full h-full flex items-center">
-        {/* Logo Section - Perfectly Centered in w-20 (at 40px mark) */}
-        <div className="w-20 flex-shrink-0 flex items-center justify-center h-full border-r border-slate-800/40">
+        {/* Logo Section - Perfectly Centered in slim w-14 (at 28px mark) */}
+        <div className="w-14 flex-shrink-0 flex items-center justify-center h-full border-r border-slate-800/40">
           <Link href="/" className="group">
             <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center shadow-lg shadow-teal-500/20 group-hover:scale-105 transition-transform duration-200">
               <Database className="h-4.5 w-4.5 text-slate-950" />
