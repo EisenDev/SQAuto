@@ -60,8 +60,8 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
     <div 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`flex flex-col bg-slate-900 border-r border-slate-800 h-screen overflow-y-auto transition-all duration-300 ease-in-out z-20 ${
-        isHovered ? 'w-64 shadow-2xl shadow-black/50' : 'w-20'
+      className={`absolute inset-y-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-20 overflow-x-hidden ${
+        isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-20'
       }`}
     >
       <div className={`flex items-center h-16 border-b border-slate-800 transition-all ${isHovered ? 'px-4' : 'px-0 justify-center'}`}>

@@ -10,19 +10,16 @@ export default function ProjectLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden">
-      {/* Shared Sidebar */}
-      <ProjectSidebar />
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Shared Header */}
-        <Header />
-        
-        {/* Scrollable Content Area */}
-        <main className="flex-1 overflow-y-auto relative custom-scrollbar">
-          {children}
-        </main>
+    <div className="flex-1 flex bg-slate-950 overflow-hidden relative">
+      {/* Sidebar Container (Maintains 80px space) */}
+      <div className="w-20 flex-shrink-0 relative z-30">
+        <ProjectSidebar />
       </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 min-w-0 overflow-y-auto custom-scrollbar relative">
+        {children}
+      </main>
     </div>
   );
 }
