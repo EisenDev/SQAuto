@@ -54,14 +54,21 @@ export const ProjectSidebar = () => {
   const projectId = params?.projectId;
   const [isHovered, setIsHovered] = useState(false);
 
+  // If we are NOT in a project context, some items should be disabled or hidden
+  const hasProject = !!projectId;
+
   const extractionCompleted = activeJob?.status === 'completed';
 
   const getActiveTab = () => {
     const parts = pathname.split('/');
-    return parts[parts.length - 1] || 'overview';
+    const last = parts[parts.length - 1];
+    if (last === projectId) return 'overview';
+    return last || 'overview';
   };
 
   const handleNav = (tabId: string) => {
+    if (!hasProject) return; // Guard
+    
     // Standardize routing to the dashboard project structure
     if (tabId === 'upload') {
       router.push(`/dashboard/project/${projectId}/sql`);
@@ -90,6 +97,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Overview" : ""} 
           id="overview" 
           active={getActiveTab() === 'overview'} 
+          disabled={!hasProject}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -97,6 +105,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "SQL Upload" : ""} 
           id="upload" 
           active={getActiveTab() === 'upload'} 
+          disabled={!hasProject}
           onClick={handleNav} 
         />
 
