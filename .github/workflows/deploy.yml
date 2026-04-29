@@ -40,21 +40,6 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Copy project files to VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          source: "apps,configs,docker,services,requirements.txt,package.json,package-lock.json,.dockerignore,.gitignore"
-          target: "~/SQAuto"
-          overwrite: true
-          rm: false
-          strip_components: 0
-
       - name: Rebuild and restart on VM
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -72,8 +57,10 @@ jobs:
           script: |
             set -eu
 
-            mkdir -p ~/SQAuto
             cd ~/SQAuto
+
+            git fetch origin main
+            git reset --hard origin/main
 
             cat > .env <<EOF
             METADATA_DATABASE_URL=${METADATA_DATABASE_URL}
