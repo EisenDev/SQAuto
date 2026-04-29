@@ -71,6 +71,157 @@ export interface ProjectLogsResponse {
   lines: string[];
 }
 
+export interface JobProfileSummary {
+  job_id: string;
+  project_id: string;
+  table_count: number;
+  row_count: number;
+  data_size_mb: number;
+  dialect: string | null;
+  extraction_duration?: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  filename: string;
+  status: string;
+  profile: Record<string, any>;
+}
+
+export interface JobLogsResponse {
+  job_id: string;
+  project_id: string;
+  page: number;
+  limit: number;
+  total_lines: number;
+  lines: string[];
+}
+
+export interface WorkspaceTableSummary {
+  name: string;
+  row_count: number;
+  column_count: number;
+  primary_key: string | null;
+}
+
+export interface WorkspaceColumn {
+  name: string;
+  type: string;
+  nullable?: boolean;
+  primary?: boolean;
+  foreign?: string | null;
+}
+
+export interface TableRowsResponse {
+  table: string;
+  columns: WorkspaceColumn[];
+  rows: Record<string, unknown>[];
+  limit: number;
+  offset: number;
+  total_estimate: number;
+}
+
+export interface SchemaGraphResponse {
+  nodes: Array<{
+    id: string;
+    label: string;
+    columns?: WorkspaceColumn[];
+    primary_keys?: string[];
+    position?: { x: number; y: number };
+  }>;
+  edges: Array<{
+    id?: string;
+    source: string;
+    target: string;
+    label: string;
+    relation_type?: string;
+    status?: string;
+  }>;
+}
+
+export interface DiagnosticsResponse {
+  job_id: string;
+  project_id: string;
+  pipeline_steps: Array<{ name: string; status: string; duration: string }>;
+  row_processing_timeline: Array<{ label: string; rows: number; duration: number }>;
+  largest_tables: Array<{ name: string; rows: number; size_mb: number }>;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface QualityIssue {
+  table: string;
+  issue_type: string;
+  severity: string;
+  affected_rows: number;
+  detail: string;
+}
+
+export interface QualityReportResponse {
+  job_id: string;
+  project_id: string;
+  duplicate_count: number;
+  null_risk_count: number;
+  orphan_fk_count: number;
+  type_mismatch_count: number;
+  issues: QualityIssue[];
+  raw_report?: Record<string, any> | null;
+}
+
+export interface MappingStateResponse {
+  job_id: string;
+  project_id: string;
+  tables: Array<{
+    table: string;
+    columns: WorkspaceColumn[];
+    saved_mappings: Record<string, string>;
+    type_compatibility: Record<string, string>;
+  }>;
+}
+
+export interface ExportStatusResponse {
+  job_id: string;
+  project_id: string;
+  clean_sql_ready: boolean;
+  translated_sql_ready: boolean;
+  excel_ready: boolean;
+  artifact_sizes: Record<string, number | null>;
+  preview_available: boolean;
+  dialect?: string | null;
+  filename?: string | null;
+}
+
+export interface ExportPreviewResponse {
+  job_id: string;
+  project_id: string;
+  kind: string;
+  preview: string;
+}
+
+export interface MigrationTarget {
+  id: string;
+  project_id?: string | null;
+  name: string;
+  host: string;
+  port: number;
+  database_name: string;
+  username: string;
+  db_type?: string;
+  ssl_mode?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface MigrationRun {
+  id: string;
+  project_id?: string | null;
+  source_job_id: string;
+  target_id: string;
+  mode: string;
+  status: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  summary?: Record<string, any> | null;
+}
+
 /** 
  * Upload a SQL dump file with real-time progress tracking.
  * Uses chunked uploads to bypass Cloudflare/Proxy limits.
@@ -151,6 +302,10 @@ export async function getProjectSourceStatus(projectId: string): Promise<Project
   return apiFetch<ProjectSourceStatus>(`/projects/${projectId}/source-status`);
 }
 
+export async function getProjectActiveJob(projectId: string): Promise<Job | null> {
+  return apiFetch<Job | null>(`/projects/${projectId}/active-job`);
+}
+
 export async function getProjectLogs(projectId: string, limit = 10, page = 1): Promise<ProjectLogsResponse> {
   return apiFetch<ProjectLogsResponse>(`/projects/${projectId}/logs?limit=${limit}&page=${page}`);
 }
@@ -158,6 +313,79 @@ export async function getProjectLogs(projectId: string, limit = 10, page = 1): P
 /** Get job details */
 export async function getJob(jobId: string): Promise<Job> {
   return apiFetch<Job>(`/jobs/${jobId}`);
+}
+
+export async function getJobProfile(jobId: string): Promise<JobProfileSummary> {
+  return apiFetch<JobProfileSummary>(`/jobs/${jobId}/profile`);
+}
+
+export async function getJobLogs(jobId: string, limit = 10, page = 1): Promise<JobLogsResponse> {
+  return apiFetch<JobLogsResponse>(`/jobs/${jobId}/logs?limit=${limit}&page=${page}`);
+}
+
+export async function getJobTables(jobId: string): Promise<WorkspaceTableSummary[]> {
+  return apiFetch<WorkspaceTableSummary[]>(`/jobs/${jobId}/tables`);
+}
+
+export async function getJobTableRows(jobId: string, tableName: string, limit = 50, offset = 0, q = ""): Promise<TableRowsResponse> {
+  const search = q ? `&q=${encodeURIComponent(q)}` : "";
+  return apiFetch<TableRowsResponse>(`/jobs/${jobId}/tables/${encodeURIComponent(tableName)}/rows?limit=${limit}&offset=${offset}${search}`);
+}
+
+export async function getJobTableColumns(jobId: string, tableName: string): Promise<WorkspaceColumn[]> {
+  return apiFetch<WorkspaceColumn[]>(`/jobs/${jobId}/tables/${encodeURIComponent(tableName)}/columns`);
+}
+
+export async function getJobSchemaGraph(jobId: string): Promise<SchemaGraphResponse> {
+  return apiFetch<SchemaGraphResponse>(`/jobs/${jobId}/schema-graph`);
+}
+
+export async function getJobDiagnostics(jobId: string): Promise<DiagnosticsResponse> {
+  return apiFetch<DiagnosticsResponse>(`/jobs/${jobId}/diagnostics`);
+}
+
+export async function getJobQualityReport(jobId: string): Promise<QualityReportResponse> {
+  return apiFetch<QualityReportResponse>(`/jobs/${jobId}/quality-report`);
+}
+
+export async function getJobMappingState(jobId: string): Promise<MappingStateResponse> {
+  return apiFetch<MappingStateResponse>(`/jobs/${jobId}/mapping-state`);
+}
+
+export async function getJobExportStatus(jobId: string): Promise<ExportStatusResponse> {
+  return apiFetch<ExportStatusResponse>(`/jobs/${jobId}/exports/status`);
+}
+
+export async function getJobExportPreview(jobId: string, kind: string): Promise<ExportPreviewResponse> {
+  return apiFetch<ExportPreviewResponse>(`/jobs/${jobId}/exports/preview?kind=${encodeURIComponent(kind)}`);
+}
+
+export async function listMigrationTargets(projectId: string): Promise<MigrationTarget[]> {
+  return apiFetch<MigrationTarget[]>(`/migration/targets?project_id=${projectId}`);
+}
+
+export async function createMigrationTarget(projectId: string, payload: Record<string, any>): Promise<MigrationTarget> {
+  return apiFetch<MigrationTarget>(`/migration/targets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, project_id: projectId }),
+  });
+}
+
+export async function deleteMigrationTarget(projectId: string, targetId: string): Promise<{ status: string; id: string }> {
+  return apiFetch<{ status: string; id: string }>(`/migration/targets/${targetId}?project_id=${projectId}`, { method: "DELETE" });
+}
+
+export async function listMigrationRuns(sourceJobId: string): Promise<MigrationRun[]> {
+  return apiFetch<MigrationRun[]>(`/migration/runs?source_job_id=${sourceJobId}`);
+}
+
+export async function startDryRun(sourceJobId: string, targetId: string): Promise<MigrationRun> {
+  return apiFetch<MigrationRun>(`/migration/runs/dry-run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_job_id: sourceJobId, target_id: targetId }),
+  });
 }
 
 /** Set a job as active */

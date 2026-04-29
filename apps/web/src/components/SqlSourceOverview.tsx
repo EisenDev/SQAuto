@@ -16,12 +16,18 @@ interface SqlSourceOverviewProps {
 
 export default function SqlSourceOverview({ job, onReupload, onReset, onViewLogs }: SqlSourceOverviewProps) {
   const profile = job.profile || {};
+  const metadata = profile.metadata || {};
   const tables = profile.tables || {};
-  const tableCount = Object.keys(tables).length;
-  const rowCount = Object.values(tables).reduce((acc: number, t: any) => acc + (t.rows || 0), 0);
-  const dialect = profile.metadata?.dialect || "Unknown";
-  const duration = profile.metadata?.duration_sec ? `${Math.round(profile.metadata.duration_sec)}s` : "N/A";
-  const fileSize = job.file_size ? (job.file_size / (1024 * 1024)).toFixed(2) : "0";
+  const hasProfile = Object.keys(tables).length > 0 || Number(metadata.table_count || 0) > 0;
+  const tableCount = Number(metadata.table_count || Object.keys(tables).length || 0);
+  const rowCount = Number(metadata.total_rows || 0);
+  const dialect = metadata.flavor || metadata.dialect || "Unknown";
+  const durationSeconds = Number(metadata.duration_sec || 0);
+  const duration = durationSeconds > 0 ? `${Math.round(durationSeconds)}s` : "Analysis still processing";
+  const fileSize = job.file_size ? `${(job.file_size / (1024 * 1024)).toFixed(2)} MB` : "Pending";
+  const createdAt = job.created_at && !Number.isNaN(new Date(job.created_at).getTime())
+    ? new Date(job.created_at).toLocaleDateString()
+    : "Pending";
 
   const isProcessing = job.status === 'restoring' || job.status === 'analyzing';
 
@@ -47,7 +53,7 @@ export default function SqlSourceOverview({ job, onReupload, onReset, onViewLogs
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">File Size</p>
-              <p className="text-sm font-bold text-slate-300">{fileSize} MB</p>
+              <p className="text-sm font-bold text-slate-300">{fileSize}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Compression</p>
@@ -55,7 +61,7 @@ export default function SqlSourceOverview({ job, onReupload, onReset, onViewLogs
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Ingested At</p>
-              <p className="text-sm font-bold text-slate-300">{new Date(job.created_at!).toLocaleDateString()}</p>
+              <p className="text-sm font-bold text-slate-300">{createdAt}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Dialect</p>
@@ -81,11 +87,11 @@ export default function SqlSourceOverview({ job, onReupload, onReset, onViewLogs
             <div className="grid grid-cols-3 gap-6">
               <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Tables</p>
-                <p className="text-2xl font-black text-white">{tableCount}</p>
+                <p className="text-2xl font-black text-white">{hasProfile ? tableCount : "—"}</p>
               </div>
               <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Rows</p>
-                <p className="text-2xl font-black text-white">{rowCount.toLocaleString()}</p>
+                <p className="text-2xl font-black text-white">{hasProfile ? rowCount.toLocaleString() : "Analysis still processing"}</p>
               </div>
               <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800">
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Duration</p>

@@ -9,6 +9,7 @@ SAFETY: Passwords are NEVER returned in any API response.
 
 import logging
 import time
+import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -36,6 +37,7 @@ execution_service = ExecutionEngineService()
 # ============================================================
 
 class TargetCreateRequest(BaseModel):
+    project_id: Optional[str] = None
     name: str
     host: str
     port: int = 5432
@@ -88,6 +90,7 @@ def serialize_target(t: MigrationTarget) -> dict:
     """Convert a MigrationTarget to a dict, excluding the password."""
     return {
         "id": str(t.id),
+        "project_id": str(t.project_id) if t.project_id else None,
         "name": t.name,
         "host": t.host,
         "port": t.port,
@@ -104,6 +107,7 @@ def serialize_run(r: MigrationRun) -> dict:
     """Convert a MigrationRun to a dict."""
     return {
         "id": str(r.id),
+        "project_id": str(r.project_id) if r.project_id else None,
         "source_job_id": str(r.source_job_id),
         "target_id": str(r.target_id),
         "mode": r.mode.value if r.mode else None,
@@ -140,6 +144,7 @@ def create_target(request: TargetCreateRequest, db: Session = Depends(get_db)):
     Password is stored but NEVER returned in responses.
     """
     target = MigrationTarget(
+        project_id=uuid.UUID(request.project_id) if request.project_id else None,
         name=request.name,
         host=request.host,
         port=request.port,
@@ -174,18 +179,24 @@ def test_target_connection(request: TargetTestRequest):
 
 
 @router.get("/targets", summary="List saved target connections")
-def list_targets(db: Session = Depends(get_db)):
+def list_targets(project_id: Optional[str] = None, db: Session = Depends(get_db)):
     """List all saved target connections. Passwords are excluded."""
-    targets = db.query(MigrationTarget).order_by(MigrationTarget.created_at.desc()).all()
+    query = db.query(MigrationTarget)
+    if project_id:
+        query = query.filter(MigrationTarget.project_id == project_id)
+    targets = query.order_by(MigrationTarget.created_at.desc()).all()
     return [serialize_target(t) for t in targets]
 
 
 @router.patch("/targets/{target_id}", summary="Update a saved target connection")
-def update_target(target_id: str, request: TargetUpdateRequest, db: Session = Depends(get_db)):
+def update_target(target_id: str, request: TargetUpdateRequest, project_id: Optional[str] = None, db: Session = Depends(get_db)):
     """Update a saved target connection.
     If password is empty or not provided, it keeps the existing password.
     """
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_id).first()
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+    if project_id:
+        query = query.filter(MigrationTarget.project_id == project_id)
+    target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
         
@@ -206,9 +217,12 @@ def update_target(target_id: str, request: TargetUpdateRequest, db: Session = De
 
 
 @router.delete("/targets/{target_id}", summary="Delete a saved target connection")
-def delete_target(target_id: str, db: Session = Depends(get_db)):
+def delete_target(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db)):
     """Delete a saved target connection by ID."""
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_id).first()
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+    if project_id:
+        query = query.filter(MigrationTarget.project_id == project_id)
+    target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
     
@@ -264,9 +278,12 @@ def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db:
     target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
+    if target.project_id and job.project_id and str(target.project_id) != str(job.project_id):
+        raise HTTPException(status_code=400, detail="Target does not belong to the same project")
     
     # Create migration run record
     run = MigrationRun(
+        project_id=job.project_id,
         source_job_id=request.source_job_id,
         target_id=request.target_id,
         mode=MigrationRunMode.DRY_RUN,
@@ -423,6 +440,7 @@ def start_execution(request: MigrationExecuteRequest, background_tasks: Backgrou
     run_mode = MigrationRunMode.PREVIEW if request.mode == "preview" else MigrationRunMode.EXECUTE
     
     run = MigrationRun(
+        project_id=job.project_id,
         source_job_id=request.source_job_id,
         target_id=request.target_id,
         mode=run_mode,

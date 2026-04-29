@@ -16,6 +16,7 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { getJobQualityReport, getJobSchemaGraph } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 
 export default function VisualizerPage() {
@@ -23,8 +24,44 @@ export default function VisualizerPage() {
   const router = useRouter();
   const { projectId } = params;
   const workspace = useProjectWorkspaceData(projectId);
+  const [graph, setGraph] = React.useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
+  const [issues, setIssues] = React.useState<any[]>([]);
+  const [pageError, setPageError] = React.useState<string | null>(null);
 
-  const flowNodes = workspace.graph.nodes.map((node, index) => ({
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setGraph({ nodes: [], edges: [] });
+        setIssues([]);
+        return;
+      }
+      try {
+        const [graphResult, qualityResult] = await Promise.all([
+          getJobSchemaGraph(workspace.sourceStatus.active_job_id),
+          getJobQualityReport(workspace.sourceStatus.active_job_id),
+        ]);
+        if (cancelled) return;
+        setGraph(graphResult);
+        setIssues((qualityResult.issues || []).filter((issue) => issue.issue_type === "Orphan Records" || issue.issue_type === "Type Mismatches"));
+        setPageError(null);
+      } catch (error: any) {
+        if (!cancelled) {
+          setGraph({ nodes: [], edges: [] });
+          setIssues([]);
+          setPageError(error?.message || "Unable to load real data");
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.sourceStatus.active_job_id]);
+
+  const flowNodes = graph.nodes.map((node, index) => ({
     id: node.id,
     position: node.position || { x: (index % 3) * 260, y: Math.floor(index / 3) * 180 },
     data: { label: node.label },
@@ -39,7 +76,7 @@ export default function VisualizerPage() {
     },
   }));
 
-  const flowEdges = workspace.graph.edges.map((edge) => ({
+  const flowEdges = graph.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -49,8 +86,6 @@ export default function VisualizerPage() {
     markerEnd: { type: MarkerType.ArrowClosed, color: "#2dd4bf" },
     labelStyle: { fill: "#cbd5e1", fontSize: 11 },
   }));
-
-  const issues = workspace.issues.filter((issue) => issue.issueType === "Orphan Records" || issue.issueType === "Type Mismatches");
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -78,7 +113,7 @@ export default function VisualizerPage() {
         <PageHeader
           title={workspaceMeta.visualizer.title}
           description={workspaceMeta.visualizer.description}
-          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <button className={workspaceActions.secondary} onClick={workspace.reload}>
               <RefreshCw className="h-4 w-4" />
@@ -87,10 +122,11 @@ export default function VisualizerPage() {
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
           <SectionCard title="Schema Graph" description="Detected tables and deterministic relationships">
+            {flowNodes.length > 0 ? (
             <div className="h-[640px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
               <ReactFlow nodes={flowNodes} edges={flowEdges} fitView>
                 <Background color="rgba(148,163,184,0.15)" gap={24} />
@@ -98,6 +134,9 @@ export default function VisualizerPage() {
                 <Controls />
               </ReactFlow>
             </div>
+            ) : (
+              <EmptyState title="Schema graph not generated yet" description="No real schema graph is available for the active job yet." />
+            )}
           </SectionCard>
 
           <div className="space-y-6">
@@ -123,7 +162,7 @@ export default function VisualizerPage() {
                 <DataTable
                   columns={[
                     { key: "table", label: "Table" },
-                    { key: "issueType", label: "Issue" },
+                    { key: "issue_type", label: "Issue" },
                     {
                       key: "severity",
                       label: "Severity",
@@ -133,7 +172,7 @@ export default function VisualizerPage() {
                   rows={issues}
                 />
               ) : (
-                <EmptyState title="No structural issues detected" description="Missing foreign keys and orphaned islands will be highlighted here once analysis reports them." />
+                <EmptyState title="No data available yet" description="Missing foreign keys and orphaned islands will be highlighted here when real quality analysis reports them." />
               )}
             </SectionCard>
           </div>

@@ -183,7 +183,7 @@ export default function SqlManagementPage() {
             </div>
             {activeJob.status === 'completed' && (
               <button 
-                onClick={() => router.push(`/workspace/${projectId}/explorer`)}
+                onClick={() => router.push(`/dashboard/project/${projectId}/explorer`)}
                 className="px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-black rounded-2xl transition-all shadow-lg shadow-teal-500/20 whitespace-nowrap"
               >
                 GO TO EXPLORER

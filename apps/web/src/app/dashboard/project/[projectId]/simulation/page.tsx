@@ -11,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import { PlayCircle, RefreshCw } from "lucide-react";
-import { safeFetch } from "@/lib/api_client";
 import {
   DataTable,
   EmptyState,
@@ -25,66 +24,86 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+import { listMigrationRuns, listMigrationTargets, startDryRun } from "@/lib/api";
 
 export default function SimulationPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
-  const [targets, setTargets] = React.useState(workspace.destinations);
+  const [targets, setTargets] = React.useState<any[]>([]);
   const [selectedTarget, setSelectedTarget] = React.useState("");
   const [running, setRunning] = React.useState(false);
   const [result, setResult] = React.useState<any>(null);
+  const [runs, setRuns] = React.useState<any[]>([]);
+  const [pageError, setPageError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    safeFetch(`${API_URL}/migration/targets`).then((response) => {
-      if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-        setTargets(response.data);
-        if (!selectedTarget) setSelectedTarget(response.data[0].id);
-      } else {
-        if (!selectedTarget && workspace.destinations[0]) setSelectedTarget(workspace.destinations[0].id);
+    let cancelled = false;
+
+    async function loadTargets() {
+      try {
+        const response = await listMigrationTargets(params.projectId);
+        if (cancelled) return;
+        setTargets(response);
+        if (!selectedTarget && response[0]) setSelectedTarget(response[0].id);
+        setPageError(null);
+      } catch (error: any) {
+        if (!cancelled) {
+          setTargets([]);
+          setPageError(error?.message || "Unable to load real data");
+        }
       }
-    });
-  }, [selectedTarget, workspace.destinations]);
+    }
+
+    void loadTargets();
+    return () => {
+      cancelled = true;
+    };
+  }, [params.projectId, selectedTarget]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadRuns() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setRuns([]);
+        return;
+      }
+      try {
+        const response = await listMigrationRuns(workspace.sourceStatus.active_job_id);
+        if (!cancelled) {
+          setRuns(response);
+          if (!result && response[0]) setResult(response[0]);
+        }
+      } catch {
+        if (!cancelled) setRuns([]);
+      }
+    }
+
+    void loadRuns();
+    return () => {
+      cancelled = true;
+    };
+  }, [result, workspace.sourceStatus.active_job_id]);
 
   const runSimulation = async () => {
     if (!workspace.sourceStatus.active_job_id || !selectedTarget) {
-      setResult({
-        matched: workspace.tables.length,
-        diff: Math.max(2, Math.round(workspace.sourceStatus.metrics.rows * 0.02)),
-        warnings: ["Using preview data because no active extracted job is selected."],
-      });
       return;
     }
 
     setRunning(true);
-    const response = await safeFetch(`${API_URL}/migration/runs/dry-run`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source_job_id: workspace.sourceStatus.active_job_id,
-        target_id: selectedTarget,
-      }),
-    });
-
-    if (response.success && response.data) {
-      setResult({
-        matched: workspace.tables.length,
-        diff: Math.max(1, Math.round(workspace.sourceStatus.metrics.rows * 0.01)),
-        warnings: ["Dry-run queued successfully. Detailed reconciliation will appear as runs finish."],
-      });
-    } else {
-      setResult({
-        matched: workspace.tables.length - 1,
-        diff: Math.max(3, Math.round(workspace.sourceStatus.metrics.rows * 0.03)),
-        warnings: [response.error || "Using fallback simulation result."],
-      });
+    try {
+      const response = await startDryRun(workspace.sourceStatus.active_job_id, selectedTarget);
+      setResult(response);
+      setPageError(null);
+    } catch (error: any) {
+      setPageError(error?.message || "Unable to load real data");
     }
     setRunning(false);
   };
 
-  const diffData = workspace.tables.slice(0, 6).map((table, index) => ({
-    name: table.name,
-    diff: Math.max(0, Math.round(table.rowCount * (0.01 + index * 0.005))),
+  const latestSummary = result?.summary || runs[0]?.summary || null;
+  const diffData = (latestSummary?.row_count_comparison || []).slice(0, 6).map((item: any) => ({
+    name: item.table,
+    diff: Math.abs(Number(item.difference || 0)),
   }));
 
   if (!workspace.hasAnyJob && !workspace.usingMockData) {
@@ -118,7 +137,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
           <SectionCard title="Simulation Inputs" description="Select the current source and target destination">
@@ -126,7 +145,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
               <label className="space-y-2 text-sm text-slate-300">
                 <span>Source job</span>
                 <select className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2.5 text-slate-100 outline-none">
-                  <option value={workspace.sourceStatus.active_job_id || ""}>{workspace.sourceStatus.filename || "Fallback source job"}</option>
+                  <option value={workspace.sourceStatus.active_job_id || ""}>{workspace.sourceStatus.filename || "No data available yet"}</option>
                 </select>
               </label>
               <label className="space-y-2 text-sm text-slate-300">
@@ -143,6 +162,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
                   ))}
                 </select>
               </label>
+              {targets.length === 0 ? <EmptyState title="No data available yet" description="Save a live destination for this project before running simulation." /> : null}
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">
                 Simulations remain non-destructive. The current backend path only queues dry-run validation and uses preview summaries when live execution data is absent.
               </div>
@@ -151,12 +171,13 @@ export default function SimulationPage({ params }: { params: { projectId: string
 
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
-              <StatCard title="Tables Matched" value={result?.matched ?? workspace.tables.length} tone="teal" />
-              <StatCard title="Rows Diff" value={result?.diff ?? Math.round(workspace.sourceStatus.metrics.rows * 0.02)} tone="amber" />
-              <StatCard title="Warnings" value={result?.warnings?.length ?? 1} tone="violet" />
+              <StatCard title="Tables Matched" value={latestSummary?.tables_checked ?? 0} tone="teal" />
+              <StatCard title="Rows Diff" value={diffData.reduce((sum: number, item: any) => sum + item.diff, 0)} tone="amber" />
+              <StatCard title="Warnings" value={latestSummary?.warnings_count ?? 0} tone="violet" />
             </div>
 
             <SectionCard title="Diff Chart" description="Estimated row variance by table">
+              {diffData.length > 0 ? (
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={diffData}>
@@ -168,6 +189,9 @@ export default function SimulationPage({ params }: { params: { projectId: string
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              ) : (
+                <EmptyState title="No data available yet" description="Run a real dry-run to generate row difference summaries." />
+              )}
             </SectionCard>
 
             <SectionCard title="Simulation Result" description="Current dry-run summary and warnings">
@@ -177,17 +201,17 @@ export default function SimulationPage({ params }: { params: { projectId: string
                   { key: "value", label: "Value" },
                 ]}
                 rows={[
-                  { name: "Matched tables", value: result?.matched ?? workspace.tables.length },
-                  { name: "Row diff estimate", value: result?.diff ?? Math.round(workspace.sourceStatus.metrics.rows * 0.02) },
-                  { name: "Status", value: <StatusBadge status={running ? "processing" : "completed"}>{running ? "Running" : "Preview"}</StatusBadge> },
+                  { name: "Matched tables", value: latestSummary?.tables_checked ?? 0 },
+                  { name: "Missing in target", value: latestSummary?.tables_missing_in_target?.length ?? 0 },
+                  { name: "Status", value: <StatusBadge status={running ? "processing" : (result?.status || runs[0]?.status || "idle")}>{running ? "Running" : (result?.status || runs[0]?.status || "idle")}</StatusBadge> },
                 ]}
               />
               <div className="mt-4 space-y-2">
-                {(result?.warnings || ["No live simulation yet. Preview mode is active."]).map((warning: string) => (
+                {latestSummary?.tables_missing_in_target?.length ? latestSummary.tables_missing_in_target.map((warning: string) => (
                   <div key={warning} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
                     {warning}
                   </div>
-                ))}
+                )) : <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">No data available yet</div>}
               </div>
             </SectionCard>
           </div>

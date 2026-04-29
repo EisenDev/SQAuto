@@ -14,17 +14,71 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { getJobExportPreview, getJobExportStatus } from "@/lib/api";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ExportPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
   const router = useRouter();
   const [selectedPreview, setSelectedPreview] = React.useState("clean-sql");
+  const [exportStatus, setExportStatus] = React.useState<any | null>(null);
+  const [preview, setPreview] = React.useState("Generate export first");
+  const [pageError, setPageError] = React.useState<string | null>(null);
 
-  const preview = {
-    "clean-sql": `-- Clean SQL Preview\nCREATE TABLE customers (\n  customer_id uuid primary key,\n  created_at timestamp,\n  status text\n);\n\n-- ${workspace.tables[0]?.rowCount || 0} staged rows available for export`,
-    "translated-sql": `-- Translated SQL Preview\n-- Target dialect conversion is staged after mapping review.\n-- Preview data remains read-only until generated.`,
-    excel: `Workbook Preview\n- 00_Summary\n- Table Sheets (${workspace.tables.length})\n- Validation_Report\n- AI_Summary`,
-  } as Record<string, string>;
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatus() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setExportStatus(null);
+        return;
+      }
+      try {
+        const result = await getJobExportStatus(workspace.sourceStatus.active_job_id);
+        if (!cancelled) {
+          setExportStatus(result);
+          setPageError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setExportStatus(null);
+          setPageError(error?.message || "Unable to load real data");
+        }
+      }
+    }
+
+    void loadStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.sourceStatus.active_job_id]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadPreview() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setPreview("Generate export first");
+        return;
+      }
+      try {
+        const result = await getJobExportPreview(workspace.sourceStatus.active_job_id, selectedPreview);
+        if (!cancelled) {
+          setPreview(result.preview || "Generate export first");
+        }
+      } catch {
+        if (!cancelled) {
+          setPreview("Generate export first");
+        }
+      }
+    }
+
+    void loadPreview();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPreview, workspace.sourceStatus.active_job_id]);
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -43,7 +97,7 @@ export default function ExportPage({ params }: { params: { projectId: string } }
         <PageHeader
           title={workspaceMeta.export.title}
           description={workspaceMeta.export.description}
-          badge={<StatusBadge status={workspace.activeJob?.id ? "completed" : "idle"}>{workspace.activeJob?.id ? "Ready for export" : "Generate first"}</StatusBadge>}
+          badge={<StatusBadge status={exportStatus?.clean_sql_ready || exportStatus?.excel_ready ? "completed" : "idle"}>{exportStatus?.clean_sql_ready || exportStatus?.excel_ready ? "Ready for export" : "Generate first"}</StatusBadge>}
           actions={
             <>
               <button className={workspaceActions.secondary} onClick={workspace.reload}>
@@ -58,10 +112,14 @@ export default function ExportPage({ params }: { params: { projectId: string } }
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="grid gap-4 md:grid-cols-3">
-          {workspace.exportOptions.map((item) => (
+          {[
+            { id: "clean-sql", title: "Clean SQL", description: "Sanitized PostgreSQL-friendly export from staging.", format: ".sql", ready: Boolean(exportStatus?.clean_sql_ready), endpoint: "clean-sql" },
+            { id: "translated-sql", title: "Translated SQL", description: "Dialect-converted output for the chosen target engine.", format: ".sql", ready: Boolean(exportStatus?.translated_sql_ready), endpoint: "translated-sql" },
+            { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: Boolean(exportStatus?.excel_ready), endpoint: "excel" },
+          ].map((item) => (
             <button
               key={item.id}
               onClick={() => setSelectedPreview(item.id)}
@@ -83,10 +141,13 @@ export default function ExportPage({ params }: { params: { projectId: string } }
               </div>
               <div className="mt-5 flex items-center justify-between">
                 <span className="text-sm text-slate-500">{item.ready ? "Ready" : "Pending generation"}</span>
-                <span className={`${workspaceActions.secondary} ${item.ready ? "" : "opacity-50"} pointer-events-none`}>
+                <a
+                  href={item.ready && workspace.sourceStatus.active_job_id ? `${API_URL}/jobs/${workspace.sourceStatus.active_job_id}/export/${item.endpoint}` : undefined}
+                  className={`${workspaceActions.secondary} ${item.ready ? "" : "opacity-50 pointer-events-none"}`}
+                >
                   <Download className="h-4 w-4" />
                   Download
-                </span>
+                </a>
               </div>
             </button>
           ))}
@@ -95,7 +156,7 @@ export default function ExportPage({ params }: { params: { projectId: string } }
         <SectionCard title="Preview Panel" description="Readonly preview of the selected export artifact">
           <textarea
             readOnly
-            value={preview[selectedPreview]}
+            value={preview}
             className="min-h-[340px] w-full rounded-3xl border border-white/10 bg-slate-950/70 p-5 font-mono text-sm leading-6 text-slate-200 outline-none"
           />
         </SectionCard>

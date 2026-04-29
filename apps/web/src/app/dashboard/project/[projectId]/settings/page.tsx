@@ -61,7 +61,7 @@ export default function SettingsPage({ params }: { params: { projectId: string }
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error} />
 
         <SectionCard title="Project Info" description="Rename the project and update its description">
           <div className="grid gap-4">

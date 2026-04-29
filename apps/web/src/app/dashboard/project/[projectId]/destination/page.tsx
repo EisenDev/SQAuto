@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { safeFetch } from "@/lib/api_client";
 import {
   DataTable,
+  EmptyState,
   PageFrame,
   PageHeader,
   SectionCard,
@@ -16,15 +17,17 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { createMigrationTarget, deleteMigrationTarget, listMigrationTargets } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function DestinationPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
-  const [targets, setTargets] = React.useState<WorkspaceTarget[]>(workspace.destinations);
+  const [targets, setTargets] = React.useState<WorkspaceTarget[]>([]);
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
+  const [pageError, setPageError] = React.useState<string | null>(null);
   const [form, setForm] = React.useState({
     name: "",
     host: "",
@@ -35,13 +38,15 @@ export default function DestinationPage({ params }: { params: { projectId: strin
   });
 
   const loadTargets = React.useCallback(async () => {
-    const response = await safeFetch(`${API_URL}/migration/targets`);
-    if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-      setTargets(response.data);
-    } else {
-      setTargets(workspace.destinations);
+    try {
+      const result = await listMigrationTargets(params.projectId);
+      setTargets(result as WorkspaceTarget[]);
+      setPageError(null);
+    } catch (error: any) {
+      setTargets([]);
+      setPageError(error?.message || "Unable to load real data");
     }
-  }, [workspace.destinations]);
+  }, [params.projectId]);
 
   React.useEffect(() => {
     loadTargets();
@@ -66,37 +71,19 @@ export default function DestinationPage({ params }: { params: { projectId: strin
 
   const saveTarget = async () => {
     setSaving(true);
-    const response = await safeFetch(`${API_URL}/migration/targets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const response = await createMigrationTarget(params.projectId, {
         ...form,
         port: Number(form.port),
         db_type: "postgresql",
         ssl_mode: "prefer",
-      }),
-    });
-
-    if (response.success && response.data) {
-      setTargets((current) => [response.data, ...current]);
+      });
+      setTargets((current) => [response as unknown as WorkspaceTarget, ...current]);
       setOpen(false);
       toast.success("Destination saved");
-    } else {
-      setTargets((current) => [
-        {
-          id: `mock-${Date.now()}`,
-          name: form.name || "Unsaved destination",
-          host: form.host || "unknown-host",
-          port: Number(form.port || 5432),
-          database_name: form.database_name || "database",
-          username: form.username || "user",
-          db_type: "postgresql",
-          ssl_mode: "prefer",
-        },
-        ...current,
-      ]);
-      setOpen(false);
-      toast.warning("Saved as local preview because the API did not respond");
+      setPageError(null);
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to save destination");
     }
     setSaving(false);
   };
@@ -121,7 +108,7 @@ export default function DestinationPage({ params }: { params: { projectId: strin
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="rounded-2xl border border-amber-400/15 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
           <div className="flex items-center gap-2 font-medium">
@@ -157,7 +144,14 @@ export default function DestinationPage({ params }: { params: { projectId: strin
                 render: (row) => (
                   <button
                     className={workspaceActions.secondary}
-                    onClick={() => setTargets((current) => current.filter((item) => item.id !== row.id))}
+                    onClick={async () => {
+                      try {
+                        await deleteMigrationTarget(params.projectId, row.id);
+                        setTargets((current) => current.filter((item) => item.id !== row.id));
+                      } catch (error: any) {
+                        toast.error(error?.message || "Unable to remove destination");
+                      }
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                     Remove
@@ -167,6 +161,7 @@ export default function DestinationPage({ params }: { params: { projectId: strin
             ]}
             rows={targets}
           />
+          {targets.length === 0 ? <div className="mt-4"><EmptyState title="No data available yet" description="No live destinations are saved for this project yet." /></div> : null}
         </SectionCard>
 
         {open ? (

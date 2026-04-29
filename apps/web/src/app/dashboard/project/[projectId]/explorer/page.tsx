@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Database, Filter, RefreshCw, Search, UploadCloud } from "lucide-react";
-import { safeFetch } from "@/lib/api_client";
 import {
   DataTable,
   EmptyState,
@@ -15,9 +14,8 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { getJobTableColumns, getJobTableRows, getJobTables, WorkspaceColumn, WorkspaceTableSummary } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ExplorerPage() {
   const params = useParams<{ projectId: string }>();
@@ -28,53 +26,85 @@ export default function ExplorerPage() {
   const [rowSearch, setRowSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [selectedTable, setSelectedTable] = React.useState<string>("");
-  const [preview, setPreview] = React.useState<{ columns: string[]; rows: Record<string, unknown>[]; total: number } | null>(null);
+  const [tables, setTables] = React.useState<WorkspaceTableSummary[]>([]);
+  const [columns, setColumns] = React.useState<WorkspaceColumn[]>([]);
+  const [preview, setPreview] = React.useState<{ columns: WorkspaceColumn[]; rows: Record<string, unknown>[]; total: number } | null>(null);
   const [loadingPreview, setLoadingPreview] = React.useState(false);
+  const [pageError, setPageError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!selectedTable && workspace.tables.length > 0) {
-      setSelectedTable(workspace.tables[0].name);
+    let cancelled = false;
+
+    async function loadTables() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setTables([]);
+        setPageError(null);
+        return;
+      }
+      try {
+        const result = await getJobTables(workspace.sourceStatus.active_job_id);
+        if (!cancelled) {
+          setTables(result);
+          setPageError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setTables([]);
+          setPageError(error?.message || "Unable to load real data");
+        }
+      }
     }
-  }, [selectedTable, workspace.tables]);
+
+    void loadTables();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.sourceStatus.active_job_id]);
+
+  React.useEffect(() => {
+    if (!selectedTable && tables.length > 0) {
+      setSelectedTable(tables[0].name);
+    }
+  }, [selectedTable, tables]);
 
   const filteredTables = React.useMemo(
-    () => workspace.tables.filter((table) => table.name.toLowerCase().includes(tableSearch.toLowerCase())),
-    [workspace.tables, tableSearch],
+    () => tables.filter((table) => table.name.toLowerCase().includes(tableSearch.toLowerCase())),
+    [tables, tableSearch],
   );
 
-  const selected = workspace.tables.find((table) => table.name === selectedTable) || filteredTables[0];
+  const selected = tables.find((table) => table.name === selectedTable) || filteredTables[0];
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function loadPreview() {
       if (!selected || !workspace.activeJob?.id) {
-        setPreview(
-          selected
-            ? {
-                columns: selected.columns.map((column) => column.name),
-                rows: selected.sampleRows,
-                total: selected.rowCount,
-              }
-            : null,
-        );
+        setPreview(null);
+        setColumns([]);
         return;
       }
 
       setLoadingPreview(true);
-      const offset = (page - 1) * 25;
-      const search = rowSearch ? `&q=${encodeURIComponent(rowSearch)}` : "";
-      const response = await safeFetch(`${API_URL}/explorer/${workspace.activeJob.id}/table/${selected.name}/data?limit=25&offset=${offset}${search}`);
-      if (cancelled) return;
-
-      if (response.success && response.data) {
-        setPreview(response.data);
-      } else {
+      try {
+        const offset = (page - 1) * 50;
+        const [rowsResult, columnsResult] = await Promise.all([
+          getJobTableRows(workspace.activeJob.id, selected.name, 50, offset, rowSearch),
+          getJobTableColumns(workspace.activeJob.id, selected.name),
+        ]);
+        if (cancelled) return;
+        setColumns(columnsResult);
         setPreview({
-          columns: selected.columns.map((column) => column.name),
-          rows: selected.sampleRows,
-          total: selected.rowCount,
+          columns: rowsResult.columns,
+          rows: rowsResult.rows,
+          total: rowsResult.total_estimate,
         });
+        setPageError(null);
+      } catch (error: any) {
+        if (!cancelled) {
+          setPreview(null);
+          setColumns([]);
+          setPageError(error?.message || "Unable to load real data");
+        }
       }
       setLoadingPreview(false);
     }
@@ -111,7 +141,7 @@ export default function ExplorerPage() {
         <PageHeader
           title={workspaceMeta.explorer.title}
           description={workspaceMeta.explorer.description}
-          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <button className={workspaceActions.secondary} onClick={workspace.reload}>
               <RefreshCw className="h-4 w-4" />
@@ -120,7 +150,7 @@ export default function ExplorerPage() {
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading || loadingPreview} error={workspace.error || pageError} />
 
         <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
           <SectionCard title="Tables" description="Search and select extracted tables">
@@ -149,9 +179,10 @@ export default function ExplorerPage() {
                     }`}
                   >
                     <div className="font-medium">{table.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">{table.rowCount.toLocaleString()} rows</div>
+                    <div className="mt-1 text-xs text-slate-500">{table.row_count.toLocaleString()} rows</div>
                   </button>
                 ))}
+                {filteredTables.length === 0 ? <EmptyState title="No data available yet" description="No extracted tables are available for this project." /> : null}
               </div>
             </div>
           </SectionCard>
@@ -183,10 +214,10 @@ export default function ExplorerPage() {
             {selected && preview ? (
               <div className="space-y-4">
                 <DataTable
-                  columns={(preview.columns || selected.columns.map((column) => column.name)).map((column) => ({
-                    key: column,
-                    label: column,
-                    render: (row) => <span className="font-mono text-[13px]">{String(row[column] ?? "NULL")}</span>,
+                  columns={preview.columns.map((column) => ({
+                    key: column.name,
+                    label: column.name,
+                    render: (row) => <span className="font-mono text-[13px]">{String(row[column.name] ?? "NULL")}</span>,
                   }))}
                   rows={preview.rows || []}
                 />
@@ -204,7 +235,7 @@ export default function ExplorerPage() {
                 </div>
               </div>
             ) : (
-              <EmptyState title="No tables available yet" description="Select a staged table from the left panel to inspect its preview rows." />
+              <EmptyState title="No data available yet" description="Select a staged table from the left panel to inspect its preview rows." />
             )}
           </SectionCard>
 
@@ -213,9 +244,9 @@ export default function ExplorerPage() {
               <div className="space-y-3">
                 <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Row count</div>
-                  <div className="mt-2 text-2xl font-semibold text-white">{selected.rowCount.toLocaleString()}</div>
+                  <div className="mt-2 text-2xl font-semibold text-white">{selected.row_count.toLocaleString()}</div>
                 </div>
-                {selected.columns.map((column) => (
+                {columns.map((column) => (
                   <div key={column.name} className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-medium text-white">{column.name}</div>

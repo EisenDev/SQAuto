@@ -24,6 +24,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ActionLink,
   DataTable,
+  EmptyState,
   PageFrame,
   PageHeader,
   SectionCard,
@@ -71,17 +72,11 @@ export default function ProjectDashboardPage() {
     },
   ];
 
-  const statusSeries = workspace.recentJobs.length > 0
-    ? workspace.recentJobs.map((job, index) => ({
-        label: `Job ${index + 1}`,
-        completed: job.status === "completed" ? 1 : 0,
-        processing: job.status === "restoring" || job.status === "analyzing" || job.status === "uploaded" ? 1 : 0,
-      }))
-    : [
-        { label: "Upload", completed: 1, processing: 0 },
-        { label: "Restore", completed: 1, processing: 0 },
-        { label: "Analyze", completed: 0, processing: 1 },
-      ];
+  const statusSeries = workspace.recentJobs.map((job, index) => ({
+    label: `Job ${index + 1}`,
+    completed: job.status === "completed" ? 1 : 0,
+    processing: job.status === "restoring" || job.status === "analyzing" || job.status === "uploaded" ? 1 : 0,
+  }));
 
   return (
     <PageFrame>
@@ -89,7 +84,7 @@ export default function ProjectDashboardPage() {
         <PageHeader
           title={workspace.project.name}
           description={workspace.project.description || "Project workspace overview for migration progress, source health, and next actions."}
-          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <>
               <button className={workspaceActions.secondary} onClick={workspace.reload}>
@@ -137,6 +132,7 @@ export default function ProjectDashboardPage() {
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <SectionCard title="Activity Timeline" description="Recent workspace events and source transitions">
+            {workspace.timeline.length > 0 ? (
             <div className="space-y-4">
               {workspace.timeline.map((entry) => (
                 <div key={`${entry.title}-${entry.time}`} className="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
@@ -152,9 +148,13 @@ export default function ProjectDashboardPage() {
                 </div>
               ))}
             </div>
+            ) : (
+              <EmptyState title="No data available yet" description="Upload a SQL source to start building a project activity timeline." />
+            )}
           </SectionCard>
 
           <SectionCard title="Status Graph" description="Latest job progression snapshot">
+            {statusSeries.length > 0 ? (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={statusSeries}>
@@ -177,11 +177,15 @@ export default function ProjectDashboardPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+            ) : (
+              <EmptyState title="No data available yet" description="Recent job status activity appears here after the first project upload." />
+            )}
           </SectionCard>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
           <SectionCard title="Recent Jobs" description="Most recent jobs attached to this project">
+            {workspace.recentJobs.length > 0 ? (
             <DataTable
               columns={[
                 { key: "filename", label: "Source File" },
@@ -192,8 +196,11 @@ export default function ProjectDashboardPage() {
                 },
                 { key: "created_at", label: "Created", render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : "—" },
               ]}
-              rows={workspace.recentJobs.length > 0 ? workspace.recentJobs : [{ filename: "No jobs yet", status: "idle", created_at: null }]}
+              rows={workspace.recentJobs}
             />
+            ) : (
+              <EmptyState title="No data available yet" description="This project has no job history yet." />
+            )}
           </SectionCard>
 
           <SectionCard title="Current Source" description="Latest active source-of-truth attachment">

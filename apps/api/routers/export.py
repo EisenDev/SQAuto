@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 import subprocess
 
-from apps.api.database import get_db, engine
+from apps.api.database import get_db, staging_engine
 from apps.api.models import Job
 
 router = APIRouter()
@@ -42,7 +42,7 @@ def export_excel(job_id: str, db: Session = Depends(get_db)):
             summary_ws.write(3, 1, "Exported successfully. Native SQL truncated to 10k rows/sheet to protect memory limits.")
             
             # 2. Table Sheets
-            db_conn = engine.connect()
+            db_conn = staging_engine.connect()
             for t_name in tables:
                 clean_name = t_name[:31]  # Excel limits sheet names to 31 chars
                 try:
@@ -71,7 +71,7 @@ def export_clean_sql(job_id: str, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
         
-    db_url = engine.url.render_as_string(hide_password=False).replace("+psycopg", "")
+    db_url = staging_engine.url.render_as_string(hide_password=False).replace("+psycopg", "")
     tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_clean_dump.sql")
     
     # Use pg_dump to export the isolated staging schema safely avoiding catalog overlap

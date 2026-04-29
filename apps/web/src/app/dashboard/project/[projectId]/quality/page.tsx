@@ -23,17 +23,48 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { getJobQualityReport, QualityIssue } from "@/lib/api";
 
 const CHART_COLORS = ["#2dd4bf", "#60a5fa", "#f59e0b", "#fb7185"];
 
 export default function QualityPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
+  const [report, setReport] = React.useState<any | null>(null);
+  const [pageError, setPageError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadReport() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setReport(null);
+        return;
+      }
+      try {
+        const result = await getJobQualityReport(workspace.sourceStatus.active_job_id);
+        if (!cancelled) {
+          setReport(result);
+          setPageError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setReport(null);
+          setPageError(error?.message || "Unable to load real data");
+        }
+      }
+    }
+
+    void loadReport();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.sourceStatus.active_job_id]);
 
   const grouped = [
-    { name: "Duplicate Rows", value: workspace.issues.filter((issue) => issue.issueType === "Duplicate Rows").reduce((sum, issue) => sum + issue.affectedRows, 0) },
-    { name: "Null Violations", value: workspace.issues.filter((issue) => issue.issueType === "Null Violations").reduce((sum, issue) => sum + issue.affectedRows, 0) },
-    { name: "Orphan Records", value: workspace.issues.filter((issue) => issue.issueType === "Orphan Records").reduce((sum, issue) => sum + issue.affectedRows, 0) },
-    { name: "Type Mismatches", value: workspace.issues.filter((issue) => issue.issueType === "Type Mismatches").reduce((sum, issue) => sum + issue.affectedRows, 0) },
+    { name: "Duplicate Rows", value: report?.duplicate_count || 0 },
+    { name: "Null Violations", value: report?.null_risk_count || 0 },
+    { name: "Orphan Records", value: report?.orphan_fk_count || 0 },
+    { name: "Type Mismatches", value: report?.type_mismatch_count || 0 },
   ];
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
@@ -53,7 +84,7 @@ export default function QualityPage({ params }: { params: { projectId: string } 
         <PageHeader
           title={workspaceMeta.quality.title}
           description={workspaceMeta.quality.description}
-          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <>
               <button className={workspaceActions.secondary} onClick={workspace.reload}>
@@ -67,7 +98,7 @@ export default function QualityPage({ params }: { params: { projectId: string } 
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Duplicate Rows" value={grouped[0].value} tone="teal" />
@@ -78,6 +109,7 @@ export default function QualityPage({ params }: { params: { projectId: string } 
 
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <SectionCard title="Issue Distribution" description="Current issue mix across the staged source">
+            {report?.issues?.length ? (
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -90,6 +122,9 @@ export default function QualityPage({ params }: { params: { projectId: string } 
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            ) : (
+              <EmptyState title="Run quality check" description="No real quality report is available for this job yet." />
+            )}
             <div className="mt-4 grid gap-2">
               {grouped.map((item, index) => (
                 <div key={item.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-300">
@@ -104,20 +139,24 @@ export default function QualityPage({ params }: { params: { projectId: string } 
           </SectionCard>
 
           <SectionCard title="Issues List" description="Table-level details for the current integrity snapshot">
+            {report?.issues?.length ? (
             <DataTable
               columns={[
                 { key: "table", label: "Table" },
-                { key: "issueType", label: "Issue Type" },
+                { key: "issue_type", label: "Issue Type" },
                 {
                   key: "severity",
                   label: "Severity",
                   render: (row) => <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${severityTone(row.severity)}`}>{row.severity}</span>,
                 },
-                { key: "affectedRows", label: "Affected Rows" },
+                { key: "affected_rows", label: "Affected Rows" },
                 { key: "detail", label: "Notes" },
               ]}
-              rows={workspace.issues}
+              rows={report.issues}
             />
+            ) : (
+              <EmptyState title="Run quality check" description="No real integrity issues have been recorded for this job yet." />
+            )}
           </SectionCard>
         </div>
       </div>

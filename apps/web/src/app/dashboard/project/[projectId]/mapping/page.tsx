@@ -16,31 +16,64 @@ import {
   workspaceActions,
   workspaceMeta,
 } from "@/components/workspace/project-workspace";
+import { getJobMappingState } from "@/lib/api";
 
 export default function MappingPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
-  const tables = workspace.tables;
+  const [mappingState, setMappingState] = React.useState<any | null>(null);
+  const [pageError, setPageError] = React.useState<string | null>(null);
   const [selectedTable, setSelectedTable] = React.useState("");
   const [mapping, setMapping] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!workspace.sourceStatus.active_job_id) {
+        setMappingState(null);
+        return;
+      }
+      try {
+        const result = await getJobMappingState(workspace.sourceStatus.active_job_id);
+        if (!cancelled) {
+          setMappingState(result);
+          setPageError(null);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setMappingState(null);
+          setPageError(error?.message || "Unable to load real data");
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.sourceStatus.active_job_id]);
+
+  const tables = mappingState?.tables || [];
+
+  React.useEffect(() => {
     if (!selectedTable && tables.length > 0) {
-      setSelectedTable(tables[0].name);
+      setSelectedTable(tables[0].table);
     }
   }, [selectedTable, tables]);
 
-  const table = tables.find((item) => item.name === selectedTable) || tables[0];
-  const rows = (table?.columns || []).map((column) => ({
+  const table = tables.find((item: any) => item.table === selectedTable) || tables[0];
+  const rows: Array<{ id: string; source: string; target: string; sourceType: string; status: string; compatibility: string }> = (table?.columns || []).map((column: any) => ({
     id: column.name,
     source: column.name,
-    target: mapping[column.name] ?? column.name,
+    target: mapping[column.name] ?? table?.saved_mappings?.[column.name] ?? "",
     sourceType: column.type,
-    status: mapping[column.name] === "" ? "unmapped" : mapping[column.name] && mapping[column.name] !== column.name ? "warning" : "completed",
+    status: mapping[column.name] === "" || (!mapping[column.name] && !table?.saved_mappings?.[column.name]) ? "idle" : "completed",
+    compatibility: table?.type_compatibility?.[column.name] || "unknown",
   }));
 
-  const mapped = rows.filter((row) => row.target).length;
-  const unmapped = rows.filter((row) => !row.target).length;
-  const conflicts = rows.filter((row) => row.sourceType.includes("numeric") || row.sourceType.includes("timestamp")).length;
+  const mapped = rows.filter((row: { target: string }) => row.target).length;
+  const unmapped = rows.filter((row: { target: string }) => !row.target).length;
+  const conflicts = rows.filter((row: { compatibility: string }) => row.compatibility === "mismatch").length;
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -59,7 +92,7 @@ export default function MappingPage({ params }: { params: { projectId: string } 
         <PageHeader
           title={workspaceMeta.mapping.title}
           description={workspaceMeta.mapping.description}
-          badge={<StatusBadge status={workspace.usingMockData ? "mock" : workspace.sourceStatus.status || "idle"} />}
+          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <>
               <button className={workspaceActions.secondary} onClick={workspace.reload}>
@@ -67,10 +100,10 @@ export default function MappingPage({ params }: { params: { projectId: string } 
                 Refresh
               </button>
               <button
-                className={workspaceActions.primary}
+                className={`${workspaceActions.primary} opacity-60`}
+                disabled
                 onClick={() => {
-                  localStorage.setItem(`sqauto-mapping-${params.projectId}`, JSON.stringify(mapping));
-                  toast.success("Mapping saved locally");
+                  toast.warning("Mapping persistence is not implemented yet");
                 }}
               >
                 <Save className="h-4 w-4" />
@@ -80,7 +113,7 @@ export default function MappingPage({ params }: { params: { projectId: string } 
           }
         />
 
-        <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
+        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <StatCard title="Mapped" value={mapped} tone="teal" />
@@ -98,9 +131,9 @@ export default function MappingPage({ params }: { params: { projectId: string } 
                 onChange={(event) => setSelectedTable(event.target.value)}
                 className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-200 outline-none"
               >
-                {tables.map((item) => (
-                  <option key={item.name} value={item.name}>
-                    {item.name}
+                {tables.map((item: any) => (
+                  <option key={item.table} value={item.table}>
+                    {item.table}
                   </option>
                 ))}
               </select>
@@ -131,25 +164,14 @@ export default function MappingPage({ params }: { params: { projectId: string } 
             />
           </SectionCard>
 
-          <SectionCard title="Suggestions" description="Mock AI-assisted recommendations">
+          <SectionCard title="Suggestions" description="Real mapping state and target context">
             <div className="space-y-3">
-              {workspace.mappingSuggestions.map((suggestion) => (
-                <div key={suggestion.source} className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-white">{suggestion.source}</div>
-                      <div className="mt-1 text-sm text-slate-400">{suggestion.target}</div>
-                    </div>
-                    <StatusBadge status="mock">{suggestion.confidence}</StatusBadge>
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-400">{suggestion.reason}</p>
-                </div>
-              ))}
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">
                 <div className="flex items-center gap-2 text-slate-200">
                   <CheckCircle2 className="h-4 w-4 text-teal-300" />
-                  Save mapping state before moving to export or simulation.
+                  Target schema context: Export SQL structure or no live target selected.
                 </div>
+                <p className="mt-3 leading-6">Saved mappings from the active job are shown in the table. No AI suggestions are generated unless a real mapping API returns them.</p>
               </div>
             </div>
           </SectionCard>

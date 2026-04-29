@@ -150,112 +150,13 @@ export interface WorkspaceDataState {
   error: string | null;
 }
 
-function seedNumber(text: string) {
-  return Array.from(text).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-}
-
-function buildMockTables(projectId: string): WorkspaceTable[] {
-  const seed = seedNumber(projectId);
-  const names = ["customers", "orders", "order_items", "products", "invoices", "payments"];
-  return names.map((name, index) => {
-    const base = seed + index * 17;
-    const rowCount = 500 + (base % 4000);
-    const columns: WorkspaceColumn[] = [
-      { name: `${name.slice(0, -1)}_id`, type: "uuid", primary: true },
-      { name: "created_at", type: "timestamp" },
-      { name: "updated_at", type: "timestamp", nullable: true },
-      { name: index % 2 === 0 ? "status" : "amount", type: index % 2 === 0 ? "text" : "numeric" },
-    ];
-    if (name !== "customers") {
-      columns.push({ name: "customer_id", type: "uuid", foreign: "customers.customer_id" });
-    }
-
-    return {
-      name,
-      rowCount,
-      sizeMb: Number((rowCount / 180).toFixed(1)),
-      columns,
-      sampleRows: Array.from({ length: 6 }).map((_, rowIndex) => ({
-        [columns[0].name]: `row-${index + 1}-${rowIndex + 1}`,
-        created_at: `2026-04-${String(10 + rowIndex).padStart(2, "0")} 09:${String(rowIndex).padStart(2, "0")}`,
-        updated_at: rowIndex % 3 === 0 ? null : `2026-04-${String(10 + rowIndex).padStart(2, "0")} 11:${String(rowIndex).padStart(2, "0")}`,
-        [columns[3].name]: index % 2 === 0 ? ["ready", "review", "archived"][rowIndex % 3] : (150 + rowIndex * 12).toFixed(2),
-        ...(name !== "customers" ? { customer_id: `cust-${rowIndex + 11}` } : {}),
-      })),
-    };
-  });
-}
-
-function buildMockGraph(tables: WorkspaceTable[]) {
-  const nodes: WorkspaceGraphNode[] = tables.map((table, index) => ({
-    id: table.name,
-    label: table.name,
-    columns: table.columns,
-    primary_keys: table.columns.filter((col) => col.primary).map((col) => col.name),
-    position: { x: (index % 3) * 280, y: Math.floor(index / 3) * 220 },
-  }));
-
-  const edges: WorkspaceGraphEdge[] = tables
-    .filter((table) => table.name !== "customers")
-    .map((table) => ({
-      id: `${table.name}-customers`,
-      source: table.name,
-      target: "customers",
-      label: "customer_id -> customer_id",
-      relation_type: "deterministic",
-      status: "valid",
-    }));
-
-  return { nodes, edges };
-}
-
-function buildMockIssues(tables: WorkspaceTable[]): WorkspaceIssue[] {
-  const picks = tables.slice(0, 4);
-  return [
-    {
-      table: picks[0]?.name || "customers",
-      issueType: "Duplicate Rows",
-      severity: "medium",
-      affectedRows: 14,
-      detail: "Repeated natural-key combinations detected during sample scan.",
-    },
-    {
-      table: picks[1]?.name || "orders",
-      issueType: "Null Violations",
-      severity: "high",
-      affectedRows: 38,
-      detail: "Required status field is empty in a subset of records.",
-    },
-    {
-      table: picks[2]?.name || "order_items",
-      issueType: "Orphan Records",
-      severity: "medium",
-      affectedRows: 9,
-      detail: "Rows reference parents that were not found in the staging set.",
-    },
-    {
-      table: picks[3]?.name || "payments",
-      issueType: "Type Mismatches",
-      severity: "low",
-      affectedRows: 6,
-      detail: "Numeric fields contain formatting noise in sampled rows.",
-    },
-  ];
-}
-
-function buildMockData(projectId: string): WorkspaceDataState {
-  const tables = buildMockTables(projectId);
-  const graph = buildMockGraph(tables);
-  const issues = buildMockIssues(tables);
-  const totalRows = tables.reduce((sum, table) => sum + table.rowCount, 0);
-  const totalSize = Number(tables.reduce((sum, table) => sum + table.sizeMb, 0).toFixed(1));
-  const projectName = `Project ${projectId.slice(0, 8).toUpperCase()}`;
-
+function buildEmptyState(projectId: string): WorkspaceDataState {
   return {
     project: {
       id: projectId,
-      name: projectName,
-      description: "Migration workspace preview data",
+      name: "Project Workspace",
+      description: null,
+      organization_id: null,
     },
     sourceStatus: {
       project_id: projectId,
@@ -263,74 +164,30 @@ function buildMockData(projectId: string): WorkspaceDataState {
       status: null,
       filename: null,
       file_size: 0,
-      dialect: "postgresql",
+      dialect: null,
       metrics: {
-        tables: tables.length,
-        rows: totalRows,
-        data_size_mb: totalSize,
+        tables: 0,
+        rows: 0,
+        data_size_mb: 0,
       },
-      updated_at: new Date().toISOString(),
+      updated_at: null,
     },
     jobs: [],
-    logsPreview: [
-      "[preview] awaiting new upload",
-      "[preview] diagnostics shell rendered from cached fallback",
-      "[preview] workspace remains interactive without backend data",
-    ],
+    logsPreview: [],
     activeJob: null,
-    tables,
-    graph,
-    pipeline: [
-      { name: "Upload", status: "completed", duration: "12s" },
-      { name: "Decompression", status: "completed", duration: "8s" },
-      { name: "Restore", status: "processing", duration: "41s" },
-      { name: "Parsing", status: "idle", duration: "--" },
-      { name: "Analysis", status: "idle", duration: "--" },
-    ],
-    issues,
-    diagnosticsSeries: [
-      { label: "00:00", rows: 0, duration: 0 },
-      { label: "00:20", rows: 820, duration: 20 },
-      { label: "00:40", rows: 2800, duration: 40 },
-      { label: "01:00", rows: 6200, duration: 60 },
-      { label: "01:20", rows: 9700, duration: 80 },
-      { label: "01:40", rows: 13200, duration: 100 },
-    ],
-    tableDistribution: tables.map((table) => ({
-      name: table.name,
-      sizeMb: table.sizeMb,
-      rows: table.rowCount,
-    })),
-    timeline: [
-      { title: "Workspace initialized", subtitle: "Project shell is ready for ingestion.", time: "Just now", status: "completed" },
-      { title: "Mock diagnostics loaded", subtitle: "Fallback data keeps the UI navigable.", time: "Now", status: "mock" },
-      { title: "Awaiting upload", subtitle: "Upload a SQL dump to replace preview data.", time: "Pending", status: "idle" },
-    ],
+    tables: [],
+    graph: { nodes: [], edges: [] },
+    pipeline: [],
+    issues: [],
+    diagnosticsSeries: [],
+    tableDistribution: [],
+    timeline: [],
     recentJobs: [],
-    mappingSuggestions: [
-      { source: "customer_id", target: "customer_id", reason: "Exact name and type match", confidence: "98%" },
-      { source: "status", target: "order_status", reason: "Shared semantic label", confidence: "84%" },
-      { source: "amount", target: "total_amount", reason: "Numeric field similarity", confidence: "79%" },
-    ],
-    exportOptions: [
-      { id: "clean-sql", title: "Clean SQL", description: "Sanitized PostgreSQL-friendly export from staging.", format: ".sql", ready: true },
-      { id: "translated-sql", title: "Translated SQL", description: "Dialect-converted output for the chosen target engine.", format: ".sql", ready: false },
-      { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: true },
-    ],
-    destinations: [
-      {
-        id: "mock-target-1",
-        name: "Warehouse Primary",
-        host: "analytics.internal",
-        port: 5432,
-        database_name: "warehouse",
-        username: "readonly",
-        db_type: "postgresql",
-        ssl_mode: "require",
-      },
-    ],
+    mappingSuggestions: [],
+    exportOptions: [],
+    destinations: [],
     runs: [],
-    usingMockData: true,
+    usingMockData: false,
     hasAnyJob: false,
     hasExtraction: false,
     loading: true,
@@ -338,142 +195,57 @@ function buildMockData(projectId: string): WorkspaceDataState {
   };
 }
 
-function normalizeTablesFromProfile(profile: any, fallbackTables: WorkspaceTable[]) {
-  const tableMap = profile?.tables;
-  if (!tableMap || typeof tableMap !== "object") return fallbackTables;
-
-  return Object.entries(tableMap).map(([name, info]: [string, any], index) => {
-    const fallback = fallbackTables[index % fallbackTables.length];
-    const columns = Array.isArray(info?.columns)
-      ? info.columns.map((col: any) => ({
-          name: String(col.name || "column"),
-          type: String(col.type || "text"),
-          primary: Array.isArray(info?.primary_keys) ? info.primary_keys.includes(col.name) : false,
-        }))
-      : fallback.columns;
-
-    return {
-      name,
-      rowCount: Number(info?.row_count || fallback.rowCount),
-      sizeMb: Number(info?.size_mb || fallback.sizeMb),
-      columns,
-      sampleRows: fallback.sampleRows,
-    };
-  });
-}
-
-function buildPipeline(status: string | null) {
-  const current = status || "idle";
-  const order = ["uploaded", "restoring", "analyzing", "completed"];
-  const currentIndex = order.indexOf(current);
-  return [
-    { name: "Upload", duration: "12s", status: current === "failed" ? "completed" : "completed" as WorkspaceStatus },
-    { name: "Decompression", duration: "18s", status: currentIndex >= 1 || current === "completed" ? "completed" : "idle" as WorkspaceStatus },
-    { name: "Restore", duration: "46s", status: current === "restoring" ? "processing" : currentIndex >= 2 || current === "completed" ? "completed" : current === "failed" ? "failed" : "idle" as WorkspaceStatus },
-    { name: "Parsing", duration: "24s", status: current === "analyzing" ? "processing" : current === "completed" ? "completed" : current === "failed" && currentIndex >= 2 ? "failed" : "idle" as WorkspaceStatus },
-    { name: "Analysis", duration: "31s", status: current === "completed" ? "completed" : current === "failed" && currentIndex >= 2 ? "failed" : "idle" as WorkspaceStatus },
-  ];
-}
-
-function buildDiagnosticsSeries(totalRows: number) {
-  return [
-    { label: "00:00", rows: 0, duration: 0 },
-    { label: "00:30", rows: Math.round(totalRows * 0.18), duration: 30 },
-    { label: "01:00", rows: Math.round(totalRows * 0.36), duration: 60 },
-    { label: "01:30", rows: Math.round(totalRows * 0.58), duration: 90 },
-    { label: "02:00", rows: Math.round(totalRows * 0.79), duration: 120 },
-    { label: "02:30", rows: totalRows, duration: 150 },
-  ];
-}
-
-function deriveTimeline(data: WorkspaceDataState) {
-  const timeline = [...data.timeline];
-  if (data.sourceStatus.filename) {
-    timeline.unshift({
-      title: "Source attached",
-      subtitle: data.sourceStatus.filename,
-      time: data.sourceStatus.updated_at ? new Date(data.sourceStatus.updated_at).toLocaleString() : "Recently",
-      status: data.sourceStatus.status === "failed" ? "failed" : "completed",
+function deriveTimeline(jobs: WorkspaceDataState["jobs"], sourceStatus: WorkspaceDataState["sourceStatus"], logsPreview: string[]) {
+  const timeline: WorkspaceDataState["timeline"] = [];
+  if (sourceStatus.filename) {
+    timeline.push({
+      title: "Current source",
+      subtitle: sourceStatus.filename,
+      time: sourceStatus.updated_at ? new Date(sourceStatus.updated_at).toLocaleString() : "Recently",
+      status: sourceStatus.status === "failed" ? "failed" : sourceStatus.status ? "completed" : "idle",
     });
   }
-  if (data.recentJobs.length > 0) {
-    timeline.unshift({
-      title: "Recent workspace activity",
-      subtitle: `${data.recentJobs.length} job records available for this project.`,
-      time: "Latest sync",
-      status: "processing",
+  for (const job of jobs.slice(0, 3)) {
+    timeline.push({
+      title: job.is_active ? "Active job updated" : "Job recorded",
+      subtitle: job.filename,
+      time: job.created_at ? new Date(job.created_at).toLocaleString() : "Unknown time",
+      status:
+        job.status === "completed"
+          ? "completed"
+          : job.status === "failed"
+            ? "failed"
+            : job.status === "uploaded" || job.status === "restoring" || job.status === "analyzing"
+              ? "processing"
+              : "idle",
+    });
+  }
+  for (const line of logsPreview.slice(0, 2)) {
+    timeline.push({
+      title: "Recent log",
+      subtitle: line,
+      time: "Log preview",
+      status: /error|fail/i.test(line) ? "failed" : /warn/i.test(line) ? "warning" : "idle",
     });
   }
   return timeline.slice(0, 5);
 }
 
 export function useProjectWorkspaceData(projectId: string) {
-  const [state, setState] = React.useState<WorkspaceDataState>(() => buildMockData(projectId));
+  const [state, setState] = React.useState<WorkspaceDataState>(() => buildEmptyState(projectId));
 
   const reload = React.useCallback(async () => {
-    const fallback = buildMockData(projectId);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    const [projectRes, sourceRes, jobsRes, logsRes] = await Promise.all([
+    const [projectRes, sourceRes, jobsRes, logsRes, activeJobRes] = await Promise.all([
       safeFetch(`${API_URL}/projects/${projectId}`),
       safeFetch(`${API_URL}/projects/${projectId}/source-status`),
       safeFetch(`${API_URL}/projects/${projectId}/jobs`),
       safeFetch(`${API_URL}/projects/${projectId}/logs?limit=10&page=1`),
+      safeFetch(`${API_URL}/projects/${projectId}/active-job`),
     ]);
-
-    let activeJob: any = null;
-    const activeJobId = sourceRes.success ? sourceRes.data?.active_job_id : null;
-    if (activeJobId) {
-      const jobRes = await safeFetch(`${API_URL}/jobs/${activeJobId}`);
-      if (jobRes.success) activeJob = jobRes.data;
-    }
-
-    const tables = normalizeTablesFromProfile(activeJob?.profile, fallback.tables);
-    const graph =
-      activeJob?.profile?.graph?.nodes?.length
-        ? {
-            nodes: activeJob.profile.graph.nodes,
-            edges: activeJob.profile.graph.edges || [],
-          }
-        : buildMockGraph(tables);
-
-    const totalRows =
-      Number(activeJob?.profile?.metadata?.total_rows) ||
-      Number(sourceRes.success ? sourceRes.data?.metrics?.rows : 0) ||
-      tables.reduce((sum, table) => sum + table.rowCount, 0);
-    const totalTables =
-      Number(activeJob?.profile?.metadata?.table_count) ||
-      Number(sourceRes.success ? sourceRes.data?.metrics?.tables : 0) ||
-      tables.length;
-    const totalSize =
-      Number(activeJob?.profile?.metadata?.data_size_mb) ||
-      Number(sourceRes.success ? sourceRes.data?.metrics?.data_size_mb : 0) ||
-      Number(tables.reduce((sum, table) => sum + table.sizeMb, 0).toFixed(1));
-
-    const next: WorkspaceDataState = {
-      ...fallback,
-      project: projectRes.success
-        ? {
-            id: String(projectRes.data.id),
-            name: projectRes.data.name,
-            description: projectRes.data.description,
-            organization_id: projectRes.data.organization_id,
-          }
-        : fallback.project,
-      sourceStatus: sourceRes.success
-        ? {
-            ...sourceRes.data,
-            metrics: {
-              tables: Number(sourceRes.data.metrics?.tables || totalTables),
-              rows: Number(sourceRes.data.metrics?.rows || totalRows),
-              data_size_mb: Number(sourceRes.data.metrics?.data_size_mb || totalSize),
-            },
-          }
-        : {
-            ...fallback.sourceStatus,
-            metrics: { tables: totalTables, rows: totalRows, data_size_mb: totalSize },
-          },
-      jobs: jobsRes.success && Array.isArray(jobsRes.data)
+    const jobs =
+      jobsRes.success && Array.isArray(jobsRes.data)
         ? jobsRes.data.map((job: any) => ({
             id: String(job.id),
             status: String(job.status),
@@ -482,61 +254,53 @@ export function useProjectWorkspaceData(projectId: string) {
             created_at: job.created_at,
             is_active: job.is_active,
           }))
-        : fallback.jobs,
-      logsPreview: logsRes.success && Array.isArray(logsRes.data?.lines) && logsRes.data.lines.length > 0
-        ? logsRes.data.lines
-        : fallback.logsPreview,
-      activeJob,
-      tables,
-      graph,
-      pipeline: buildPipeline(sourceRes.success ? sourceRes.data?.status : null),
-      issues:
-        activeJob?.profile?.integrity_issues && Array.isArray(activeJob.profile.integrity_issues)
-          ? activeJob.profile.integrity_issues
-          : buildMockIssues(tables),
-      diagnosticsSeries: buildDiagnosticsSeries(totalRows),
-      tableDistribution: tables.map((table) => ({
-        name: table.name,
-        sizeMb: table.sizeMb,
-        rows: table.rowCount,
-      })),
-      recentJobs:
-        jobsRes.success && Array.isArray(jobsRes.data)
-          ? jobsRes.data.slice(0, 5).map((job: any) => ({
-              id: String(job.id),
-              filename: String(job.original_filename || job.filename || "source.sql"),
-              status: String(job.status),
-              created_at: job.created_at,
-            }))
-          : fallback.recentJobs,
-      mappingSuggestions: tables.slice(0, 3).flatMap((table) =>
-        table.columns.slice(0, 1).map((column: WorkspaceColumn) => ({
-          source: `${table.name}.${column.name}`,
-          target: `${table.name}.${column.name}`,
-          reason: "Column name aligns with staged profile metadata.",
-          confidence: "91%",
-        })),
-      ),
-      exportOptions: fallback.exportOptions.map((item) => ({
-        ...item,
-        ready: Boolean(activeJob?.id) && (item.id !== "translated-sql" ? true : (sourceRes.data?.status === "completed")),
-      })),
-      destinations: fallback.destinations,
-      runs: fallback.runs,
-      usingMockData: !(projectRes.success && sourceRes.success),
-      hasAnyJob: (jobsRes.success && Array.isArray(jobsRes.data) && jobsRes.data.length > 0) || Boolean(activeJobId),
-      hasExtraction: Boolean(activeJob?.profile?.tables && Object.keys(activeJob.profile.tables).length > 0) || sourceRes.data?.status === "completed",
-      loading: false,
-      error: [projectRes, sourceRes, jobsRes, logsRes].every((res) => !res.success)
-        ? projectRes.error || sourceRes.error || jobsRes.error || logsRes.error
-        : null,
-      timeline: fallback.timeline,
-    };
+        : [];
+    const logsPreview = logsRes.success && Array.isArray(logsRes.data?.lines) ? logsRes.data.lines : [];
+    const sourceStatus = sourceRes.success
+      ? {
+          ...sourceRes.data,
+          metrics: {
+            tables: Number(sourceRes.data.metrics?.tables || 0),
+            rows: Number(sourceRes.data.metrics?.rows || 0),
+            data_size_mb: Number(sourceRes.data.metrics?.data_size_mb || 0),
+          },
+        }
+      : buildEmptyState(projectId).sourceStatus;
 
-    next.timeline = deriveTimeline(next);
-    next.destinations = fallback.destinations;
-    next.runs = fallback.runs;
-    setState(next);
+    setState({
+      ...buildEmptyState(projectId),
+      project: projectRes.success
+        ? {
+            id: String(projectRes.data.id),
+            name: projectRes.data.name,
+            description: projectRes.data.description,
+            organization_id: projectRes.data.organization_id,
+          }
+        : buildEmptyState(projectId).project,
+      sourceStatus,
+      jobs,
+      logsPreview,
+      activeJob: activeJobRes.success ? activeJobRes.data : null,
+      recentJobs: jobs.slice(0, 5).map((job) => ({
+        id: job.id,
+        filename: job.filename,
+        status: job.status,
+        created_at: job.created_at,
+      })),
+      timeline: deriveTimeline(jobs, sourceStatus, logsPreview),
+      exportOptions: [
+        { id: "clean-sql", title: "Clean SQL", description: "Sanitized PostgreSQL-friendly export from staging.", format: ".sql", ready: sourceStatus.status === "completed" },
+        { id: "translated-sql", title: "Translated SQL", description: "Dialect-converted output for the chosen target engine.", format: ".sql", ready: false },
+        { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: sourceStatus.status === "completed" },
+      ],
+      usingMockData: false,
+      hasAnyJob: jobs.length > 0 || Boolean(sourceStatus.active_job_id),
+      hasExtraction: sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed",
+      loading: false,
+      error: projectRes.success || sourceRes.success || jobsRes.success || logsRes.success
+        ? null
+        : projectRes.error || sourceRes.error || jobsRes.error || logsRes.error || "Unable to load real data",
+    });
   }, [projectId]);
 
   React.useEffect(() => {
@@ -775,10 +539,10 @@ export function WorkspaceNote({
       {loading ? <Loader2 className="h-4 w-4 animate-spin text-teal-300" /> : error ? <AlertTriangle className="h-4 w-4 text-amber-300" /> : <Sparkles className="h-4 w-4 text-violet-300" />}
       <span>
         {loading
-          ? "Refreshing workspace data."
+          ? "Loading real workspace data."
           : error
-            ? `Live data is partially unavailable. Showing fallback data. ${error}`
-            : "Showing fallback preview data until live extraction details are available."}
+            ? `Unable to load real data. ${error}`
+            : "Preview UI only."}
       </span>
     </div>
   );
