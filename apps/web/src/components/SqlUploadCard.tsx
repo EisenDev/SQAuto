@@ -75,26 +75,26 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="glass-panel p-8 rounded-3xl border border-slate-800/50 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
+    <div className="w-full max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="glass-panel p-6 rounded-3xl border border-slate-800/50 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
         {/* Decorative background pulse */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl" />
         
         <div className="relative z-10">
-          <div className="flex items-center space-x-4 mb-8">
-            <div className="h-12 w-12 bg-teal-500/10 rounded-2xl flex items-center justify-center border border-teal-500/20">
-              <Upload className="h-6 w-6 text-teal-400" />
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="h-10 w-10 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20">
+              <Upload className="h-5 w-5 text-teal-400" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Industrial SQL Ingestion</h2>
-              <p className="text-slate-400 text-sm">Upload your database dump to initialize the migration staging area.</p>
+              <h2 className="text-xl font-bold text-white tracking-tight">SQL Ingestion</h2>
+              <p className="text-slate-500 text-xs">Initialize the migration staging area.</p>
             </div>
           </div>
 
           {!uploading && !job ? (
             <div className="space-y-6">
               <div 
-                className={`group relative border-2 border-dashed rounded-3xl p-12 text-center transition-all ${
+                className={`group relative border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
                   file ? 'border-teal-500/40 bg-teal-500/5' : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/20'
                 }`}
               >
@@ -106,8 +106,8 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
                 />
                 
                 <div className="space-y-4">
-                  <div className="h-16 w-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                    <Database className={`h-8 w-8 ${file ? 'text-teal-400' : 'text-slate-500'}`} />
+                  <div className="h-12 w-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                    <Database className={`h-6 w-6 ${file ? 'text-teal-400' : 'text-slate-500'}`} />
                   </div>
                   {file ? (
                     <div>

@@ -133,13 +133,7 @@ export default function SqlManagementPage() {
 
   return (
     <div className="p-8 md:p-12 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in duration-700">
-      <SqlSourceHeader 
-        projectName={project?.name || "Project"} 
-        orgName={organization?.name || "Organization"} 
-        activeStatus={activeStatus}
-        activeFilename={activeJob?.original_filename || activeJob?.filename}
-        lastUpdated={activeJob?.updated_at ? new Date(activeJob.updated_at).toLocaleString() : undefined}
-      />
+      {/* Header removed as requested */}
 
       {!activeJob ? (
         <SqlEmptyState projectId={projectId} onSuccess={handleUploadSuccess} />

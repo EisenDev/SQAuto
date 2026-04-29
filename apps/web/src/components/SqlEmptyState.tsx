@@ -10,15 +10,15 @@ interface SqlEmptyStateProps {
 
 export default function SqlEmptyState({ projectId, onSuccess }: SqlEmptyStateProps) {
   return (
-    <div className="max-w-4xl mx-auto py-12 space-y-12">
-      <div className="text-center space-y-4">
-        <div className="h-20 w-20 bg-teal-500/10 rounded-3xl flex items-center justify-center border border-teal-500/20 mx-auto shadow-2xl shadow-teal-500/5">
-          <Database className="h-10 w-10 text-teal-400" />
+    <div className="max-w-4xl mx-auto pt-6 pb-12 space-y-10">
+      <div className="text-center space-y-3">
+        <div className="h-16 w-16 bg-teal-500/10 rounded-2xl flex items-center justify-center border border-teal-500/20 mx-auto">
+          <Database className="h-8 w-8 text-teal-400" />
         </div>
-        <div className="space-y-2">
-          <h2 className="text-3xl font-black text-white tracking-tight">Initialize Your Project with a SQL Source</h2>
-          <p className="text-slate-400 max-w-lg mx-auto">
-            This project currently has no data. Upload a SQL dump to begin analysis, mapping, and industrial migration.
+        <div className="space-y-1.5">
+          <h2 className="text-2xl font-black text-white tracking-tight">Initialize Project Source</h2>
+          <p className="text-slate-500 text-sm max-w-lg mx-auto">
+            Upload a SQL dump to begin analysis and mapping.
           </p>
         </div>
       </div>
