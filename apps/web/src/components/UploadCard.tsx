@@ -58,7 +58,7 @@ export default function UploadCard() {
 
     try {
       // 1. Upload with progress
-      const result = await uploadDump(file, (p) => {
+      const result = await uploadDump(file, "", (p) => {
         const percent = Math.round((p.loaded / p.total) * 100);
         setUploadProgress(percent);
         
