@@ -123,7 +123,7 @@ export default function SqlManagementPage() {
   }
 
   return (
-    <div className="p-8 md:p-12 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in duration-700">
+    <div className="mx-auto w-full max-w-[1720px] space-y-12 animate-in fade-in duration-700 p-8 md:p-12">
       {activeJob && syncWarning && (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           {syncWarning}

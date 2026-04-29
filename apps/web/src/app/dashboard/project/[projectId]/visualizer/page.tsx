@@ -15,6 +15,7 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 import { getJobQualityReport, getJobSchemaGraph } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -109,7 +110,7 @@ export default function VisualizerPage() {
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.visualizer.title}
           description={workspaceMeta.visualizer.description}

@@ -11,7 +11,7 @@ export default function SqlUploadPage() {
   const projectId = params.projectId as string;
 
   return (
-    <div className="p-8 md:p-12 max-w-7xl mx-auto w-full space-y-12 animate-in fade-in duration-500">
+    <div className="mx-auto w-full max-w-[1720px] space-y-12 animate-in fade-in duration-500 p-8 md:p-12">
       {/* Main Upload Card */}
       <div className="flex justify-center pt-8">
         <SqlUploadCard 

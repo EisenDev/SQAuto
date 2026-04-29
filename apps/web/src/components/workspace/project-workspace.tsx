@@ -492,7 +492,7 @@ export function DataTable({
 }) {
   return (
     <div className={cn("overflow-hidden rounded-2xl border border-white/10", className)}>
-      <div className="overflow-x-auto">
+      <div className="max-h-[56vh] overflow-auto">
         <table className="min-w-full divide-y divide-white/5">
           <thead className="bg-slate-950/90">
             <tr>
@@ -651,6 +651,12 @@ export function severityTone(severity: string) {
 
 export const systemGradient =
   "bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.18),transparent_28%),radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_24%),linear-gradient(180deg,#020617_0%,#020617_100%)]";
+
+export const workspacePageShell =
+  "mx-auto w-full max-w-[1720px] space-y-8 animate-in fade-in duration-500";
+
+export const workspaceViewportHeight =
+  "h-[calc(100vh-15rem)] min-h-[34rem]";
 
 export function PageFrame({ children }: { children: React.ReactNode }) {
   return <div className={cn("min-h-full p-6 md:p-8", systemGradient)}>{children}</div>;

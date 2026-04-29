@@ -13,6 +13,8 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
+  workspaceViewportHeight,
 } from "@/components/workspace/project-workspace";
 import { getJobTableColumns, getJobTableRows, getJobTables, WorkspaceColumn, WorkspaceTableSummary } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -137,7 +139,7 @@ export default function ExplorerPage() {
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.explorer.title}
           description={workspaceMeta.explorer.description}
@@ -152,9 +154,9 @@ export default function ExplorerPage() {
 
         <WorkspaceNote usingMockData={false} loading={workspace.loading || loadingPreview} error={workspace.error || pageError} />
 
-        <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)_280px]">
+        <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
           <SectionCard title="Tables" description="Search and select extracted tables">
-            <div className="space-y-4">
+            <div className={`space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <input
@@ -164,7 +166,7 @@ export default function ExplorerPage() {
                   className="w-full rounded-2xl border border-white/10 bg-slate-950/70 py-2.5 pl-10 pr-4 text-sm text-slate-200 outline-none transition focus:border-teal-400/40"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 overflow-y-auto pr-1">
                 {filteredTables.map((table) => (
                   <button
                     key={table.name}
@@ -212,7 +214,7 @@ export default function ExplorerPage() {
             }
           >
             {selected && preview ? (
-              <div className="space-y-4">
+              <div className={`space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
                 <DataTable
                   columns={preview.columns.map((column) => ({
                     key: column.name,
@@ -241,7 +243,7 @@ export default function ExplorerPage() {
 
           <SectionCard title="Table Metadata" description="Column types, keys, and relation hints">
             {selected ? (
-              <div className="space-y-3">
+              <div className={`space-y-3 ${workspaceViewportHeight} overflow-y-auto pr-1`}>
                 <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Row count</div>
                   <div className="mt-2 text-2xl font-semibold text-white">{selected.row_count.toLocaleString()}</div>

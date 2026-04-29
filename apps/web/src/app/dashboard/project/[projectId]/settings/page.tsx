@@ -13,6 +13,7 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -48,7 +49,7 @@ export default function SettingsPage({ params }: { params: { projectId: string }
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-5xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.settings.title}
           description={workspaceMeta.settings.description}

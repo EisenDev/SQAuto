@@ -33,6 +33,7 @@ import {
   useProjectWorkspaceData,
   WorkspaceNote,
   workspaceActions,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 
 export default function ProjectDashboardPage() {
@@ -80,7 +81,7 @@ export default function ProjectDashboardPage() {
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspace.project.name}
           description={workspace.project.description || "Project workspace overview for migration progress, source health, and next actions."}

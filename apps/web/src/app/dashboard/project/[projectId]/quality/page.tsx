@@ -22,6 +22,7 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 import { getJobQualityReport, QualityIssue } from "@/lib/api";
 
@@ -80,7 +81,7 @@ export default function QualityPage({ params }: { params: { projectId: string } 
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.quality.title}
           description={workspaceMeta.quality.description}

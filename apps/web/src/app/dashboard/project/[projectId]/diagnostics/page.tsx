@@ -28,6 +28,7 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 import { getJobDiagnostics } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -97,7 +98,7 @@ export default function DiagnosticsPage() {
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={meta.title}
           description={meta.description}

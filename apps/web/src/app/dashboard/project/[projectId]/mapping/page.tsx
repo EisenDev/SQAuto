@@ -15,6 +15,7 @@ import {
   WorkspaceNote,
   workspaceActions,
   workspaceMeta,
+  workspacePageShell,
 } from "@/components/workspace/project-workspace";
 import { getJobMappingState } from "@/lib/api";
 
@@ -88,7 +89,7 @@ export default function MappingPage({ params }: { params: { projectId: string } 
 
   return (
     <PageFrame>
-      <div className="mx-auto max-w-7xl space-y-8 animate-in fade-in duration-500">
+      <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.mapping.title}
           description={workspaceMeta.mapping.description}
