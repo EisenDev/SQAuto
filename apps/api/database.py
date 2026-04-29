@@ -13,6 +13,8 @@ metadata_engine = create_engine(
     echo=False,
     future=True
 )
+# Compatibility aliases
+engine = metadata_engine
 
 # Staging Engine (Local Postgres - heavy)
 staging_engine = create_engine(
