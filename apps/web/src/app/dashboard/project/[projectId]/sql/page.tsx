@@ -22,21 +22,26 @@ export default function SqlProjectPage() {
       try {
         const jobs = await getProjectJobs(projectId);
         
-        // Filter for completed jobs or the most recent one
-        const latestJob = jobs.length > 0 ? jobs[0] : null;
-        
-        if (!latestJob) {
-          // Redirect to upload page if no jobs exist
+        // Ensure jobs is an array and check its length
+        if (!Array.isArray(jobs) || jobs.length === 0) {
+          console.log("No jobs found for project, redirecting to /new");
           router.replace(`/dashboard/project/${projectId}/sql/new`);
           return;
         }
 
+        // Find the most recent relevant job
+        const latestJob = jobs[0];
         setJob(latestJob);
+        setLoading(false);
       } catch (err: any) {
         console.error("Failed to fetch project jobs:", err);
-        setError("Unable to retrieve project extraction status.");
-      } finally {
-        setLoading(false);
+        // If it's a 404 or empty response that threw an error, we might still want to redirect
+        if (err.message?.includes("404") || err.message?.includes("not found")) {
+          router.replace(`/dashboard/project/${projectId}/sql/new`);
+        } else {
+          setError("Unable to retrieve project extraction status.");
+          setLoading(false);
+        }
       }
     };
 
