@@ -10,6 +10,21 @@ export default function Header() {
   const { activeJob } = useJob();
   const params = useParams();
   const projectId = params?.projectId as string;
+  const [projectData, setProjectData] = React.useState<{ name: string, organization?: { name: string } } | null>(null);
+  
+  React.useEffect(() => {
+    if (!projectId) return;
+    
+    // Fetch project details including organization info
+    import('@/lib/api_client').then(({ safeFetch }) => {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+      safeFetch(`${API_URL}/projects/${projectId}`).then(res => {
+        if (res.success && res.data) {
+          setProjectData(res.data);
+        }
+      });
+    });
+  }, [projectId]);
   
   const statusColor = activeJob?.status === 'completed' 
     ? 'text-teal-400 bg-teal-400/10' 
@@ -37,11 +52,15 @@ export default function Header() {
         <div className="flex-1 flex items-center px-4 space-x-2 overflow-hidden">
           <div className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">
             <span className="opacity-30">/</span>
-            <span className="mx-2 hover:text-slate-300 cursor-default transition-colors">Workspace</span>
+            <span className="mx-2 hover:text-slate-300 cursor-default transition-colors">
+              {projectData?.organization?.name || "Loading..."}
+            </span>
             {projectId && (
               <>
                 <span className="opacity-30">/</span>
-                <span className="mx-2 text-teal-500/80 truncate max-w-[150px]">{projectId}</span>
+                <span className="mx-2 text-teal-500/80 truncate max-w-[200px]">
+                  {projectData?.name || projectId}
+                </span>
               </>
             )}
           </div>

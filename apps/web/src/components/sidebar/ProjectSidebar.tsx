@@ -18,36 +18,24 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockRequirement }: SidebarItemProps) => (
   <div 
-    className={`group flex items-center h-10 px-2 rounded-lg cursor-pointer transition-all duration-200 ${
+    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
       active 
-        ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' 
+        ? 'bg-teal-900/40 text-teal-300 border-l-2 border-teal-500' 
         : disabled 
-          ? 'text-slate-700 cursor-not-allowed opacity-50' 
-          : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/50'
+          ? 'text-slate-600 cursor-not-allowed' 
+          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
     }`}
     onClick={() => !disabled && onClick(id)}
     title={disabled ? `Requires ${unlockRequirement}` : ''}
   >
-    {/* Fixed-width icon container to prevent rearrangement */}
-    <div className="w-12 flex items-center justify-center flex-shrink-0">
-      <Icon className={`h-5 w-5 transition-colors ${active ? 'text-teal-400' : 'group-hover:text-slate-300'}`} />
-    </div>
-    
-    {/* Label with absolute-like feel within the flex row */}
-    <span className={`flex-1 text-xs font-semibold tracking-wide transition-opacity duration-300 whitespace-nowrap overflow-hidden ${label ? 'opacity-100 ml-1' : 'opacity-0 w-0'}`}>
-      {label}
-    </span>
-    
-    {disabled && (
-      <div className="w-8 flex justify-center">
-        <Lock className="h-3 w-3 text-slate-800" />
-      </div>
-    )}
+    <Icon className={`mr-3 h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
+    <span className="flex-1">{label}</span>
+    {disabled && <Lock className="h-3 w-3 text-slate-700" />}
   </div>
 );
 
-const SectionLabel = ({ label, isHovered }: { label: string, isHovered: boolean }) => (
-  <h3 className={`px-4 mt-6 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+const SectionLabel = ({ label }: { label: string }) => (
+  <h3 className="px-3 mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
     {label}
   </h3>
 );
@@ -72,12 +60,14 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
     <div 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`absolute inset-y-0 left-0 flex flex-col bg-slate-950 border-r border-slate-900 transition-all duration-300 ease-in-out z-20 overflow-x-hidden ${
+      className={`absolute inset-y-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-20 overflow-x-hidden ${
         isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-20'
       }`}
     >
-      <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-x-hidden custom-scrollbar">
-        <SectionLabel label="Project" isHovered={isHovered} />
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-x-hidden custom-scrollbar">
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Project" />
+        </div>
         <SidebarItem 
           icon={Activity} 
           label={isHovered ? "Overview" : ""} 
@@ -93,7 +83,9 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           onClick={handleNav} 
         />
 
-        <SectionLabel label="Analysis" isHovered={isHovered} />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Analysis" />
+        </div>
         <SidebarItem 
           icon={BarChart2} 
           label={isHovered ? "Extraction" : ""} 
@@ -131,7 +123,9 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           onClick={handleNav} 
         />
 
-        <SectionLabel label="Build" isHovered={isHovered} />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Build" />
+        </div>
         <SidebarItem 
           icon={Map} 
           label={isHovered ? "Mapping" : ""} 
@@ -151,7 +145,9 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           onClick={handleNav} 
         />
 
-        <SectionLabel label="System" isHovered={isHovered} />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="System" />
+        </div>
         <SidebarItem 
           icon={Settings} 
           label={isHovered ? "Settings" : ""} 
