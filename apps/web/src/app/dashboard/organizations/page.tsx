@@ -78,7 +78,7 @@ export default function OrganizationsPage() {
             {orgs.map((org) => (
               <div 
                 key={org.id}
-                onClick={() => router.push(`/dashboard/project/${org.id}/overview`)}
+                onClick={() => router.push(`/dashboard/org/${org.id}`)}
                 className="group relative bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-teal-500/50 hover:bg-slate-800/80 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
               >
                 <div className="flex justify-between items-start mb-3">

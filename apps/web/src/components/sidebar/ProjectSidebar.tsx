@@ -45,6 +45,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
   const pathname = usePathname();
   const router = useRouter();
   const projectId = params?.projectId;
+  const [isHovered, setIsHovered] = useState(false);
 
   const getActiveTab = () => {
     const parts = pathname.split('/');
@@ -56,35 +57,49 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
   };
 
   return (
-    <div className="flex flex-col w-64 bg-slate-900 border-r border-slate-800 h-screen overflow-y-auto">
-      <div className="flex items-center h-16 px-4 border-b border-slate-800">
+    <div 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`flex flex-col bg-slate-900 border-r border-slate-800 h-screen overflow-y-auto transition-all duration-300 ease-in-out z-20 ${
+        isHovered ? 'w-64 shadow-2xl shadow-black/50' : 'w-20'
+      }`}
+    >
+      <div className={`flex items-center h-16 border-b border-slate-800 transition-all ${isHovered ? 'px-4' : 'px-0 justify-center'}`}>
         <div className="flex items-center space-x-2">
-          <Database className="h-6 w-6 text-teal-500" />
-          <span className="text-xl font-bold text-white tracking-tight">SQ<span className="text-teal-500">Auto</span></span>
+          <Database className="h-6 w-6 text-teal-500 flex-shrink-0" />
+          {isHovered && (
+            <span className="text-xl font-bold text-white tracking-tight whitespace-nowrap animate-in fade-in duration-300">
+              SQ<span className="text-teal-500">Auto</span>
+            </span>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-1">
-        <SectionLabel label="Project" />
+      <nav className="flex-1 px-2 py-4 space-y-1 overflow-x-hidden">
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Project" />
+        </div>
         <SidebarItem 
           icon={Activity} 
-          label="Overview" 
+          label={isHovered ? "Overview" : ""} 
           id="overview" 
           active={getActiveTab() === 'overview'} 
           onClick={handleNav} 
         />
         <SidebarItem 
           icon={Upload} 
-          label="SQL Upload" 
+          label={isHovered ? "SQL Upload" : ""} 
           id="upload" 
           active={getActiveTab() === 'upload'} 
           onClick={handleNav} 
         />
 
-        <SectionLabel label="Analysis" />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Analysis" />
+        </div>
         <SidebarItem 
           icon={BarChart2} 
-          label="Extraction Diagnostics" 
+          label={isHovered ? "Extraction Diagnostics" : ""} 
           id="diagnostics" 
           active={getActiveTab() === 'diagnostics'} 
           disabled={!extractionCompleted}
@@ -93,7 +108,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={FileSearch} 
-          label="Truth Explorer" 
+          label={isHovered ? "Truth Explorer" : ""} 
           id="explorer" 
           active={getActiveTab() === 'explorer'} 
           disabled={!extractionCompleted}
@@ -102,7 +117,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={Layout} 
-          label="Schema Visualizer" 
+          label={isHovered ? "Schema Visualizer" : ""} 
           id="visualizer" 
           active={getActiveTab() === 'visualizer'} 
           disabled={!extractionCompleted}
@@ -111,7 +126,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={AlertCircle} 
-          label="Data Quality" 
+          label={isHovered ? "Data Quality" : ""} 
           id="quality" 
           active={getActiveTab() === 'quality'} 
           disabled={!extractionCompleted}
@@ -119,10 +134,12 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           onClick={handleNav} 
         />
 
-        <SectionLabel label="Migration Builder" />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Migration Builder" />
+        </div>
         <SidebarItem 
           icon={Map} 
-          label="Schema Mapping" 
+          label={isHovered ? "Schema Mapping" : ""} 
           id="mapping" 
           active={getActiveTab() === 'mapping'} 
           disabled={!extractionCompleted}
@@ -131,7 +148,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={Share2} 
-          label="Export SQL" 
+          label={isHovered ? "Export SQL" : ""} 
           id="export" 
           active={getActiveTab() === 'export'} 
           disabled={!extractionCompleted}
@@ -139,42 +156,52 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           onClick={handleNav} 
         />
 
-        <SectionLabel label="Live Database Tools" />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Live Database Tools" />
+        </div>
         <SidebarItem 
           icon={Layout} 
-          label="Live Destination" 
+          label={isHovered ? "Live Destination" : ""} 
           id="destination" 
           active={getActiveTab() === 'destination'} 
           onClick={handleNav} 
         />
         <SidebarItem 
           icon={ClipboardList} 
-          label="Simulation" 
+          label={isHovered ? "Simulation" : ""} 
           id="simulation" 
           active={getActiveTab() === 'simulation'} 
           onClick={handleNav} 
         />
 
-        <SectionLabel label="System" />
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="System" />
+        </div>
         <SidebarItem 
           icon={Settings} 
-          label="Settings" 
+          label={isHovered ? "Settings" : ""} 
           id="settings" 
           active={getActiveTab() === 'settings'} 
           onClick={handleNav} 
         />
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center space-x-3 px-2 py-3 bg-slate-800/50 rounded-lg">
-          <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-xs font-bold text-teal-950">
+      <div className={`p-4 border-t border-slate-800 transition-all ${isHovered ? '' : 'flex justify-center'}`}>
+        {isHovered ? (
+          <div className="flex items-center space-x-3 px-2 py-3 bg-slate-800/50 rounded-lg animate-in fade-in slide-in-from-left-2 duration-300">
+            <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-xs font-bold text-teal-950 flex-shrink-0">
+              JD
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <p className="text-xs font-medium text-white truncate">Industrial User</p>
+              <p className="text-[10px] text-slate-500 truncate">PRO Plan</p>
+            </div>
+          </div>
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-xs font-bold text-teal-950 shadow-lg shadow-teal-500/20">
             JD
           </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="text-xs font-medium text-white truncate">Industrial User</p>
-            <p className="text-[10px] text-slate-500 truncate">PRO Plan</p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
