@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, Database, Layout, Settings, FileSearch, 
