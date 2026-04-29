@@ -5,6 +5,7 @@ import {
   Lock, ChevronRight, ClipboardList
 } from 'lucide-react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useJob } from '@/components/JobProvider';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -44,12 +45,16 @@ const SectionLabel = ({ label }: { label: string }) => (
   </h3>
 );
 
-export const ProjectSidebar = ({ extractionCompleted = false }) => {
+
+export const ProjectSidebar = () => {
+  const { activeJob } = useJob();
   const params = useParams();
   const pathname = usePathname();
   const router = useRouter();
   const projectId = params?.projectId;
   const [isHovered, setIsHovered] = useState(false);
+
+  const extractionCompleted = activeJob?.status === 'completed';
 
   const getActiveTab = () => {
     const parts = pathname.split('/');
