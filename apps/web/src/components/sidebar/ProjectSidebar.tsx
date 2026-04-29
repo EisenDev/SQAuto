@@ -18,7 +18,7 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockRequirement }: SidebarItemProps) => (
   <div 
-    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
+    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
       active 
         ? 'bg-teal-900/40 text-teal-300 border-l-2 border-teal-500' 
         : disabled 
@@ -28,8 +28,13 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
     onClick={() => !disabled && onClick(id)}
     title={disabled ? `Requires ${unlockRequirement}` : ''}
   >
-    <Icon className={`mr-3 h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
-    <span className="flex-1">{label}</span>
+    {/* Fixed-width container to keep icons still */}
+    <div className="w-12 flex-shrink-0 flex items-center justify-center">
+      <Icon className={`h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
+    </div>
+    <span className={`flex-1 truncate transition-opacity duration-200 ${label ? 'opacity-100 ml-2' : 'opacity-0 w-0'}`}>
+      {label}
+    </span>
   </div>
 );
 
@@ -63,7 +68,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-20'
       }`}
     >
-      <nav className="flex-1 px-2 py-4 space-y-1 overflow-x-hidden custom-scrollbar">
+      <nav className="flex-1 px-0 py-4 space-y-1 overflow-x-hidden custom-scrollbar">
         <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
           <SectionLabel label="Project" />
         </div>
