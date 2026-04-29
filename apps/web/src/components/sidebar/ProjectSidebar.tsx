@@ -30,7 +30,6 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
   >
     <Icon className={`mr-3 h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
     <span className="flex-1">{label}</span>
-    {disabled && <Lock className="h-3 w-3 text-slate-700" />}
   </div>
 );
 
@@ -88,7 +87,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         </div>
         <SidebarItem 
           icon={BarChart2} 
-          label={isHovered ? "Extraction" : ""} 
+          label={isHovered ? "Extraction Diagnostics" : ""} 
           id="diagnostics" 
           active={getActiveTab() === 'diagnostics'} 
           disabled={!extractionCompleted}
@@ -97,7 +96,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={FileSearch} 
-          label={isHovered ? "Explorer" : ""} 
+          label={isHovered ? "Truth Explorer" : ""} 
           id="explorer" 
           active={getActiveTab() === 'explorer'} 
           disabled={!extractionCompleted}
@@ -106,7 +105,7 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
         <SidebarItem 
           icon={Layout} 
-          label={isHovered ? "Visualizer" : ""} 
+          label={isHovered ? "Schema Visualizer" : ""} 
           id="visualizer" 
           active={getActiveTab() === 'visualizer'} 
           disabled={!extractionCompleted}
@@ -124,11 +123,11 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
         />
 
         <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
-          <SectionLabel label="Build" />
+          <SectionLabel label="Migration Builder" />
         </div>
         <SidebarItem 
           icon={Map} 
-          label={isHovered ? "Mapping" : ""} 
+          label={isHovered ? "Schema Mapping" : ""} 
           id="mapping" 
           active={getActiveTab() === 'mapping'} 
           disabled={!extractionCompleted}
@@ -142,6 +141,24 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
           active={getActiveTab() === 'export'} 
           disabled={!extractionCompleted}
           unlockRequirement="Extraction"
+          onClick={handleNav} 
+        />
+
+        <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+          <SectionLabel label="Live Database Tools" />
+        </div>
+        <SidebarItem 
+          icon={Layout} 
+          label={isHovered ? "Live Destination" : ""} 
+          id="destination" 
+          active={getActiveTab() === 'destination'} 
+          onClick={handleNav} 
+        />
+        <SidebarItem 
+          icon={ClipboardList} 
+          label={isHovered ? "Simulation" : ""} 
+          id="simulation" 
+          active={getActiveTab() === 'simulation'} 
           onClick={handleNav} 
         />
 

@@ -15,12 +15,32 @@ export default function Header() {
   React.useEffect(() => {
     if (!projectId) return;
     
-    // Fetch project details including organization info
     import('@/lib/api_client').then(({ safeFetch }) => {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+      
+      // First fetch project to get organization_id
       safeFetch(`${API_URL}/projects/${projectId}`).then(res => {
         if (res.success && res.data) {
-          setProjectData(res.data);
+          const project = res.data;
+          
+          // If organization data is already there, use it
+          if (project.organization) {
+            setProjectData(project);
+          } else if (project.organization_id) {
+            // Otherwise fetch the organization details
+            safeFetch(`${API_URL}/organizations/${project.organization_id}`).then(orgRes => {
+              if (orgRes.success && orgRes.data) {
+                setProjectData({
+                  ...project,
+                  organization: orgRes.data
+                });
+              } else {
+                setProjectData(project);
+              }
+            });
+          } else {
+            setProjectData(project);
+          }
         }
       });
     });
