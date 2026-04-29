@@ -44,7 +44,10 @@ class Project(ProjectBase):
 class JobMinimal(BaseModel):
     id: UUID
     filename: str
+    original_filename: Optional[str] = None
+    file_size: Optional[int] = None
     status: str
+    is_active: bool = False
     created_at: datetime
 
     class Config:

@@ -38,6 +38,8 @@ export interface Job {
   job_id?: string; // Some endpoints return job_id instead of id
   status: JobStatus;
   filename: string;
+  original_filename?: string;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
   log?: string;
@@ -124,6 +126,16 @@ export async function getProjectJobs(projectId: string): Promise<Job[]> {
 /** Get job details */
 export async function getJob(jobId: string): Promise<Job> {
   return apiFetch<Job>(`/jobs/${jobId}`);
+}
+
+/** Set a job as active */
+export async function activateJob(jobId: string): Promise<void> {
+  await apiFetch(`/jobs/${jobId}/activate`, { method: "POST" });
+}
+
+/** Reset all project data */
+export async function resetProject(projectId: string): Promise<void> {
+  await apiFetch(`/projects/${projectId}/reset`, { method: "POST" });
 }
 
 /** Trigger dump restore for a job */

@@ -139,7 +139,8 @@ async def finalize_upload(request: FinalizeRequest, db: Session = Depends(get_db
         original_filename=request.filename,
         is_compressed=is_compressed,
         file_size=file_size,
-        status=JobStatus.UPLOADED
+        status=JobStatus.UPLOADED,
+        is_active=(db.query(Job).filter(Job.project_id == request.projectId, Job.is_active == True).count() == 0)
     )
     db.add(job)
     db.commit()
@@ -149,6 +150,7 @@ async def finalize_upload(request: FinalizeRequest, db: Session = Depends(get_db
         "id": str(job.id), 
         "status": job.status.value, 
         "filename": job.filename, 
+        "is_active": job.is_active,
         "is_compressed": is_compressed,
         "file_size": file_size
     }
@@ -186,7 +188,8 @@ async def upload_dump(
         original_filename=file.filename,
         is_compressed=is_compressed,
         file_size=file_size,
-        status=JobStatus.UPLOADED
+        status=JobStatus.UPLOADED,
+        is_active=(db.query(Job).filter(Job.project_id == projectId, Job.is_active == True).count() == 0)
     )
     db.add(job)
     db.commit()
@@ -195,6 +198,7 @@ async def upload_dump(
         "id": str(job.id), 
         "status": job.status.value, 
         "filename": job.filename, 
+        "is_active": job.is_active,
         "is_compressed": is_compressed,
         "file_size": file_size
     }
@@ -208,13 +212,40 @@ async def job_detail(job_id: str, db: Session = Depends(get_db)):
         "id": str(job.id),
         "projectId": str(job.project_id),
         "filename": job.filename,
+        "original_filename": job.original_filename,
         "status": job.status.value,
         "file_size": job.file_size,
+        "is_active": job.is_active,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
         "log": job.log,
         "profile": job.profile,
     }
+
+@api_router.post("/jobs/{job_id}/activate", tags=["jobs"], summary="Set a job as the active source of truth")
+async def activate_job(job_id: str, db: Session = Depends(get_db)):
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Deactivate all other jobs for this project
+    db.query(Job).filter(Job.project_id == job.project_id).update({"is_active": False})
+    
+    # Activate target job
+    job.is_active = True
+    db.commit()
+    return {"status": "success", "message": f"Job {job_id} is now the active source."}
+
+@api_router.post("/projects/{project_id}/reset", tags=["projects"], summary="Reset project data (Clear all jobs)")
+async def reset_project(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Delete all jobs for this project
+    db.query(Job).filter(Job.project_id == project.id).delete()
+    db.commit()
+    return {"status": "success", "message": "Project data reset. All jobs cleared."}
 
 @api_router.post("/jobs/{job_id}/restore", tags=["jobs"], summary="Restore dump into staging database (Background)")
 async def restore_job(job_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

@@ -70,6 +70,7 @@ class Job(Base):
     status = Column(Enum(JobStatus), nullable=False, default=JobStatus.UPLOADED)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, default=False, nullable=False)
     profile = Column(JSON, nullable=True)
     log = Column(Text, nullable=True)
 
