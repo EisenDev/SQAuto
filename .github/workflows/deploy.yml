@@ -40,37 +40,52 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
+      - name: Set up SSH key
+        run: |
+          set -eu
+          mkdir -p ~/.ssh
+          printf '%s\n' '${{ secrets.VM_SSH_KEY }}' > ~/.ssh/sqauto_vm_key
+          chmod 600 ~/.ssh/sqauto_vm_key
+          ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
+
       - name: Rebuild and restart on VM
-        uses: appleboy/ssh-action@v1.0.3
         env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
           METADATA_DATABASE_URL: ${{ secrets.METADATA_DATABASE_URL }}
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          envs: METADATA_DATABASE_URL,STAGING_DATABASE_URL,DATABASE_URL,REDIS_URL,SECRET_KEY,NEXT_PUBLIC_API_URL
-          script: |
-            set -eu
+        run: |
+          set -eu
 
-            cd ~/SQAuto
+          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" \
+            "export METADATA_DATABASE_URL='${METADATA_DATABASE_URL}' \
+             STAGING_DATABASE_URL='${STAGING_DATABASE_URL}' \
+             DATABASE_URL='${DATABASE_URL}' \
+             REDIS_URL='${REDIS_URL}' \
+             SECRET_KEY='${SECRET_KEY}' \
+             NEXT_PUBLIC_API_URL='${NEXT_PUBLIC_API_URL}'; \
+             bash -se" <<'EOF'
+          set -eu
 
-            git fetch origin main
-            git reset --hard origin/main
+          cd ~/SQAuto
 
-            cat > .env <<EOF
-            METADATA_DATABASE_URL=${METADATA_DATABASE_URL}
-            STAGING_DATABASE_URL=${STAGING_DATABASE_URL}
-            DATABASE_URL=${DATABASE_URL}
-            REDIS_URL=${REDIS_URL}
-            SECRET_KEY=${SECRET_KEY}
-            NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-            EOF
+          git fetch origin main
+          git reset --hard origin/main
 
-            docker compose -f docker/docker-compose.yml down
-            docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
-            docker compose -f docker/docker-compose.yml ps
+          cat > .env <<ENVEOF
+          METADATA_DATABASE_URL=${METADATA_DATABASE_URL}
+          STAGING_DATABASE_URL=${STAGING_DATABASE_URL}
+          DATABASE_URL=${DATABASE_URL}
+          REDIS_URL=${REDIS_URL}
+          SECRET_KEY=${SECRET_KEY}
+          NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+          ENVEOF
+
+          docker compose -f docker/docker-compose.yml down
+          docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
+          docker compose -f docker/docker-compose.yml ps
+          EOF
