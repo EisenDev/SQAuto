@@ -57,7 +57,15 @@ export const ProjectSidebar = ({ extractionCompleted = false }) => {
   };
 
   const handleNav = (tabId: string) => {
-    router.push(`/workspace/${projectId}/${tabId}`);
+    // Standardize routing to the dashboard project structure
+    if (tabId === 'upload') {
+      router.push(`/dashboard/project/${projectId}/sql`);
+    } else if (tabId === 'overview') {
+      router.push(`/dashboard/project/${projectId}`);
+    } else {
+      // Temporary fallback for tabs not yet migrated to the new structure
+      router.push(`/workspace/${projectId}/${tabId}`);
+    }
   };
 
   return (

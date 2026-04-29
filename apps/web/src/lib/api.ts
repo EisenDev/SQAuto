@@ -51,6 +51,7 @@ export interface Job {
  */
 export async function uploadDump(
   file: File, 
+  projectId: string,
   onProgress?: (progress: { loaded: number; total: number }) => void
 ): Promise<Job> {
   const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
@@ -104,7 +105,8 @@ export async function uploadDump(
       uploadId,
       filename: file.name,
       totalChunks,
-      fileSize: file.size
+      fileSize: file.size,
+      projectId: projectId
     })
   });
 }
@@ -112,6 +114,11 @@ export async function uploadDump(
 /** List all jobs */
 export async function listJobs(): Promise<Job[]> {
   return apiFetch<Job[]>("/jobs");
+}
+
+/** List jobs for a specific project */
+export async function getProjectJobs(projectId: string): Promise<Job[]> {
+  return apiFetch<Job[]>(`/projects/${projectId}/jobs`);
 }
 
 /** Get job details */
