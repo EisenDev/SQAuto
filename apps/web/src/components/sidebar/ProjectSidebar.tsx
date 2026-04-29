@@ -18,7 +18,7 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockRequirement }: SidebarItemProps) => (
   <div 
-    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
+    className={`group flex items-center pl-[30px] py-2 text-sm font-medium rounded-md cursor-pointer transition-all ${
       active 
         ? 'bg-teal-900/40 text-teal-300 border-l-2 border-teal-500' 
         : disabled 
@@ -28,7 +28,7 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
     onClick={() => !disabled && onClick(id)}
     title={disabled ? `Requires ${unlockRequirement}` : ''}
   >
-    {/* Fixed-width container (w-5) with original mr-3 to keep icons still */}
+    {/* Centered Icon Container (at 40px mark) */}
     <div className="w-5 flex-shrink-0 flex items-center justify-center mr-3">
       <Icon className={`h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
     </div>
@@ -39,7 +39,7 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
 );
 
 const SectionLabel = ({ label }: { label: string }) => (
-  <h3 className="px-3 mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+  <h3 className="pl-[30px] mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
     {label}
   </h3>
 );
