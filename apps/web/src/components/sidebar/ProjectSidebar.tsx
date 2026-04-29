@@ -77,7 +77,7 @@ export const ProjectSidebar = () => {
     <div 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`absolute inset-y-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-20 overflow-x-hidden ${
+      className={`fixed top-12 bottom-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-50 overflow-x-hidden ${
         isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-14'
       }`}
     >

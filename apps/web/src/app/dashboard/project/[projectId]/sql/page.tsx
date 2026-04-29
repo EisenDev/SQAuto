@@ -33,7 +33,6 @@ export default function SqlManagementPage() {
     if (!projectId) return;
     if (isRetry) setLoading(true);
     setError(null);
-    
     try {
       // 1. Fetch Project & Org Details
       const projectRes = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/projects/${projectId}`);
@@ -41,8 +40,6 @@ export default function SqlManagementPage() {
         setProject(projectRes.data);
         const orgRes = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/organizations/${projectRes.data.organization_id}`);
         if (orgRes.success) setOrganization(orgRes.data);
-      } else {
-        throw new Error("Project not found");
       }
 
       // 2. Fetch Jobs
@@ -58,7 +55,7 @@ export default function SqlManagementPage() {
 
     } catch (err: any) {
       console.error("Failed to fetch SQL management data:", err);
-      setError(err.message || "Unable to retrieve project source status.");
+      setError("Unable to retrieve project source status.");
     } finally {
       setLoading(false);
     }
@@ -120,20 +117,12 @@ export default function SqlManagementPage() {
           <h2 className="text-2xl font-bold text-white mb-2">Sync Error</h2>
           <p className="text-slate-400">{error}</p>
         </div>
-        <div className="flex flex-col space-y-4 items-center">
-          <button 
-            onClick={() => fetchData(true)}
-            className="px-8 py-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-black rounded-2xl transition-all shadow-lg shadow-teal-500/20"
-          >
-            RETRY SYNC
-          </button>
-          <button 
-            onClick={() => setError(null)}
-            className="text-xs font-black text-slate-500 hover:text-teal-500 uppercase tracking-widest transition-colors"
-          >
-            Skip and try Upload anyway
-          </button>
-        </div>
+        <button 
+          onClick={() => fetchData(true)}
+          className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 transition-all"
+        >
+          RETRY SYNC
+        </button>
       </div>
     );
   }
