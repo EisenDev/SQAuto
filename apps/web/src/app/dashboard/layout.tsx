@@ -8,7 +8,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex-1 flex bg-slate-950 relative min-h-screen">
+    <div className="flex-1 flex bg-slate-950 relative min-h-0">
       {/* Sidebar Spacer (Maintains space for fixed sidebar drawer) */}
       <div className="w-14 flex-shrink-0 border-r border-slate-800/40" />
       
@@ -16,7 +16,7 @@ export default function DashboardLayout({
       <ProjectSidebar />
 
       {/* Main Content Area */}
-      <main className="flex-1 min-w-0 relative">
+      <main className="flex-1 min-w-0 relative min-h-0 overflow-x-hidden">
         {children}
       </main>
     </div>

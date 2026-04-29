@@ -14,7 +14,7 @@ export default function OrganizationsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   useEffect(() => {
-    safeFetch(`${API_URL}/organizations`).then(res => {
+    safeFetch(`${API_URL}/organizations/`).then(res => {
       if (res.success && Array.isArray(res.data)) {
         setOrgs(res.data);
       }

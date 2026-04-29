@@ -2,14 +2,16 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { 
-  Building2, Rocket, 
-  Shield, CheckCircle2, Sparkles 
+  Building2,
+  Shield, Sparkles 
 } from 'lucide-react';
 
 export default function NewOrganizationPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -17,26 +19,37 @@ export default function NewOrganizationPage() {
     if (!name) return;
     
     setLoading(true);
+    setError(null);
     try {
-      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations`, {
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
-      const orgData = await orgRes.json();
+      const orgData = await orgRes.json().catch(() => null);
+
+      if (!orgRes.ok || !orgData?.id) {
+        const message = orgData?.message || orgData?.detail || 'Unable to create organization.';
+        setError(message);
+        toast.error(message);
+        return;
+      }
 
       if (orgData.id) {
         router.push(`/dashboard/new/${orgData.id}`);
       }
     } catch (err) {
       console.error(err);
+      const message = 'Unable to create organization.';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 bg-slate-950 text-slate-200 flex items-center justify-center p-6 translate-y-[-5%] overflow-hidden">
+    <div className="min-h-[calc(100vh-3rem)] bg-slate-950 text-slate-200 flex items-start justify-center overflow-hidden px-6 pt-10 pb-8 md:pt-14">
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-2">
           <div className="h-10 w-10 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-6">
@@ -64,6 +77,12 @@ export default function NewOrganizationPage() {
               <p className="text-[10px] text-slate-500 ml-0.5">What's the name of your company or team? You can change this later.</p>
             </div>
           </div>
+
+          {error ? (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              {error}
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-800/60">
             <button 
