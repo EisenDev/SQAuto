@@ -231,47 +231,9 @@ class SimulationEngineService:
         clean = (artifacts.get("cleaned_sql_version") or {}).get("sql")
         if clean:
             return {"sql": clean, "source": "clean"}
-
-        if target_dialect != "postgresql":
-            artifact = self.export_engine.build_export(
-                job=job,
-                db_session=db_session,
-                target_dialect=target_dialect,
-                export_mode="full",
-                override_validation=True,
-            )
-            self.export_engine._store_artifact(
-                job,
-                db_session,
-                artifact_kind="translated-sql",
-                target_dialect=artifact.target_dialect,
-                export_mode=artifact.mode,
-                sql=artifact.sql,
-                validation=artifact.validation,
-                warnings=artifact.warnings,
-                auto_fixes=artifact.auto_fixes_applied,
-            )
-            return {"sql": artifact.sql, "source": "translated"}
-
-        artifact = self.export_engine.build_export(
-            job=job,
-            db_session=db_session,
-            target_dialect="postgresql",
-            export_mode="full",
-            override_validation=True,
+        raise RuntimeError(
+            "No stored SQL artifact is available for simulation. Validate and store Clean SQL or Translated SQL first."
         )
-        self.export_engine._store_artifact(
-            job,
-            db_session,
-            artifact_kind="clean-sql",
-            target_dialect=artifact.target_dialect,
-            export_mode=artifact.mode,
-            sql=artifact.sql,
-            validation=artifact.validation,
-            warnings=artifact.warnings,
-            auto_fixes=artifact.auto_fixes_applied,
-        )
-        return {"sql": artifact.sql, "source": "clean"}
 
     def _expected_table_rows(self, job: Job) -> dict[str, int]:
         profile_tables = ((job.profile or {}).get("tables") or {}) if job.profile else {}
