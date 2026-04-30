@@ -149,46 +149,12 @@ export default function ExportPage({ params }: { params: { projectId: string } }
   React.useEffect(() => {
     setValidationResult(null);
     setManualTouched(false);
-  }, [selectedKind, targetDialect, exportMode]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    async function loadPreview() {
-      if (!workspace.sourceStatus.active_job_id) {
-        setPreviewData(null);
-        setManualSql("");
-        return;
-      }
-      setLoadingPreview(true);
-      try {
-        const result = await getJobExportPreview(workspace.sourceStatus.active_job_id, {
-          kind: selectedKind,
-          target: targetDialect,
-          exportMode,
-          overrideValidation: true,
-        });
-        if (cancelled) return;
-        setPreviewData(result);
-        if (!manualTouched) {
-          setManualSql(result.preview || "");
-        }
-        setPageError(null);
-      } catch (error: any) {
-        if (!cancelled) {
-          setPreviewData(null);
-          if (!manualTouched) setManualSql("");
-          setPageError(error?.message || "Unable to load real data");
-        }
-      }
-      setLoadingPreview(false);
+    setPreviewData(null);
+    setPageError(null);
+    if (selectedKind === "excel" || !manualTouched) {
+      setManualSql("");
     }
-
-    void loadPreview();
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace.sourceStatus.active_job_id, selectedKind, targetDialect, exportMode, manualTouched]);
+  }, [selectedKind, targetDialect, exportMode]);
 
   const activeJobId = workspace.sourceStatus.active_job_id;
   const isSqlKind = selectedKind !== "excel";
@@ -198,6 +164,31 @@ export default function ExportPage({ params }: { params: { projectId: string } }
   const useManualVersion = isSqlKind && Boolean(validationResult?.kind === "manual-sql" && validationResult.valid);
   const canDownload = selectedKind === "excel" ? readyByKind : readyByKind && (Boolean(validationResult?.valid) || allowOverride);
   const downloadHref = activeJobId ? buildDownloadUrl(activeJobId, selectedKind, targetDialect, exportMode, allowOverride, useManualVersion) : undefined;
+
+  async function handleGeneratePreview() {
+    if (!activeJobId || !isSqlKind) return;
+    setLoadingPreview(true);
+    try {
+      const result = await getJobExportPreview(activeJobId, {
+        kind: selectedKind,
+        target: targetDialect,
+        exportMode,
+        overrideValidation: true,
+      });
+      setPreviewData(result);
+      if (!manualTouched) {
+        setManualSql(result.preview || "");
+      }
+      setPageError(null);
+    } catch (error: any) {
+      setPreviewData(null);
+      if (!manualTouched) {
+        setManualSql("");
+      }
+      setPageError(error?.message || "Unable to load real data");
+    }
+    setLoadingPreview(false);
+  }
 
   async function handleValidate() {
     if (!activeJobId) return;
@@ -315,6 +306,10 @@ export default function ExportPage({ params }: { params: { projectId: string } }
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button className={workspaceActions.secondary} onClick={handleGeneratePreview} disabled={!isSqlKind || loadingPreview}>
+              <Eye className="h-4 w-4" />
+              {loadingPreview ? "Generating Preview..." : "Generate Preview"}
+            </button>
             <button className={workspaceActions.primary} onClick={handleValidate} disabled={!isSqlKind || validating}>
               <ShieldCheck className="h-4 w-4" />
               Validate SQL
@@ -356,7 +351,7 @@ export default function ExportPage({ params }: { params: { projectId: string } }
                     <div className="space-y-2 text-sm text-slate-300">
                       {previewData?.blocking_issues?.length ? previewData.blocking_issues.map((issue) => <div key={issue} className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-rose-100">{issue}</div>) : null}
                       {previewData?.warnings?.length ? previewData.warnings.map((warning) => <div key={warning} className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-amber-100">{warning}</div>) : null}
-                      {!previewData?.warnings?.length && !previewData?.blocking_issues?.length ? <div className="text-slate-500">No validation warnings yet</div> : null}
+                      {!previewData?.warnings?.length && !previewData?.blocking_issues?.length ? <div className="text-slate-500">{previewData ? "No validation warnings yet" : "Generate a preview to inspect current export issues"}</div> : null}
                     </div>
                   </div>
                 </div>
@@ -366,7 +361,7 @@ export default function ExportPage({ params }: { params: { projectId: string } }
                     <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Generated SQL Preview</span>
                     <textarea
                       readOnly
-                      value={previewData?.preview || "Generate export first"}
+                      value={previewData?.preview || "Preview is generated on demand to avoid rebuilding heavy SQL when switching tabs."}
                       className="min-h-[360px] w-full rounded-3xl border border-white/10 bg-slate-950/70 p-5 font-mono text-sm leading-6 text-slate-200 outline-none"
                     />
                   </label>
