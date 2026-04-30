@@ -1,6 +1,4 @@
 # docker/docker-compose.yml
-version: "3.9"
-
 services:
   nginx:
     image: nginx:alpine
@@ -35,11 +33,7 @@ services:
     restart: always
 
   api:
-    image: ${DOCKER_HUB_USERNAME:-sqauto}/sqauto-api:latest
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: api
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE:-eisendev}/sqauto-api:latest
     container_name: sqauto_api
     env_file: ../.env
     environment:
@@ -59,13 +53,7 @@ services:
     restart: always
 
   web:
-    image: ${DOCKER_HUB_USERNAME:-sqauto}/sqauto-web:latest
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: web
-      args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://sqauto.zeraynce.com/api}
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${IMAGE_NAMESPACE:-eisendev}/sqauto-web:latest
     container_name: sqauto_web
     env_file: ../.env
     environment:

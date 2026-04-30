@@ -9,6 +9,10 @@ concurrency:
   group: sqauto-production
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -36,8 +40,61 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall apps/api services
 
-  deploy:
+  build-and-push:
     needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      image_namespace: ${{ steps.meta.outputs.image_namespace }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute image namespace
+        id: meta
+        run: |
+          set -eu
+          echo "image_namespace=$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: api
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-api:latest
+            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-api:${{ github.sha }}
+          cache-from: type=gha,scope=sqauto-api
+          cache-to: type=gha,mode=max,scope=sqauto-api
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: web
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-web:latest
+            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-web:${{ github.sha }}
+          cache-from: type=gha,scope=sqauto-web
+          cache-to: type=gha,mode=max,scope=sqauto-web
+
+  deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Set up SSH key
@@ -54,14 +111,17 @@ jobs:
           ssh-keygen -lf ~/.ssh/sqauto_vm_key
           ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
 
-      - name: Rebuild and restart on VM
+      - name: Pull and restart on VM
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+          IMAGE_NAMESPACE: ${{ needs.build-and-push.outputs.image_namespace }}
         run: |
           set -eu
 
-          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<'EOF'
+          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<EOF
           set -eu
 
           cd ~/SQAuto
@@ -69,7 +129,14 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
-          docker compose -f docker/docker-compose.yml down
-          docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
+          export CONTAINER_REGISTRY=ghcr.io
+          export IMAGE_NAMESPACE="${IMAGE_NAMESPACE}"
+
+          printf '%s' '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USER}' --password-stdin
+
+          docker compose -f docker/docker-compose.yml pull api web
+          docker compose -f docker/docker-compose.yml up -d --remove-orphans
+          docker builder prune -af --filter until=24h || true
+          docker image prune -af --filter until=24h || true
           docker compose -f docker/docker-compose.yml ps
           EOF
