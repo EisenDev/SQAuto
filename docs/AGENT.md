@@ -141,6 +141,9 @@ Your goal is to help the system:
 - Detect SQL dialect of uploaded dump files
 - Provide enhanced reconciliation with ID-level comparison
 - Safe, controlled migration execution (preview & commit with default rollback)
+- Generate migration-ready SQL through a modular export pipeline
+- Translate export SQL between PostgreSQL, MySQL, and SQLite with explicit warnings
+- Enforce export validation gates with operator override support
 - Guarantee user clarity, project-scoping, and session-consistent UX across all tools
 
 You are a **guide**, not a decision-maker.
@@ -155,3 +158,4 @@ For the full product roadmap, feature specifications, and migration phases, see:
 - `docs/TECH_STACK.md` — Technology stack
 - `docs/UI_FRONTEND_SPECS.md` — Frontend specifications
 - `docs/PROMPT_SPECS.md` — AI output format specifications
+- `docs/EXPORT_PIPELINE.md` — Translation rules, export pipeline, and validation logic

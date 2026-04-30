@@ -1,107 +1,139 @@
-# apps/api/routers/export.py
 import os
 import tempfile
+import time
+
 import polars as pl
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-import subprocess
 
 from apps.api.database import get_db, staging_engine
 from apps.api.models import Job
+from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
+from services.export_engine.service import ExportEngineService
 
 router = APIRouter()
-
-@router.get("/{job_id}/export/excel", summary="Export Job output to Excel format")
-def export_excel(job_id: str, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job or job.status.value != "completed":
-        raise HTTPException(status_code=400, detail="Job must be completed before export.")
-
-    tmp_dir = tempfile.gettempdir()
-    tmp_path = os.path.join(tmp_dir, f"{job_id}_export.xlsx")
-    
-    # We use Polars with xlsxwriter to create a multi-sheet workbook
-    # Excel limit implies we truncate safely per table for massive SQL sets.
-    try:
-        import xlsxwriter
-        
-        tables = job.profile.get("tables", {}) if job.profile else {}
-        
-        with xlsxwriter.Workbook(tmp_path) as workbook:
-            # 1. Summary Sheet
-            summary_ws = workbook.add_worksheet("00_Summary")
-            summary_ws.write(0, 0, "Job ID")
-            summary_ws.write(0, 1, str(job.id))
-            summary_ws.write(1, 0, "Source Dialect")
-            summary_ws.write(1, 1, job.profile.get("metadata", {}).get("flavor", "postgres"))
-            summary_ws.write(2, 0, "Total Tables")
-            summary_ws.write(2, 1, job.profile.get("metadata", {}).get("table_count", len(tables)))
-            summary_ws.write(3, 0, "Readiness Status")
-            summary_ws.write(3, 1, "Exported successfully. Native SQL truncated to 10k rows/sheet to protect memory limits.")
-            
-            # 2. Table Sheets
-            db_conn = staging_engine.connect()
-            for t_name in tables:
-                clean_name = t_name[:31]  # Excel limits sheet names to 31 chars
-                try:
-                    df = pl.read_database(query=f'SELECT * FROM staging."{t_name}" LIMIT 10000', connection=db_conn)
-                    df.write_excel(workbook=workbook, worksheet=clean_name)
-                except Exception as e:
-                    print(f"Failed to export table {t_name} to excel: {e}")
-                    
-            # 3. AI Insights
-            ai_ws = workbook.add_worksheet("AI_Summary")
-            ai_ws.write(0, 0, "AI Generated Schema Insights")
-            for idx, insight in enumerate(job.profile.get("ai_insights", [])):
-                ai_ws.write(idx+1, 0, insight)
-
-            db_conn.close()
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Excel generation failed: {e}")
-
-    return FileResponse(tmp_path, filename=f"{job_id}_clean_export.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+export_engine = ExportEngineService()
 
 
-@router.get("/{job_id}/export/clean-sql", summary="Export staging as Clean PostgreSQL")
-def export_clean_sql(job_id: str, db: Session = Depends(get_db)):
+def _get_job(job_id: str, db: Session) -> Job:
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-        
-    db_url = staging_engine.url.render_as_string(hide_password=False).replace("+psycopg", "")
-    tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_clean_dump.sql")
-    
-    # Use pg_dump to export the isolated staging schema safely avoiding catalog overlap
-    cmd = ["pg_dump", db_url, "-n", "staging", "-O", "-x", "-f", tmp_path]
+    if not job.profile:
+        raise HTTPException(status_code=400, detail="Job profile is not available for export.")
+    return job
+
+
+@router.get("/{job_id}/export/excel", summary="Export Job output to Excel format")
+def export_excel(job_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
     try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        
-        # Post-process the dump to make it "public" schema ready
-        # We replace the search_path and any explicit staging. prefixes
-        # This allows the user to import this dump directly into their destination DB's public schema.
-        processed_path = tmp_path.replace(".sql", "_portable.sql")
-        with open(tmp_path, "r") as f_in, open(processed_path, "w") as f_out:
-            for line in f_in:
-                # Replace the schema creation and search path
-                if "CREATE SCHEMA staging;" in line:
-                    continue
-                line = line.replace("SET search_path = staging", "SET search_path = public")
-                # Replace staging.table_name with table_name or public.table_name
-                # pg_dump usually uses schema.table for constraints and indices
-                line = line.replace("staging.", "public.")
-                f_out.write(line)
-        
-        return FileResponse(processed_path, filename=f"{job_id}_migrated_dump.sql", content_type="application/sql")
-        
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"pg_dump failed: {e.stderr.decode('utf-8')}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export post-processing failed: {e}")
+        job = _get_job(job_id, db)
+        tmp_dir = tempfile.gettempdir()
+        tmp_path = os.path.join(tmp_dir, f"{job_id}_export.xlsx")
+
+        try:
+            import xlsxwriter
+
+            tables = job.profile.get("tables", {}) if job.profile else {}
+
+            with xlsxwriter.Workbook(tmp_path) as workbook:
+                summary_ws = workbook.add_worksheet("00_Summary")
+                summary_ws.write(0, 0, "Job ID")
+                summary_ws.write(0, 1, str(job.id))
+                summary_ws.write(1, 0, "Source Dialect")
+                summary_ws.write(1, 1, job.profile.get("metadata", {}).get("flavor", "postgres"))
+                summary_ws.write(2, 0, "Total Tables")
+                summary_ws.write(2, 1, job.profile.get("metadata", {}).get("table_count", len(tables)))
+                summary_ws.write(3, 0, "Readiness Status")
+                summary_ws.write(3, 1, "Export generated from validated staging data.")
+
+                db_conn = staging_engine.connect()
+                for table_name in tables:
+                    sheet_name = table_name[:31]
+                    try:
+                        df = pl.read_database(query=f'SELECT * FROM staging."{table_name}" LIMIT 10000', connection=db_conn)
+                        df.write_excel(workbook=workbook, worksheet=sheet_name)
+                    except Exception:
+                        continue
+                ai_ws = workbook.add_worksheet("AI_Summary")
+                ai_ws.write(0, 0, "AI Generated Schema Insights")
+                for idx, insight in enumerate(job.profile.get("ai_insights", [])):
+                    ai_ws.write(idx + 1, 0, insight)
+                db_conn.close()
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Excel generation failed: {exc}")
+
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(job.profile.get("tables", {})))
+        return FileResponse(tmp_path, filename=f"{job_id}_clean_export.xlsx", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
 
 
-@router.get("/{job_id}/export/translated-sql", summary="Export and transpile SQL")
-def export_translated_sql(job_id: str, target: str = "mysql", db: Session = Depends(get_db)):
-    raise HTTPException(status_code=501, detail="Translated SQL export for multi-gigabyte models requires the Advanced Pipeline Translation add-on which is not initialized.")
+@router.get("/{job_id}/export/clean-sql", summary="Export validated staging data as migration-ready PostgreSQL")
+def export_clean_sql(
+    job_id: str,
+    request: Request,
+    export_mode: str = Query(default="full"),
+    override_validation: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job(job_id, db)
+        try:
+            artifact = export_engine.build_export(
+                job=job,
+                db_session=db,
+                target_dialect="postgresql",
+                export_mode=export_mode,
+                override_validation=override_validation,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+
+        tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_{export_mode}_clean.sql")
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            handle.write(artifact.sql)
+
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(artifact.table_order))
+        return FileResponse(tmp_path, filename=f"{job_id}_{export_mode}_clean.sql", content_type="application/sql")
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.get("/{job_id}/export/translated-sql", summary="Export validated staging data translated for target SQL dialect")
+def export_translated_sql(
+    job_id: str,
+    request: Request,
+    target: str = Query(default="mysql"),
+    export_mode: str = Query(default="full"),
+    override_validation: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job(job_id, db)
+        try:
+            artifact = export_engine.build_export(
+                job=job,
+                db_session=db,
+                target_dialect=target,
+                export_mode=export_mode,
+                override_validation=override_validation,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+
+        tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_{export_mode}_{target}.sql")
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            handle.write(artifact.sql)
+
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(artifact.table_order))
+        return FileResponse(tmp_path, filename=f"{job_id}_{export_mode}_{target}.sql", content_type="application/sql")
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise

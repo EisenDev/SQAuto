@@ -14,8 +14,10 @@ from apps.api.utils import (
     paginate_log_text,
     raise_if_database_resource_exhausted,
 )
+from services.export_engine.service import ExportEngineService
 
 router = APIRouter()
+export_engine = ExportEngineService()
 
 ACTIVE_STAGING_STATUSES = {
     JobStatus.UPLOADED.value,
@@ -565,23 +567,7 @@ def get_job_export_status(job_id: str, request: Request, db: Session = Depends(g
     started_at = time.perf_counter()
     try:
         job = _get_job_or_404(job_id, db)
-        meta = _metadata(job)
-        completed = _job_status_value(job) == "completed"
-        payload = {
-            "job_id": str(job.id),
-            "project_id": str(job.project_id),
-            "clean_sql_ready": completed,
-            "translated_sql_ready": False,
-            "excel_ready": completed,
-            "artifact_sizes": {
-                "clean_sql_bytes": None,
-                "translated_sql_bytes": None,
-                "excel_bytes": None,
-            },
-            "preview_available": completed,
-            "dialect": meta.get("flavor") or meta.get("dialect"),
-            "filename": job.original_filename or job.filename,
-        }
+        payload = export_engine.build_status_payload(job, db)
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
         return payload
     except Exception as exc:
@@ -590,39 +576,50 @@ def get_job_export_status(job_id: str, request: Request, db: Session = Depends(g
 
 
 @router.get("/jobs/{job_id}/exports/preview")
-def get_job_export_preview(job_id: str, request: Request, kind: str = "clean-sql", db: Session = Depends(get_db)):
+def get_job_export_preview(
+    job_id: str,
+    request: Request,
+    kind: str = "clean-sql",
+    target: str = "postgresql",
+    export_mode: str = "full",
+    override_validation: bool = False,
+    db: Session = Depends(get_db),
+):
     started_at = time.perf_counter()
     try:
         job = _get_job_or_404(job_id, db)
-        table_map = _profile_tables(job)
-        if kind == "clean-sql":
-            statements = []
-            for table_name, info in table_map.items():
-                column_defs = []
-                for column in info.get("columns", [])[:20]:
-                    col_name = column.get("name", "column")
-                    col_type = column.get("type", "text")
-                    column_defs.append(f'  "{col_name}" {col_type}')
-                if info.get("primary_keys"):
-                    pk = ", ".join(f'"{col}"' for col in info["primary_keys"])
-                    column_defs.append(f"  PRIMARY KEY ({pk})")
-                if column_defs:
-                    statements.append(f'CREATE TABLE public."{table_name}" (\n' + ",\n".join(column_defs) + "\n);")
-            preview = "\n\n".join(statements[:8]) or "-- Generate export first"
-        elif kind == "excel":
+        if kind == "excel":
             meta = _metadata(job)
-            preview = (
-                f"Workbook Preview\n"
-                f"- Source file: {job.original_filename or job.filename}\n"
-                f"- Tables: {meta.get('table_count') or len(table_map)}\n"
-                f"- Rows: {meta.get('total_rows') or 0}\n"
-                f"- Sheets: 00_Summary, one per table, AI_Summary"
-            )
+            payload = {
+                "job_id": str(job.id),
+                "project_id": str(job.project_id),
+                "kind": kind,
+                "preview": (
+                    f"Workbook Preview\n"
+                    f"- Source file: {job.original_filename or job.filename}\n"
+                    f"- Tables: {meta.get('table_count') or len(_profile_tables(job))}\n"
+                    f"- Rows: {meta.get('total_rows') or 0}\n"
+                    f"- Sheets: 00_Summary, one per table, AI_Summary"
+                ),
+                "warnings": [],
+                "blocking_issues": [],
+                "auto_fixes_applied": [],
+                "blocked": False,
+                "unmapped_columns": [],
+            }
         else:
-            preview = "Generate export first"
-        payload = {"job_id": str(job.id), "project_id": str(job.project_id), "kind": kind, "preview": preview}
+            payload = export_engine.build_preview_payload(
+                job=job,
+                db_session=db,
+                target_dialect="postgresql" if kind == "clean-sql" else target,
+                export_mode=export_mode,
+                override_validation=override_validation,
+            )
+            payload["kind"] = kind
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
         return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
