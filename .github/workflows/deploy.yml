@@ -136,6 +136,7 @@ jobs:
 
           docker compose -f docker/docker-compose.yml pull api web
           docker compose -f docker/docker-compose.yml up -d --remove-orphans
+          docker compose -f docker/docker-compose.yml restart nginx
           docker builder prune -af --filter until=24h || true
           docker image prune -af --filter until=24h || true
           docker compose -f docker/docker-compose.yml ps
