@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -18,6 +19,14 @@ from services.export_engine.service import ExportEngineService
 
 router = APIRouter()
 export_engine = ExportEngineService()
+
+
+class ExportValidateRequest(BaseModel):
+    kind: str = "clean-sql"
+    target: str = "postgresql"
+    export_mode: str = "full"
+    override_validation: bool = False
+    manual_sql: str | None = None
 
 ACTIVE_STAGING_STATUSES = {
     JobStatus.UPLOADED.value,
@@ -614,10 +623,33 @@ def get_job_export_preview(
                 target_dialect="postgresql" if kind == "clean-sql" else target,
                 export_mode=export_mode,
                 override_validation=override_validation,
+                kind=kind,
             )
-            payload["kind"] = kind
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
         return payload
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.post("/jobs/{job_id}/exports/validate")
+def validate_job_export(job_id: str, payload: ExportValidateRequest, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        result = export_engine.validate_export(
+            job=job,
+            db_session=db,
+            kind=payload.kind,
+            target_dialect=payload.target,
+            export_mode=payload.export_mode,
+            override_validation=payload.override_validation,
+            manual_sql=payload.manual_sql,
+        )
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:

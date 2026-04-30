@@ -187,6 +187,21 @@ export interface ExportStatusResponse {
   preview_available: boolean;
   dialect?: string | null;
   filename?: string | null;
+  validation?: {
+    blocked: boolean;
+    warnings: string[];
+    blocking_issues: string[];
+    unmapped_columns: string[];
+  };
+  artifacts?: {
+    original_source_sql_reference?: Record<string, any> | null;
+    cleaned_sql_version?: Record<string, any> | null;
+    translated_sql_version?: Record<string, any> | null;
+    manual_edits_version?: Record<string, any> | null;
+    validation_result?: Record<string, any> | null;
+    created_at?: string | null;
+  };
+  quality_summary?: Record<string, number>;
 }
 
 export interface ExportPreviewResponse {
@@ -194,6 +209,28 @@ export interface ExportPreviewResponse {
   project_id: string;
   kind: string;
   preview: string;
+  target_dialect?: string;
+  export_mode?: string;
+  warnings?: string[];
+  blocking_issues?: string[];
+  auto_fixes_applied?: string[];
+  cleaning_suggestions?: string[];
+  blocked?: boolean;
+  unmapped_columns?: string[];
+}
+
+export interface ExportValidateResponse {
+  job_id: string;
+  project_id: string;
+  kind: string;
+  target_dialect: string;
+  export_mode: string;
+  valid: boolean;
+  blocked: boolean;
+  warnings: string[];
+  blocking_issues: string[];
+  unmapped_columns: string[];
+  created_at: string;
 }
 
 export interface MigrationTarget {
@@ -356,8 +393,34 @@ export async function getJobExportStatus(jobId: string): Promise<ExportStatusRes
   return apiFetch<ExportStatusResponse>(`/jobs/${jobId}/exports/status`);
 }
 
-export async function getJobExportPreview(jobId: string, kind: string): Promise<ExportPreviewResponse> {
-  return apiFetch<ExportPreviewResponse>(`/jobs/${jobId}/exports/preview?kind=${encodeURIComponent(kind)}`);
+export async function getJobExportPreview(
+  jobId: string,
+  options: { kind: string; target?: string; exportMode?: string; overrideValidation?: boolean },
+): Promise<ExportPreviewResponse> {
+  const params = new URLSearchParams({
+    kind: options.kind,
+    target: options.target || "postgresql",
+    export_mode: options.exportMode || "full",
+    override_validation: String(Boolean(options.overrideValidation)),
+  });
+  return apiFetch<ExportPreviewResponse>(`/jobs/${jobId}/exports/preview?${params.toString()}`);
+}
+
+export async function validateJobExport(
+  jobId: string,
+  payload: { kind: string; target?: string; exportMode?: string; overrideValidation?: boolean; manualSql?: string },
+): Promise<ExportValidateResponse> {
+  return apiFetch<ExportValidateResponse>(`/jobs/${jobId}/exports/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: payload.kind,
+      target: payload.target || "postgresql",
+      export_mode: payload.exportMode || "full",
+      override_validation: Boolean(payload.overrideValidation),
+      manual_sql: payload.manualSql ?? null,
+    }),
+  });
 }
 
 export async function listMigrationTargets(projectId: string): Promise<MigrationTarget[]> {

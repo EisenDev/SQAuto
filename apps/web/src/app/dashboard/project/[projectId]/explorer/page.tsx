@@ -195,6 +195,7 @@ export default function ExplorerPage() {
           <SectionCard
             title={selected?.name || "Table Preview"}
             description="Supabase-style sample grid over staged source data"
+            className="min-h-0"
             action={
               <div className="flex items-center gap-2">
                 <div className="relative">
@@ -217,10 +218,9 @@ export default function ExplorerPage() {
             }
           >
             {selected && preview ? (
-              <div className={`flex h-full flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
-                <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10">
-                  <div className="flex-1 overflow-hidden rounded-t-2xl">
-                    <div className={`h-full ${ROWS_VISIBLE_HEIGHT} overflow-auto`}>
+              <div className="flex min-h-0 flex-col overflow-hidden">
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-white/10">
+                  <div className={`overflow-auto ${ROWS_VISIBLE_HEIGHT}`}>
                       <table className="min-w-full divide-y divide-white/5">
                         <thead className="sticky top-0 z-10 bg-slate-950/95">
                           <tr>
@@ -246,7 +246,6 @@ export default function ExplorerPage() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
                   </div>
                   <div className="flex items-center justify-between border-t border-white/5 bg-slate-950/80 px-4 py-4 text-sm text-slate-400">
                     <span>{loadingPreview ? "Loading preview…" : `${preview.total.toLocaleString()} total rows`}</span>

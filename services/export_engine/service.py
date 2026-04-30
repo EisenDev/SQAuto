@@ -1,5 +1,6 @@
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import inspect, text
@@ -91,6 +92,7 @@ class ExportEngineService:
         target_dialect: str = "postgresql",
         export_mode: str = "full",
         override_validation: bool = False,
+        kind: str = "clean-sql",
     ) -> dict[str, Any]:
         artifact = self.build_export(
             job=job,
@@ -102,12 +104,14 @@ class ExportEngineService:
         return {
             "job_id": str(job.id),
             "project_id": str(job.project_id),
+            "kind": kind,
             "target_dialect": artifact.target_dialect,
             "export_mode": artifact.mode,
             "preview": artifact.sql[:50000],
             "warnings": artifact.warnings,
             "blocking_issues": artifact.blocking_issues,
             "auto_fixes_applied": artifact.auto_fixes_applied,
+            "cleaning_suggestions": self._build_cleaning_suggestions(artifact.sql, artifact.target_dialect, artifact.warnings),
             "table_order": artifact.table_order,
             "blocked": artifact.validation.blocked,
             "unmapped_columns": artifact.validation.unmapped_columns,
@@ -137,12 +141,88 @@ class ExportEngineService:
                 "blocking_issues": validation.blocking_issues,
                 "unmapped_columns": validation.unmapped_columns,
             },
+            "artifacts": self._artifact_status(job),
             "quality_summary": {
                 "duplicate_count": quality_report.get("duplicate_count", 0),
                 "null_risk_count": quality_report.get("null_risk_count", 0),
                 "orphan_fk_count": quality_report.get("orphan_fk_count", 0),
                 "type_mismatch_count": quality_report.get("type_mismatch_count", 0),
             },
+        }
+
+    def validate_export(
+        self,
+        *,
+        job: Job,
+        db_session: Session,
+        kind: str = "clean-sql",
+        target_dialect: str = "postgresql",
+        export_mode: str = "full",
+        override_validation: bool = False,
+        manual_sql: str | None = None,
+    ) -> dict[str, Any]:
+        kind = (kind or "clean-sql").lower()
+        target = self._normalize_dialect(target_dialect if kind != "clean-sql" else "postgresql")
+        mode = self._normalize_mode(export_mode)
+
+        if manual_sql is not None and manual_sql.strip():
+            validation = self._validate_manual_sql(manual_sql, target)
+            created_at = self._store_artifact(
+                job,
+                db_session,
+                artifact_kind="manual-sql",
+                target_dialect=target,
+                export_mode=mode,
+                sql=manual_sql,
+                validation=validation,
+                warnings=validation.warnings,
+                auto_fixes=[],
+            )
+            return {
+                "job_id": str(job.id),
+                "project_id": str(job.project_id),
+                "kind": "manual-sql",
+                "target_dialect": target,
+                "export_mode": mode,
+                "valid": not validation.blocked,
+                "blocked": validation.blocked,
+                "warnings": validation.warnings,
+                "blocking_issues": validation.blocking_issues,
+                "unmapped_columns": validation.unmapped_columns,
+                "created_at": created_at,
+            }
+
+        artifact = self.build_export(
+            job=job,
+            db_session=db_session,
+            target_dialect=target,
+            export_mode=mode,
+            override_validation=override_validation,
+        )
+        artifact_kind = "translated-sql" if kind == "translated-sql" else "clean-sql"
+        created_at = self._store_artifact(
+            job,
+            db_session,
+            artifact_kind=artifact_kind,
+            target_dialect=artifact.target_dialect,
+            export_mode=artifact.mode,
+            sql=artifact.sql,
+            validation=artifact.validation,
+            warnings=artifact.warnings,
+            auto_fixes=artifact.auto_fixes_applied,
+        )
+        return {
+            "job_id": str(job.id),
+            "project_id": str(job.project_id),
+            "kind": artifact_kind,
+            "target_dialect": artifact.target_dialect,
+            "export_mode": artifact.mode,
+            "valid": not artifact.validation.blocked,
+            "blocked": artifact.validation.blocked,
+            "warnings": artifact.warnings,
+            "blocking_issues": artifact.blocking_issues,
+            "unmapped_columns": artifact.validation.unmapped_columns,
+            "created_at": created_at,
         }
 
     def _normalize_dialect(self, dialect: str) -> str:
@@ -215,6 +295,17 @@ class ExportEngineService:
                 "mapping_state": mapping_state.get(table_name, {}),
             }
         return {"tables": tables}
+
+    def _artifact_status(self, job: Job) -> dict[str, Any]:
+        store = ((job.profile or {}).get("export_artifacts") or {}) if job.profile else {}
+        return {
+            "original_source_sql_reference": store.get("original_source_sql_reference"),
+            "cleaned_sql_version": store.get("cleaned_sql_version"),
+            "translated_sql_version": store.get("translated_sql_version"),
+            "manual_edits_version": store.get("manual_edits_version"),
+            "validation_result": store.get("validation_result"),
+            "created_at": store.get("created_at"),
+        }
 
     def _lookup_profile_type(self, table_profile: dict[str, Any], column_name: str) -> str | None:
         for column in table_profile.get("columns", []):
@@ -299,6 +390,96 @@ class ExportEngineService:
         job.profile = profile
         db_session.commit()
         return cached
+
+    def _build_cleaning_suggestions(self, sql: str, target_dialect: str, warnings: list[str]) -> list[str]:
+        suggestions = [
+            "Remove invalid statements before final export.",
+            "Normalize identifiers to avoid quoting issues across dialects.",
+            "Fix unsupported defaults such as dialect-specific NOW()/BOOLEAN forms.",
+            "Detect broken constraints and review inferred foreign keys.",
+            "Flag unsupported dialect syntax before running against a live destination.",
+        ]
+        if target_dialect != "postgresql":
+            suggestions.append(f"Review translated {target_dialect} syntax for target-specific type/default adjustments.")
+        suggestions.extend(warnings[:3])
+        return self._dedupe(suggestions)
+
+    def _validate_manual_sql(self, sql: str, target_dialect: str) -> ExportValidationResult:
+        text_sql = (sql or "").strip()
+        blocking_issues: list[str] = []
+        warnings: list[str] = []
+        if not text_sql:
+            blocking_issues.append("Manual SQL is empty.")
+        if ";" not in text_sql:
+            warnings.append("SQL preview does not contain statement terminators.")
+        upper_sql = text_sql.upper()
+        if not any(keyword in upper_sql for keyword in ("CREATE TABLE", "INSERT INTO", "ALTER TABLE", "COPY ")):
+            blocking_issues.append("Manual SQL does not contain recognized schema/data statements.")
+        if target_dialect == "sqlite" and "SERIAL" in upper_sql:
+            warnings.append("SERIAL is not native to SQLite and should be normalized.")
+        if "INVALID" in upper_sql:
+            blocking_issues.append("Manual SQL contains invalid placeholder syntax.")
+        return ExportValidationResult(
+            blocked=bool(blocking_issues),
+            warnings=self._dedupe(warnings),
+            blocking_issues=self._dedupe(blocking_issues),
+            unmapped_columns=[],
+            auto_fixes_applied=[],
+        )
+
+    def _store_artifact(
+        self,
+        job: Job,
+        db_session: Session,
+        *,
+        artifact_kind: str,
+        target_dialect: str,
+        export_mode: str,
+        sql: str,
+        validation: ExportValidationResult,
+        warnings: list[str],
+        auto_fixes: list[str],
+    ) -> str:
+        profile = job.profile or {}
+        artifacts = profile.get("export_artifacts") or {}
+        created_at = datetime.utcnow().isoformat()
+        artifact_entry = {
+            "target_dialect": target_dialect,
+            "export_mode": export_mode,
+            "sql": sql,
+            "warnings": self._dedupe(warnings),
+            "blocking_issues": self._dedupe(validation.blocking_issues),
+            "unmapped_columns": self._dedupe(validation.unmapped_columns),
+            "auto_fixes_applied": self._dedupe(auto_fixes),
+            "created_at": created_at,
+        }
+        artifacts["original_source_sql_reference"] = {
+            "job_id": str(job.id),
+            "filename": job.original_filename or job.filename,
+            "created_at": created_at,
+        }
+        if artifact_kind == "clean-sql":
+            artifacts["cleaned_sql_version"] = artifact_entry
+        elif artifact_kind == "translated-sql":
+            translated = artifacts.get("translated_sql_version") or {}
+            translated[target_dialect] = artifact_entry
+            artifacts["translated_sql_version"] = translated
+        elif artifact_kind == "manual-sql":
+            artifacts["manual_edits_version"] = artifact_entry
+        artifacts["validation_result"] = {
+            "blocked": validation.blocked,
+            "warnings": self._dedupe(validation.warnings),
+            "blocking_issues": self._dedupe(validation.blocking_issues),
+            "unmapped_columns": self._dedupe(validation.unmapped_columns),
+            "created_at": created_at,
+        }
+        artifacts["created_at"] = artifacts.get("created_at") or created_at
+        profile["export_artifacts"] = artifacts
+        job.profile = profile
+        db_session.add(job)
+        db_session.commit()
+        db_session.refresh(job)
+        return created_at
 
     def _generate_create_table_sql(self, table_name: str, context: dict[str, Any], target_dialect: str, warnings: list[str]) -> str:
         table = context["tables"][table_name]
