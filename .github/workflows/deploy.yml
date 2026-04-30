@@ -63,18 +63,8 @@ jobs:
           set -eu
 
           for attempt in 1 2 3 4 5; do
-            if ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<'EOF'
-            set -eu
-
-            cd ~/SQAuto
-
-            git fetch origin main
-            git reset --hard origin/main
-
-            docker compose -f docker/docker-compose.yml down
-            docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
-            docker compose -f docker/docker-compose.yml ps
-            EOF
+            if ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" \
+              "set -eu; cd ~/SQAuto; git fetch origin main; git reset --hard origin/main; docker compose -f docker/docker-compose.yml down; docker compose -f docker/docker-compose.yml up -d --build --remove-orphans; docker compose -f docker/docker-compose.yml ps"
             then
               exit 0
             fi
