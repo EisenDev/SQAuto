@@ -114,7 +114,8 @@ export default function SimulationPage({ params }: { params: { projectId: string
 
   React.useEffect(() => {
     if (!selectedTarget && targetsQuery.data?.[0]) {
-      setSelectedTarget(targetsQuery.data[0].id);
+      const preferred = targetsQuery.data.find((target) => !target.is_application_db) || targetsQuery.data[0];
+      setSelectedTarget(preferred.id);
     }
   }, [selectedTarget, targetsQuery.data]);
 
@@ -136,6 +137,11 @@ export default function SimulationPage({ params }: { params: { projectId: string
     : [];
   const tableResults = summary?.table_results || [];
   const logs = logsQuery.data || [];
+  const primaryActionLabel = !hasStoredArtifact
+    ? "Generate Artifact First"
+    : running
+      ? "Running…"
+      : "Run Simulation";
 
   async function runSimulation() {
     if (!activeJobId || !selectedTarget || running || !hasStoredArtifact) return;
@@ -199,9 +205,14 @@ export default function SimulationPage({ params }: { params: { projectId: string
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
-              <button className={workspaceActions.primary} onClick={runSimulation} disabled={running || !selectedTarget || !activeJobId || !hasStoredArtifact}>
+              <button
+                className={`${workspaceActions.primary} ${!hasStoredArtifact ? "opacity-100" : ""}`}
+                onClick={!hasStoredArtifact ? () => router.push(`/dashboard/project/${params.projectId}/export`) : runSimulation}
+                disabled={running || !selectedTarget || !activeJobId}
+                title={!hasStoredArtifact ? "Generate and store an export artifact before simulation." : undefined}
+              >
                 <PlayCircle className="h-4 w-4" />
-                {running ? "Running…" : "Run Simulation"}
+                {primaryActionLabel}
               </button>
             </>
           }
