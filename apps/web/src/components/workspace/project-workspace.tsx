@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { safeFetch } from "@/lib/api_client";
 import { cn } from "@/lib/utils";
+import useSWR from "swr";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -231,87 +232,100 @@ function deriveTimeline(jobs: WorkspaceDataState["jobs"], sourceStatus: Workspac
   return timeline.slice(0, 5);
 }
 
-export function useProjectWorkspaceData(projectId: string) {
-  const [state, setState] = React.useState<WorkspaceDataState>(() => buildEmptyState(projectId));
-
-  const reload = React.useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
-
-    const [projectRes, sourceRes, jobsRes, logsRes, activeJobRes] = await Promise.all([
-      safeFetch(`${API_URL}/projects/${projectId}`),
-      safeFetch(`${API_URL}/projects/${projectId}/source-status`),
-      safeFetch(`${API_URL}/projects/${projectId}/jobs`),
-      safeFetch(`${API_URL}/projects/${projectId}/logs?limit=10&page=1`),
-      safeFetch(`${API_URL}/projects/${projectId}/active-job`),
-    ]);
-    const jobs =
-      jobsRes.success && Array.isArray(jobsRes.data)
-        ? jobsRes.data.map((job: any) => ({
-            id: String(job.id),
-            status: String(job.status),
-            filename: String(job.original_filename || job.filename || "source.sql"),
-            file_size: job.file_size,
-            created_at: job.created_at,
-            is_active: job.is_active,
-          }))
-        : [];
-    const logsPreview = logsRes.success && Array.isArray(logsRes.data?.lines) ? logsRes.data.lines : [];
-    const sourceStatus = sourceRes.success
-      ? {
-          ...sourceRes.data,
-          metrics: {
-            tables: Number(sourceRes.data.metrics?.tables || 0),
-            rows: Number(sourceRes.data.metrics?.rows || 0),
-            data_size_mb: Number(sourceRes.data.metrics?.data_size_mb || 0),
-          },
-        }
-      : buildEmptyState(projectId).sourceStatus;
-
-    setState({
-      ...buildEmptyState(projectId),
-      project: projectRes.success
-        ? {
-            id: String(projectRes.data.id),
-            name: projectRes.data.name,
-            description: projectRes.data.description,
-            organization_id: projectRes.data.organization_id,
-          }
-        : buildEmptyState(projectId).project,
-      sourceStatus,
-      jobs,
-      logsPreview,
-      activeJob: activeJobRes.success ? activeJobRes.data : null,
-      recentJobs: jobs.slice(0, 5).map((job) => ({
-        id: job.id,
-        filename: job.filename,
-        status: job.status,
-        created_at: job.created_at,
-      })),
-      timeline: deriveTimeline(jobs, sourceStatus, logsPreview),
-      exportOptions: [
-        { id: "clean-sql", title: "Clean SQL", description: "Sanitized PostgreSQL-friendly export from staging.", format: ".sql", ready: sourceStatus.status === "completed" },
-        { id: "translated-sql", title: "Translated SQL", description: "Dialect-converted output for the chosen target engine.", format: ".sql", ready: false },
-        { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: sourceStatus.status === "completed" },
-      ],
-      usingMockData: false,
-      hasAnyJob: jobs.length > 0 || Boolean(sourceStatus.active_job_id),
-      hasExtraction: sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed",
-      loading: false,
-      error: projectRes.success || sourceRes.success || jobsRes.success || logsRes.success
-        ? null
-        : projectRes.error || sourceRes.error || jobsRes.error || logsRes.error || "Unable to load real data",
-    });
-  }, [projectId]);
-
-  React.useEffect(() => {
-    reload();
-  }, [reload]);
+async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDataState> {
+  const [projectRes, sourceRes, jobsRes, logsRes, activeJobRes] = await Promise.all([
+    safeFetch(`${API_URL}/projects/${projectId}`),
+    safeFetch(`${API_URL}/projects/${projectId}/source-status`),
+    safeFetch(`${API_URL}/projects/${projectId}/jobs`),
+    safeFetch(`${API_URL}/projects/${projectId}/logs?limit=10&page=1`),
+    safeFetch(`${API_URL}/projects/${projectId}/active-job`),
+  ]);
+  const jobs =
+    jobsRes.success && Array.isArray(jobsRes.data)
+      ? jobsRes.data.map((job: any) => ({
+          id: String(job.id),
+          status: String(job.status),
+          filename: String(job.original_filename || job.filename || "source.sql"),
+          file_size: job.file_size,
+          created_at: job.created_at,
+          is_active: job.is_active,
+        }))
+      : [];
+  const logsPreview = logsRes.success && Array.isArray(logsRes.data?.lines) ? logsRes.data.lines : [];
+  const sourceStatus = sourceRes.success
+    ? {
+        ...sourceRes.data,
+        metrics: {
+          tables: Number(sourceRes.data.metrics?.tables || 0),
+          rows: Number(sourceRes.data.metrics?.rows || 0),
+          data_size_mb: Number(sourceRes.data.metrics?.data_size_mb || 0),
+        },
+      }
+    : buildEmptyState(projectId).sourceStatus;
 
   return {
-    ...state,
-    reload,
+    ...buildEmptyState(projectId),
+    project: projectRes.success
+      ? {
+          id: String(projectRes.data.id),
+          name: projectRes.data.name,
+          description: projectRes.data.description,
+          organization_id: projectRes.data.organization_id,
+        }
+      : buildEmptyState(projectId).project,
+    sourceStatus,
+    jobs,
+    logsPreview,
+    activeJob: activeJobRes.success ? activeJobRes.data : null,
+    recentJobs: jobs.slice(0, 5).map((job) => ({
+      id: job.id,
+      filename: job.filename,
+      status: job.status,
+      created_at: job.created_at,
+    })),
+    timeline: deriveTimeline(jobs, sourceStatus, logsPreview),
+    exportOptions: [
+      { id: "clean-sql", title: "Clean SQL", description: "Sanitized PostgreSQL-friendly export from staging.", format: ".sql", ready: sourceStatus.status === "completed" },
+      { id: "translated-sql", title: "Translated SQL", description: "Dialect-converted output for the chosen target engine.", format: ".sql", ready: false },
+      { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: sourceStatus.status === "completed" },
+    ],
+    usingMockData: false,
+    hasAnyJob: jobs.length > 0 || Boolean(sourceStatus.active_job_id),
+    hasExtraction: sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed",
+    loading: false,
+    error:
+      projectRes.success || sourceRes.success || jobsRes.success || logsRes.success
+        ? null
+        : projectRes.error || sourceRes.error || jobsRes.error || logsRes.error || "Unable to load real data",
   };
 }
+
+export function useProjectData(projectId: string) {
+  const emptyState = React.useMemo(() => buildEmptyState(projectId), [projectId]);
+  const swr = useSWR(["project-workspace", projectId], () => fetchProjectWorkspaceData(projectId), {
+    fallbackData: emptyState,
+    dedupingInterval: 10000,
+    focusThrottleInterval: 15000,
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+    refreshInterval: (data) => {
+      const status = data?.sourceStatus?.status;
+      if (status === "uploaded" || status === "restoring" || status === "analyzing") return 5000;
+      return 0;
+    },
+  });
+
+  return {
+    ...(swr.data || emptyState),
+    loading: swr.isLoading && !(swr.data && swr.data.hasAnyJob),
+    refreshing: swr.isValidating,
+    reload: async () => {
+      await swr.mutate();
+    },
+  };
+}
+
+export const useProjectWorkspaceData = useProjectData;
 
 export function StatusBadge({ status, children }: { status: WorkspaceStatus | string; children?: React.ReactNode }) {
   const value = String(status).toLowerCase();

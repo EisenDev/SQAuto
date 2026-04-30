@@ -20,7 +20,14 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (contentType && contentType.includes("application/json")) {
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.detail || data.message || `API error: ${res.status}`);
+      const detail = data.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : detail?.message || data.message || `API error: ${res.status}`;
+      const error = new Error(message);
+      (error as any).error_type = typeof detail === "object" ? detail?.error_type : data.error_type;
+      throw error;
     }
     return data;
   } else {
@@ -259,6 +266,52 @@ export interface MigrationRun {
   summary?: Record<string, any> | null;
 }
 
+export interface SimulationRunSummary {
+  status: string;
+  sql_source?: string | null;
+  tables_total: number;
+  tables_success: number;
+  tables_failed: number;
+  rows_expected: number;
+  rows_inserted: number;
+  diff: {
+    missing_rows: number;
+    extra_rows: number;
+  };
+  errors: string[];
+  warnings: string[];
+  execution_time: string;
+  table_results: Array<{
+    table: string;
+    expected_rows: number;
+    inserted_rows: number;
+    status: string;
+    errors: string[];
+  }>;
+}
+
+export interface SimulationRunResponse {
+  id: string | null;
+  project_id?: string | null;
+  source_job_id: string;
+  target_id: string | null;
+  mode: string;
+  status: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  summary: SimulationRunSummary | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface SimulationLogEntry {
+  id: string;
+  level: string;
+  table_name?: string | null;
+  message: string;
+  created_at?: string | null;
+}
+
 /** 
  * Upload a SQL dump file with real-time progress tracking.
  * Uses chunked uploads to bypass Cloudflare/Proxy limits.
@@ -449,6 +502,29 @@ export async function startDryRun(sourceJobId: string, targetId: string): Promis
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ source_job_id: sourceJobId, target_id: targetId }),
   });
+}
+
+export async function startJobSimulation(
+  jobId: string,
+  payload: { targetId: string; mode?: string; debugKeepSchema?: boolean },
+): Promise<SimulationRunResponse> {
+  return apiFetch<SimulationRunResponse>(`/jobs/${jobId}/simulate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      target_id: payload.targetId,
+      mode: payload.mode || "dry-run",
+      debug_keep_schema: Boolean(payload.debugKeepSchema),
+    }),
+  });
+}
+
+export async function getJobSimulationResult(jobId: string): Promise<SimulationRunResponse> {
+  return apiFetch<SimulationRunResponse>(`/jobs/${jobId}/simulation/result`);
+}
+
+export async function getJobSimulationLogs(jobId: string, limit = 20): Promise<SimulationLogEntry[]> {
+  return apiFetch<SimulationLogEntry[]>(`/jobs/${jobId}/simulation/logs?limit=${limit}`);
 }
 
 /** Set a job as active */

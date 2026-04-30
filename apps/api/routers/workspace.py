@@ -1,14 +1,15 @@
 import time
+import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from apps.api.database import get_db, staging_engine
-from apps.api.models import Job, JobStatus
+from apps.api.database import SessionLocal, get_db, staging_engine
+from apps.api.models import Job, JobStatus, MigrationLog, MigrationRun, MigrationRunMode, MigrationRunStatus, MigrationTarget
 from apps.api.utils import (
     build_source_status,
     log_endpoint_audit,
@@ -16,9 +17,11 @@ from apps.api.utils import (
     raise_if_database_resource_exhausted,
 )
 from services.export_engine.service import ExportEngineService
+from services.migration_simulator.service import SimulationEngineService
 
 router = APIRouter()
 export_engine = ExportEngineService()
+simulation_engine = SimulationEngineService()
 
 
 class ExportValidateRequest(BaseModel):
@@ -27,6 +30,12 @@ class ExportValidateRequest(BaseModel):
     export_mode: str = "full"
     override_validation: bool = False
     manual_sql: str | None = None
+
+
+class SimulationRequest(BaseModel):
+    target_id: str
+    mode: str = "dry-run"
+    debug_keep_schema: bool = False
 
 ACTIVE_STAGING_STATUSES = {
     JobStatus.UPLOADED.value,
@@ -56,6 +65,22 @@ def _ensure_job_has_live_staging(job: Job, db: Session) -> None:
     )
     if active_staging_job and str(active_staging_job.id) != str(job.id):
         raise HTTPException(status_code=410, detail="DATA_RETIRED")
+
+
+def _serialize_run(run: MigrationRun) -> dict:
+    return {
+        "id": str(run.id),
+        "project_id": str(run.project_id) if run.project_id else None,
+        "source_job_id": str(run.source_job_id),
+        "target_id": str(run.target_id),
+        "mode": run.mode.value if hasattr(run.mode, "value") else str(run.mode),
+        "status": run.status.value if hasattr(run.status, "value") else str(run.status),
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "summary": run.summary,
+        "created_at": run.created_at.isoformat() if run.created_at else None,
+        "updated_at": run.updated_at.isoformat() if run.updated_at else None,
+    }
 
 
 def _metadata(job: Job) -> dict:
@@ -652,6 +677,137 @@ def validate_job_export(job_id: str, payload: ExportValidateRequest, request: Re
         return result
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+def _run_simulation_task(run_id: str, job_id: str, target_id: str, debug_keep_schema: bool = False):
+    db = SessionLocal()
+    try:
+        simulation_engine.run_simulation(
+            run_id=uuid.UUID(run_id),
+            job_id=uuid.UUID(job_id),
+            target_id=uuid.UUID(target_id),
+            db_session=db,
+            debug_keep_schema=debug_keep_schema,
+        )
+    finally:
+        db.close()
+
+
+@router.post("/jobs/{job_id}/simulate")
+def start_job_simulation(job_id: str, payload: SimulationRequest, background_tasks: BackgroundTasks, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        if payload.mode != "dry-run":
+            raise HTTPException(status_code=400, detail="Simulation mode must be dry-run")
+        job = _get_job_or_404(job_id, db)
+        target = db.query(MigrationTarget).filter(MigrationTarget.id == payload.target_id).first()
+        if not target:
+            raise HTTPException(status_code=404, detail={"error_type": "connection_failed", "message": "Target connection not found"})
+        if target.project_id and job.project_id and str(target.project_id) != str(job.project_id):
+            raise HTTPException(status_code=400, detail="Target does not belong to the same project")
+
+        run = MigrationRun(
+            project_id=job.project_id,
+            source_job_id=job.id,
+            target_id=target.id,
+            mode=MigrationRunMode.DRY_RUN,
+            status=MigrationRunStatus.PENDING,
+            summary={
+                "status": "pending",
+                "sql_source": None,
+                "tables_total": 0,
+                "tables_success": 0,
+                "tables_failed": 0,
+                "rows_expected": 0,
+                "rows_inserted": 0,
+                "diff": {"missing_rows": 0, "extra_rows": 0},
+                "errors": [],
+                "warnings": [],
+                "execution_time": "0s",
+                "table_results": [],
+            },
+        )
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
+        background_tasks.add_task(_run_simulation_task, str(run.id), str(job.id), str(target.id), payload.debug_keep_schema)
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return _serialize_run(run)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.get("/jobs/{job_id}/simulation/result")
+def get_job_simulation_result(job_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        run = (
+            db.query(MigrationRun)
+            .filter(MigrationRun.source_job_id == job.id, MigrationRun.mode == MigrationRunMode.DRY_RUN)
+            .order_by(MigrationRun.created_at.desc())
+            .first()
+        )
+        payload = _serialize_run(run) if run else {
+            "id": None,
+            "project_id": str(job.project_id) if job.project_id else None,
+            "source_job_id": str(job.id),
+            "target_id": None,
+            "mode": "dry_run",
+            "status": "idle",
+            "started_at": None,
+            "finished_at": None,
+            "summary": None,
+            "created_at": None,
+            "updated_at": None,
+        }
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1 if run else 0)
+        return payload
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.get("/jobs/{job_id}/simulation/logs")
+def get_job_simulation_logs(job_id: str, request: Request, limit: int = 20, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    limit = max(1, min(limit, 100))
+    try:
+        job = _get_job_or_404(job_id, db)
+        run = (
+            db.query(MigrationRun)
+            .filter(MigrationRun.source_job_id == job.id, MigrationRun.mode == MigrationRunMode.DRY_RUN)
+            .order_by(MigrationRun.created_at.desc())
+            .first()
+        )
+        if not run:
+            return []
+        logs = (
+            db.query(MigrationLog)
+            .filter(MigrationLog.migration_run_id == run.id)
+            .order_by(MigrationLog.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        payload = [
+            {
+                "id": str(log.id),
+                "level": log.level.value if hasattr(log.level, "value") else str(log.level),
+                "table_name": log.table_name,
+                "message": log.message,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ]
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(payload))
+        return payload
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
