@@ -3,7 +3,6 @@
 import React from "react";
 import { Plus, RefreshCw, Server, ShieldAlert, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { safeFetch } from "@/lib/api_client";
 import {
   DataTable,
   EmptyState,
@@ -18,9 +17,7 @@ import {
   workspaceMeta,
   workspacePageShell,
 } from "@/components/workspace/project-workspace";
-import { createMigrationTarget, deleteMigrationTarget, listMigrationTargets } from "@/lib/api";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+import { createMigrationTarget, deleteMigrationTarget, listMigrationTargets, testMigrationTargetConnection } from "@/lib/api";
 
 export default function DestinationPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
@@ -38,6 +35,27 @@ export default function DestinationPage({ params }: { params: { projectId: strin
     password: "",
   });
 
+  const normalizedHost = form.host.trim().toLowerCase();
+  const hostWarning =
+    normalizedHost === "localhost" || normalizedHost === "127.0.0.1" || normalizedHost === "::1"
+      ? "localhost points to the SQAuto backend container/server, not your laptop database. Use host.docker.internal, a docker-compose service name, or a reachable DB host."
+      : null;
+
+  function validateForm() {
+    const missing = [
+      !form.name.trim() ? "connection name" : null,
+      !form.host.trim() ? "host" : null,
+      !form.port.trim() ? "port" : null,
+      !form.database_name.trim() ? "database" : null,
+      !form.username.trim() ? "username" : null,
+      !form.password ? "password" : null,
+    ].filter(Boolean) as string[];
+    if (missing.length) {
+      return `Provide ${missing.join(", ")} before testing or saving this destination.`;
+    }
+    return null;
+  }
+
   const loadTargets = React.useCallback(async () => {
     try {
       const result = await listMigrationTargets(params.projectId);
@@ -54,23 +72,39 @@ export default function DestinationPage({ params }: { params: { projectId: strin
   }, [loadTargets]);
 
   const testConnection = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setTesting(true);
-    const response = await safeFetch(`${API_URL}/migration/targets/test`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const response = await testMigrationTargetConnection({
         host: form.host,
         port: Number(form.port),
         database_name: form.database_name,
         username: form.username,
         password: form.password,
-      }),
-    });
-    toast[response.success ? "success" : "error"](response.success ? "Connection test passed" : response.error || "Connection test failed");
+        db_type: "postgresql",
+        ssl_mode: "prefer",
+      });
+      if (response.success) {
+        toast.success("Connection test passed");
+      } else {
+        toast.error(response.hint ? `${response.message || response.error}\n${response.hint}` : response.message || response.error || "Connection test failed");
+      }
+    } catch (error: any) {
+      toast.error(error?.hint ? `${error.message}\n${error.hint}` : error?.message || "Connection test failed");
+    }
     setTesting(false);
   };
 
   const saveTarget = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setSaving(true);
     try {
       const response = await createMigrationTarget(params.projectId, {
@@ -198,6 +232,12 @@ export default function DestinationPage({ params }: { params: { projectId: strin
                   </label>
                 ))}
               </div>
+
+              {hostWarning ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                  {hostWarning}
+                </div>
+              ) : null}
 
               <div className="mt-6 flex justify-end gap-3">
                 <button className={workspaceActions.secondary} onClick={testConnection} disabled={testing}>

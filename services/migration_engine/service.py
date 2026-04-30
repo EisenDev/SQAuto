@@ -12,13 +12,66 @@ from datetime import datetime
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
+from services.migration_engine.target_connection import (
+    build_localhost_hint,
+    build_target_connection_url,
+    sanitize_target_connection_settings,
+)
+
 logger = logging.getLogger("sqauto.migration_engine")
 
 
 class MigrationEngineService:
     """Core migration engine for target DB connectivity and dry-run validation."""
 
-    def test_connection(self, config: dict) -> dict:
+    def get_target_connection_settings(self, source, *, caller: str, target_id: str | None = None) -> dict:
+        settings = sanitize_target_connection_settings(source)
+        logger.info(
+            "target_connection caller=%s target_id=%s connection_name=%s host=%s port=%s database=%s db_type=%s ssl_mode=%s",
+            caller,
+            target_id,
+            settings.get("connection_name") or "<unnamed>",
+            settings["host"],
+            settings["port"],
+            settings["database_name"],
+            settings["db_type"],
+            settings["ssl_mode"],
+        )
+        return settings
+
+    def precheck_connection(self, source, *, caller: str, target_id: str | None = None) -> dict:
+        try:
+            settings = self.get_target_connection_settings(source, caller=caller, target_id=target_id)
+        except ValueError as exc:
+            detail = exc.args[0] if exc.args else {"error_type": "invalid_target_configuration", "message": "Invalid target configuration"}
+            return {
+                "success": False,
+                "db_type": None,
+                "db_version": None,
+                "error_type": detail.get("error_type", "invalid_target_configuration"),
+                "error": detail.get("message", "Invalid target configuration"),
+                "message": detail.get("message", "Invalid target configuration"),
+                "hint": None,
+                "fields": detail.get("fields", []),
+                "settings": {k: v for k, v in settings.items() if k != "password"} if "settings" in locals() else None,
+            }
+
+        localhost_hint = build_localhost_hint(settings["host"])
+        if localhost_hint:
+            return {
+                "success": False,
+                "db_type": settings["db_type"],
+                "db_version": None,
+                "error_type": "target_connection_failed",
+                "error": "The simulation backend cannot reach this target database.",
+                "message": "The simulation backend cannot reach this target database.",
+                "hint": localhost_hint,
+                "fields": [],
+                "settings": {k: v for k, v in settings.items() if k != "password"},
+            }
+        return self.test_connection(settings, caller=caller, target_id=target_id, prevalidated=True)
+
+    def test_connection(self, config: dict, *, caller: str = "test_connection", target_id: str | None = None, prevalidated: bool = False) -> dict:
         """Test connectivity to a target PostgreSQL database.
         
         Uses only SELECT version() — no schema mutations.
@@ -29,13 +82,10 @@ class MigrationEngineService:
         Returns:
             dict with success, db_type, db_version, error
         """
+        settings = config
         try:
-            ssl_mode = config.get("ssl_mode", "prefer")
-            url = (
-                f"postgresql+psycopg://{config['username']}:{config['password']}"
-                f"@{config['host']}:{config['port']}/{config['database_name']}"
-                f"?sslmode={ssl_mode}"
-            )
+            settings = config if prevalidated else self.get_target_connection_settings(config, caller=caller, target_id=target_id)
+            url = build_target_connection_url(settings)
             
             engine = create_engine(
                 url,
@@ -49,12 +99,15 @@ class MigrationEngineService:
             
             engine.dispose()
             
-            logger.info(f"Connection test PASSED for {config['host']}:{config['port']}/{config['database_name']}")
+            logger.info(f"Connection test PASSED for {settings['host']}:{settings['port']}/{settings['database_name']}")
             return {
                 "success": True,
-                "db_type": "postgresql",
+                "db_type": settings["db_type"],
                 "db_version": version_str,
-                "error": None
+                "error": None,
+                "message": None,
+                "hint": None,
+                "settings": {k: v for k, v in settings.items() if k != "password"},
             }
         except Exception as e:
             err_msg = str(e)
@@ -63,7 +116,7 @@ class MigrationEngineService:
             error_type = "connection_failed"
             if "timeout" in err_msg.lower() or "connection timeout" in err_msg.lower():
                 error_type = "connection_timeout"
-                if any(x in config.get("host", "") for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
+                if any(x in str(settings.get("host", "")) for x in ["127.0.0.1", "localhost", "192.168.", "10."]):
                     err_msg = (
                         "Connection timed out. The SQAuto server cannot reach this database host/port. "
                         "If SQAuto is deployed on Azure, local/LAN IPs like 127.0.0.1 or 192.168.x.x will not work "
@@ -73,16 +126,20 @@ class MigrationEngineService:
                     err_msg = "Connection timed out. Ensure the database host is reachable and firewall allows traffic from SQAuto server."
 
             # Scrub password from error messages
-            if config.get("password"):
-                err_msg = err_msg.replace(config["password"], "***")
+            if isinstance(settings, dict) and settings.get("password"):
+                err_msg = err_msg.replace(settings["password"], "***")
+            localhost_hint = build_localhost_hint(str(settings.get("host", ""))) if isinstance(settings, dict) else None
             
-            logger.warning(f"Connection test FAILED for {config.get('host', '?')}: {err_msg}")
+            logger.warning(f"Connection test FAILED for {settings.get('host', '?') if isinstance(settings, dict) else '?'}: {err_msg}")
             return {
                 "success": False,
-                "db_type": "postgresql",
+                "db_type": settings.get("db_type", "postgresql") if isinstance(settings, dict) else "postgresql",
                 "db_version": None,
                 "error": err_msg,
-                "error_type": error_type
+                "error_type": error_type,
+                "message": err_msg,
+                "hint": localhost_hint,
+                "settings": {k: v for k, v in settings.items() if k != "password"} if isinstance(settings, dict) else None,
             }
 
     def run_dry_run(self, run_id: uuid.UUID, source_job_id: uuid.UUID, target_config: dict, db_session: Session):

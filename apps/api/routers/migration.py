@@ -65,6 +65,7 @@ class TargetTestRequest(BaseModel):
     database_name: str
     username: str
     password: str
+    db_type: str = "postgresql"
     ssl_mode: Optional[str] = "prefer"
 
 
@@ -143,16 +144,23 @@ def create_target(request: TargetCreateRequest, db: Session = Depends(get_db)):
     """Save a target database connection configuration.
     Password is stored but NEVER returned in responses.
     """
+    if not request.name.strip():
+        raise HTTPException(status_code=400, detail={"error_type": "invalid_target_configuration", "message": "Target connection name is required.", "fields": ["name"]})
+    try:
+        settings = engine_service.get_target_connection_settings(request.dict(), caller="save_target")
+    except ValueError as exc:
+        detail = exc.args[0] if exc.args else {"error_type": "invalid_target_configuration", "message": "Invalid target configuration"}
+        raise HTTPException(status_code=400, detail=detail)
     target = MigrationTarget(
         project_id=uuid.UUID(request.project_id) if request.project_id else None,
-        name=request.name,
-        host=request.host,
-        port=request.port,
-        database_name=request.database_name,
-        username=request.username,
-        password=request.password,
-        db_type=request.db_type,
-        ssl_mode=request.ssl_mode,
+        name=request.name.strip(),
+        host=settings["host"],
+        port=settings["port"],
+        database_name=settings["database_name"],
+        username=settings["username"],
+        password=settings["password"],
+        db_type=settings["db_type"],
+        ssl_mode=settings["ssl_mode"],
     )
     db.add(target)
     db.commit()
@@ -167,15 +175,27 @@ def test_target_connection(request: TargetTestRequest):
     """Test connectivity to a target PostgreSQL database.
     Does not persist anything. Only executes SELECT version().
     """
-    result = engine_service.test_connection({
+    result = engine_service.precheck_connection({
         "host": request.host,
         "port": request.port,
         "database_name": request.database_name,
         "username": request.username,
         "password": request.password,
+        "db_type": request.db_type,
         "ssl_mode": request.ssl_mode,
-    })
+    }, caller="test_connection")
     return result
+
+
+@router.post("/targets/{target_id}/test", summary="Test a saved target connection")
+def test_saved_target_connection(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+    if project_id:
+        query = query.filter(MigrationTarget.project_id == project_id)
+    target = query.first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    return engine_service.precheck_connection(target, caller="test_connection", target_id=str(target.id))
 
 
 @router.get("/targets", summary="List saved target connections")
@@ -204,9 +224,33 @@ def update_target(target_id: str, request: TargetUpdateRequest, project_id: Opti
     if "password" in update_data:
         if not update_data["password"]:
             del update_data["password"]  # Do not overwrite with empty strings
+    merged = {
+        "name": update_data.get("name", target.name),
+        "host": update_data.get("host", target.host),
+        "port": update_data.get("port", target.port),
+        "database_name": update_data.get("database_name", target.database_name),
+        "username": update_data.get("username", target.username),
+        "password": update_data.get("password", target.password),
+        "db_type": update_data.get("db_type", target.db_type),
+        "ssl_mode": update_data.get("ssl_mode", target.ssl_mode),
+    }
+    if not str(merged["name"] or "").strip():
+        raise HTTPException(status_code=400, detail={"error_type": "invalid_target_configuration", "message": "Target connection name is required.", "fields": ["name"]})
+    try:
+        settings = engine_service.get_target_connection_settings(merged, caller="update_target", target_id=str(target.id))
+    except ValueError as exc:
+        detail = exc.args[0] if exc.args else {"error_type": "invalid_target_configuration", "message": "Invalid target configuration"}
+        raise HTTPException(status_code=400, detail=detail)
             
     for key, value in update_data.items():
         setattr(target, key, value)
+    target.host = settings["host"]
+    target.port = settings["port"]
+    target.database_name = settings["database_name"]
+    target.username = settings["username"]
+    target.password = settings["password"]
+    target.db_type = settings["db_type"]
+    target.ssl_mode = settings["ssl_mode"]
         
     target.updated_at = datetime.utcnow()
     db.commit()

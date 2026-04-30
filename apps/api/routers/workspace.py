@@ -17,11 +17,13 @@ from apps.api.utils import (
     raise_if_database_resource_exhausted,
 )
 from services.export_engine.service import ExportEngineService
+from services.migration_engine.service import MigrationEngineService
 from services.migration_simulator.service import SimulationEngineService
 
 router = APIRouter()
 export_engine = ExportEngineService()
 simulation_engine = SimulationEngineService()
+migration_engine = MigrationEngineService()
 
 
 class ExportValidateRequest(BaseModel):
@@ -708,6 +710,27 @@ def start_job_simulation(job_id: str, payload: SimulationRequest, background_tas
             raise HTTPException(status_code=404, detail={"error_type": "connection_failed", "message": "Target connection not found"})
         if target.project_id and job.project_id and str(target.project_id) != str(job.project_id):
             raise HTTPException(status_code=400, detail="Target does not belong to the same project")
+        precheck = migration_engine.precheck_connection(target, caller="simulation", target_id=str(target.id))
+        if not precheck.get("success"):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "status": "failed",
+                    "error_type": "target_connection_failed",
+                    "message": precheck.get("message") or "The simulation backend cannot reach this target database.",
+                    "hint": precheck.get("hint") or "If using localhost, use a Docker-reachable hostname.",
+                    "target": {
+                        "id": str(target.id),
+                        "name": target.name,
+                        "host": target.host,
+                        "port": target.port,
+                        "database_name": target.database_name,
+                        "db_type": target.db_type or "postgresql",
+                        "ssl_mode": target.ssl_mode or "prefer",
+                    },
+                    "technical_details": precheck.get("error"),
+                },
+            )
 
         run = MigrationRun(
             project_id=job.project_id,

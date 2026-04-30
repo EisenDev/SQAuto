@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from apps.api.models import Job, MigrationLog, MigrationLogLevel, MigrationRun, MigrationRunStatus, MigrationTarget
 from services.export_engine.service import ExportEngineService
 from services.migration_engine.service import MigrationEngineService
+from services.migration_engine.target_connection import build_target_connection_url
 
 logger = logging.getLogger("sqauto.migration_simulator")
 
@@ -33,22 +34,14 @@ class SimulationEngineService:
         db_session.commit()
         self._log(db_session, run, MigrationLogLevel.INFO, None, "Simulation started")
 
-        target_config = {
-            "host": target.host,
-            "port": target.port,
-            "database_name": target.database_name,
-            "username": target.username,
-            "password": target.password,
-            "ssl_mode": target.ssl_mode,
-            "db_type": target.db_type or "postgresql",
-        }
-
-        conn_test = self.connection_tester.test_connection(target_config)
+        target_config = self.connection_tester.get_target_connection_settings(target, caller="simulation", target_id=str(target.id))
+        conn_test = self.connection_tester.precheck_connection(target, caller="simulation", target_id=str(target.id))
         if not conn_test.get("success"):
             summary = {
                 "status": "failed",
-                "error_type": conn_test.get("error_type", "connection_failed"),
-                "message": conn_test.get("error") or "Unable to connect to target database",
+                "error_type": conn_test.get("error_type", "target_connection_failed"),
+                "message": conn_test.get("message") or conn_test.get("error") or "Unable to connect to target database",
+                "hint": conn_test.get("hint"),
                 "sql_source": None,
                 "tables_total": 0,
                 "tables_success": 0,
@@ -61,6 +54,15 @@ class SimulationEngineService:
                 "execution_time": "0s",
                 "table_results": [],
                 "schema_name": None,
+                "target": {
+                    "id": str(target.id),
+                    "name": target.name,
+                    "host": target.host,
+                    "port": target.port,
+                    "database_name": target.database_name,
+                    "db_type": target.db_type or "postgresql",
+                    "ssl_mode": target.ssl_mode or "prefer",
+                },
             }
             self._finalize_run(db_session, run, MigrationRunStatus.FAILED, summary)
             return
@@ -282,12 +284,7 @@ class SimulationEngineService:
         return expected
 
     def _build_target_engine(self, config: dict):
-        ssl_mode = config.get("ssl_mode", "prefer")
-        url = (
-            f"postgresql+psycopg://{config['username']}:{config['password']}"
-            f"@{config['host']}:{config['port']}/{config['database_name']}"
-            f"?sslmode={ssl_mode}"
-        )
+        url = build_target_connection_url(config)
         return create_engine(url, connect_args={"connect_timeout": 15}, echo=False, future=True)
 
     def _split_sql_statements(self, sql: str) -> list[str]:

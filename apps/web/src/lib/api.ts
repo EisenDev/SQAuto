@@ -27,6 +27,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
           : detail?.message || data.message || `API error: ${res.status}`;
       const error = new Error(message);
       (error as any).error_type = typeof detail === "object" ? detail?.error_type : data.error_type;
+      (error as any).detail = detail;
+      (error as any).hint = typeof detail === "object" ? detail?.hint : data.hint;
+      (error as any).target = typeof detail === "object" ? detail?.target : data.target;
+      (error as any).technical_details = typeof detail === "object" ? detail?.technical_details : data.technical_details;
       throw error;
     }
     return data;
@@ -268,6 +272,9 @@ export interface MigrationRun {
 
 export interface SimulationRunSummary {
   status: string;
+  error_type?: string;
+  message?: string | null;
+  hint?: string | null;
   sql_source?: string | null;
   tables_total: number;
   tables_success: number;
@@ -288,6 +295,15 @@ export interface SimulationRunSummary {
     status: string;
     errors: string[];
   }>;
+  target?: {
+    id?: string;
+    name?: string;
+    host?: string;
+    port?: number;
+    database_name?: string;
+    db_type?: string;
+    ssl_mode?: string;
+  };
 }
 
 export interface SimulationRunResponse {
@@ -302,6 +318,18 @@ export interface SimulationRunResponse {
   summary: SimulationRunSummary | null;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface TargetConnectionTestResponse {
+  success: boolean;
+  db_type: string | null;
+  db_version: string | null;
+  error: string | null;
+  error_type?: string;
+  message?: string | null;
+  hint?: string | null;
+  fields?: string[];
+  settings?: Record<string, any> | null;
 }
 
 export interface SimulationLogEntry {
@@ -485,6 +513,20 @@ export async function createMigrationTarget(projectId: string, payload: Record<s
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, project_id: projectId }),
+  });
+}
+
+export async function testMigrationTargetConnection(payload: Record<string, any>): Promise<TargetConnectionTestResponse> {
+  return apiFetch<TargetConnectionTestResponse>(`/migration/targets/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function testSavedMigrationTarget(projectId: string, targetId: string): Promise<TargetConnectionTestResponse> {
+  return apiFetch<TargetConnectionTestResponse>(`/migration/targets/${targetId}/test?project_id=${projectId}`, {
+    method: "POST",
   });
 }
 

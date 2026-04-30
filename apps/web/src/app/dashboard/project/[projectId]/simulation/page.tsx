@@ -2,6 +2,7 @@
 
 import React from "react";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -12,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { AlertTriangle, PlayCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
   DataTable,
   EmptyState,
@@ -33,6 +35,7 @@ import {
   getJobSimulationResult,
   listMigrationTargets,
   startJobSimulation,
+  testSavedMigrationTarget,
 } from "@/lib/api";
 
 const idleSimulation: SimulationRunResponse = {
@@ -51,10 +54,11 @@ const idleSimulation: SimulationRunResponse = {
 
 export default function SimulationPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
+  const router = useRouter();
   const activeJobId = workspace.sourceStatus.active_job_id || "";
   const [selectedTarget, setSelectedTarget] = React.useState("");
   const [running, setRunning] = React.useState(false);
-  const [pageError, setPageError] = React.useState<string | null>(null);
+  const [pageError, setPageError] = React.useState<{ message: string; errorType?: string | null; hint?: string | null; technicalDetails?: string | null; target?: any } | null>(null);
 
   const targetsQuery = useSWR(
     ["simulation-targets", params.projectId],
@@ -104,6 +108,8 @@ export default function SimulationPage({ params }: { params: { projectId: string
 
   const simulation = resultQuery.data || idleSimulation;
   const summary = simulation.summary;
+  const selectedTargetRecord = targetsQuery.data?.find((target) => target.id === selectedTarget) || null;
+  const failureTarget = summary?.target || pageError?.target || selectedTargetRecord;
   const diffData = summary
     ? [
         { name: "Expected", value: summary.rows_expected || 0 },
@@ -121,10 +127,29 @@ export default function SimulationPage({ params }: { params: { projectId: string
       setPageError(null);
       await Promise.all([resultQuery.mutate(), logsQuery.mutate()]);
     } catch (error: any) {
-      const message = error?.message || error?.error || "Unable to load real data";
-      setPageError(typeof message === "string" ? message : "Unable to load real data");
+      setPageError({
+        message: error?.message || error?.error || "Unable to load real data",
+        errorType: error?.error_type || null,
+        hint: error?.hint || null,
+        technicalDetails: error?.technical_details || null,
+        target: error?.target || selectedTargetRecord || null,
+      });
     }
     setRunning(false);
+  }
+
+  async function handleRetestTarget() {
+    if (!failureTarget?.id) return;
+    try {
+      const result = await testSavedMigrationTarget(params.projectId, failureTarget.id);
+      if (result.success) {
+        toast.success("Destination test passed");
+      } else {
+        toast.error(result.hint ? `${result.message || result.error}\n${result.hint}` : result.message || result.error || "Destination test failed");
+      }
+    } catch (error: any) {
+      toast.error(error?.hint ? `${error.message}\n${error.hint}` : error?.message || "Destination test failed");
+    }
   }
 
   if (!workspace.hasAnyJob && !workspace.usingMockData) {
@@ -167,8 +192,61 @@ export default function SimulationPage({ params }: { params: { projectId: string
         <WorkspaceNote
           usingMockData={false}
           loading={workspace.loading || targetsQuery.isLoading || resultQuery.isLoading || logsQuery.isLoading}
-          error={workspace.error || pageError || (targetsQuery.error as any)?.message || (resultQuery.error as any)?.message || (logsQuery.error as any)?.message || null}
+          error={workspace.error || pageError?.message || (targetsQuery.error as any)?.message || (resultQuery.error as any)?.message || (logsQuery.error as any)?.message || null}
         />
+
+        {((summary?.error_type === "target_connection_failed") || pageError?.errorType === "target_connection_failed") && failureTarget ? (
+          <SectionCard title="Simulation could not reach the destination database" description="The saved destination and the simulation backend do not currently have a reachable connection path.">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Connection name</div>
+                    <div className="mt-2 text-white">{failureTarget.name || "Unnamed destination"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Error type</div>
+                    <div className="mt-2 text-white">{summary?.error_type || pageError?.errorType || "target_connection_failed"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Host</div>
+                    <div className="mt-2 text-white">{failureTarget.host || "—"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Port</div>
+                    <div className="mt-2 text-white">{failureTarget.port || "—"}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Database</div>
+                    <div className="mt-2 text-white">{failureTarget.database_name || "—"}</div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                  {summary?.message || pageError?.message || "The simulation backend cannot reach this destination database."}
+                </div>
+                {(summary?.hint || pageError?.hint || (failureTarget.host && ["localhost", "127.0.0.1", "::1"].includes(String(failureTarget.host).toLowerCase()))) ? (
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    {summary?.hint || pageError?.hint || "SQAuto runs from the backend server/container. localhost may not point to your local machine."}
+                  </div>
+                ) : null}
+                {(summary?.errors?.length || pageError?.technicalDetails) ? (
+                  <details className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                    <summary className="cursor-pointer text-white">View technical details</summary>
+                    <div className="mt-3 whitespace-pre-wrap break-words text-slate-400">{pageError?.technicalDetails || summary?.errors?.join("\n")}</div>
+                  </details>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-3">
+                <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${params.projectId}/destination`)}>
+                  Edit destination
+                </button>
+                <button className={workspaceActions.secondary} onClick={handleRetestTarget} disabled={!failureTarget?.id}>
+                  Test connection again
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+        ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <SectionCard title="Simulation Controls" description="Select a destination and run a non-destructive sandbox execution.">
