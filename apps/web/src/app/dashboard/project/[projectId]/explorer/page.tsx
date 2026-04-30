@@ -3,7 +3,6 @@
 import React from "react";
 import { Database, Filter, RefreshCw, Search, UploadCloud } from "lucide-react";
 import {
-  DataTable,
   EmptyState,
   PageFrame,
   PageHeader,
@@ -20,6 +19,7 @@ import { getJobTableColumns, getJobTableRows, getJobTables, WorkspaceColumn, Wor
 import { useParams, useRouter } from "next/navigation";
 
 export default function ExplorerPage() {
+  const ROWS_PER_PAGE = 20;
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
   const { projectId } = params;
@@ -88,9 +88,9 @@ export default function ExplorerPage() {
 
       setLoadingPreview(true);
       try {
-        const offset = (page - 1) * 50;
+        const offset = (page - 1) * ROWS_PER_PAGE;
         const [rowsResult, columnsResult] = await Promise.all([
-          getJobTableRows(workspace.activeJob.id, selected.name, 50, offset, rowSearch),
+          getJobTableRows(workspace.activeJob.id, selected.name, ROWS_PER_PAGE, offset, rowSearch),
           getJobTableColumns(workspace.activeJob.id, selected.name),
         ]);
         if (cancelled) return;
@@ -216,23 +216,51 @@ export default function ExplorerPage() {
             {selected && preview ? (
               <div className={`flex h-full flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
                 <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10">
-                  <DataTable
-                    className="flex-1 border-0 rounded-none"
-                    columns={preview.columns.map((column) => ({
-                      key: column.name,
-                      label: column.name,
-                      render: (row) => <span className="font-mono text-[13px]">{String(row[column.name] ?? "NULL")}</span>,
-                    }))}
-                    rows={preview.rows || []}
-                  />
-                  <div className="flex items-center justify-between border-t border-white/5 bg-slate-950/70 px-4 py-4 text-sm text-slate-400">
+                  <div className="flex-1 overflow-hidden rounded-t-2xl">
+                    <div className="h-full max-h-[31rem] overflow-auto">
+                      <table className="min-w-full divide-y divide-white/5">
+                        <thead className="sticky top-0 z-10 bg-slate-950/95">
+                          <tr>
+                            {preview.columns.map((column) => (
+                              <th
+                                key={column.name}
+                                className="px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500"
+                              >
+                                {column.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 bg-slate-950/40">
+                          {(preview.rows || []).map((row, index) => (
+                            <tr key={index} className="transition-colors hover:bg-white/[0.03]">
+                              {preview.columns.map((column) => (
+                                <td key={column.name} className="px-4 py-3 text-sm text-slate-300">
+                                  <span className="font-mono text-[13px]">{String(row[column.name] ?? "NULL")}</span>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/5 bg-slate-950/80 px-4 py-4 text-sm text-slate-400">
                     <span>{loadingPreview ? "Loading preview…" : `${preview.total.toLocaleString()} total rows`}</span>
                     <div className="flex items-center gap-2">
-                      <button className={workspaceActions.secondary} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                      <button
+                        className={workspaceActions.secondary}
+                        disabled={page <= 1}
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                      >
                         Prev
                       </button>
                       <span>Page {page}</span>
-                      <button className={workspaceActions.secondary} onClick={() => setPage((current) => current + 1)}>
+                      <button
+                        className={workspaceActions.secondary}
+                        disabled={preview.total <= page * ROWS_PER_PAGE}
+                        onClick={() => setPage((current) => current + 1)}
+                      >
                         Next
                       </button>
                     </div>
