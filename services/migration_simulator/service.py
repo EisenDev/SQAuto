@@ -92,10 +92,12 @@ class SimulationEngineService:
         try:
             sql_payload = self.get_simulation_sql(job, db_session, target_db_type)
         except Exception as exc:
+            message = str(exc)
             summary = {
                 "status": "failed",
-                "error_type": "sql_source_missing",
-                "message": str(exc),
+                "error_type": "missing_sql_artifact",
+                "message": message,
+                "hint": "Open Export, validate/store Clean SQL or Translated SQL, then run simulation again.",
                 "sql_source": None,
                 "tables_total": 0,
                 "tables_success": 0,
@@ -103,7 +105,7 @@ class SimulationEngineService:
                 "rows_expected": 0,
                 "rows_inserted": 0,
                 "diff": {"missing_rows": 0, "extra_rows": 0},
-                "errors": [str(exc)],
+                "errors": [message],
                 "warnings": [],
                 "execution_time": "0s",
                 "table_results": [],

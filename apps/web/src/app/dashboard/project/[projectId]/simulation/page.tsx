@@ -29,8 +29,10 @@ import {
   workspacePageShell,
 } from "@/components/workspace/project-workspace";
 import {
+  ExportStatusResponse,
   SimulationLogEntry,
   SimulationRunResponse,
+  getJobExportStatus,
   getJobSimulationLogs,
   getJobSimulationResult,
   listMigrationTargets,
@@ -63,6 +65,16 @@ export default function SimulationPage({ params }: { params: { projectId: string
   const targetsQuery = useSWR(
     ["simulation-targets", params.projectId],
     () => listMigrationTargets(params.projectId),
+    {
+      dedupingInterval: 30000,
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+    },
+  );
+
+  const exportStatusQuery = useSWR(
+    activeJobId ? ["simulation-export-status", activeJobId] : null,
+    () => getJobExportStatus(activeJobId),
     {
       dedupingInterval: 30000,
       revalidateOnFocus: false,
@@ -110,6 +122,12 @@ export default function SimulationPage({ params }: { params: { projectId: string
   const summary = simulation.summary;
   const selectedTargetRecord = targetsQuery.data?.find((target) => target.id === selectedTarget) || null;
   const failureTarget = summary?.target || pageError?.target || selectedTargetRecord;
+  const exportArtifacts = (exportStatusQuery.data as ExportStatusResponse | undefined)?.artifacts;
+  const hasStoredArtifact = Boolean(
+    exportArtifacts?.manual_edits_version?.sql ||
+      exportArtifacts?.cleaned_sql_version?.sql ||
+      Object.values(exportArtifacts?.translated_sql_version || {}).some((value: any) => Boolean(value?.sql)),
+  );
   const diffData = summary
     ? [
         { name: "Expected", value: summary.rows_expected || 0 },
@@ -120,7 +138,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
   const logs = logsQuery.data || [];
 
   async function runSimulation() {
-    if (!activeJobId || !selectedTarget || running) return;
+    if (!activeJobId || !selectedTarget || running || !hasStoredArtifact) return;
     setRunning(true);
     try {
       await startJobSimulation(activeJobId, { targetId: selectedTarget, mode: "dry-run" });
@@ -181,7 +199,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
-              <button className={workspaceActions.primary} onClick={runSimulation} disabled={running || !selectedTarget || !activeJobId}>
+              <button className={workspaceActions.primary} onClick={runSimulation} disabled={running || !selectedTarget || !activeJobId || !hasStoredArtifact}>
                 <PlayCircle className="h-4 w-4" />
                 {running ? "Running…" : "Run Simulation"}
               </button>
@@ -192,7 +210,7 @@ export default function SimulationPage({ params }: { params: { projectId: string
         <WorkspaceNote
           usingMockData={false}
           loading={workspace.loading || targetsQuery.isLoading || resultQuery.isLoading || logsQuery.isLoading}
-          error={workspace.error || pageError?.message || (targetsQuery.error as any)?.message || (resultQuery.error as any)?.message || (logsQuery.error as any)?.message || null}
+          error={workspace.error || pageError?.message || (targetsQuery.error as any)?.message || (resultQuery.error as any)?.message || (logsQuery.error as any)?.message || (exportStatusQuery.error as any)?.message || null}
         />
 
         {((summary?.error_type === "target_connection_failed") || pageError?.errorType === "target_connection_failed") && failureTarget ? (
@@ -278,6 +296,16 @@ export default function SimulationPage({ params }: { params: { projectId: string
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">
                 Keep previous results on screen while refreshing. The page will only poll while a simulation is actively running.
               </div>
+              {!hasStoredArtifact ? (
+                <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-100">
+                  No stored SQL artifact is available for this job. Open Export, validate/store Clean SQL or Translated SQL first.
+                  <div className="mt-3">
+                    <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${params.projectId}/export`)}>
+                      Open Export
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               {selectedTargetRecord?.is_application_db ? (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
                   You are selecting the SQAuto application database as a simulation destination. This is allowed only for testing if simulation uses a temporary schema and cleanup is guaranteed. Do not use this for live migration.
