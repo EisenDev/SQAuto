@@ -52,8 +52,7 @@ jobs:
           chmod 600 ~/.ssh/sqauto_vm_key
           ssh-keygen -y -f ~/.ssh/sqauto_vm_key >/tmp/sqauto_vm_key.pub
           ssh-keygen -lf ~/.ssh/sqauto_vm_key
-          touch ~/.ssh/known_hosts
-          ssh-keyscan -T 15 -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts || true
+          ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
 
       - name: Rebuild and restart on VM
         env:
@@ -62,17 +61,15 @@ jobs:
         run: |
           set -eu
 
-          for attempt in 1 2 3 4 5; do
-            if ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" \
-              "set -eu; cd ~/SQAuto; git fetch origin main; git reset --hard origin/main; docker compose -f docker/docker-compose.yml down; docker compose -f docker/docker-compose.yml up -d --build --remove-orphans; docker compose -f docker/docker-compose.yml ps"
-            then
-              exit 0
-            fi
+          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<'EOF'
+          set -eu
 
-            if [ "$attempt" -eq 5 ]; then
-              exit 1
-            fi
+          cd ~/SQAuto
 
-            echo "SSH deploy attempt $attempt failed, retrying in 20s..."
-            sleep 20
-          done
+          git fetch origin main
+          git reset --hard origin/main
+
+          docker compose -f docker/docker-compose.yml down
+          docker compose -f docker/docker-compose.yml up -d --build --remove-orphans
+          docker compose -f docker/docker-compose.yml ps
+          EOF
