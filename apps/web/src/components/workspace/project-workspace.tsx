@@ -90,6 +90,10 @@ export interface WorkspaceTarget {
   username: string;
   db_type?: string;
   ssl_mode?: string | null;
+  is_active?: boolean;
+  deleted_at?: string | null;
+  has_history?: boolean;
+  is_application_db?: boolean;
 }
 
 export interface WorkspaceRun {

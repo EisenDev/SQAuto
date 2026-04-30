@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from services.migration_engine.target_connection import (
     build_localhost_hint,
     build_target_connection_url,
+    is_metadata_database_target,
     sanitize_target_connection_settings,
 )
 
@@ -69,7 +70,18 @@ class MigrationEngineService:
                 "fields": [],
                 "settings": {k: v for k, v in settings.items() if k != "password"},
             }
-        return self.test_connection(settings, caller=caller, target_id=target_id, prevalidated=True)
+        result = self.test_connection(settings, caller=caller, target_id=target_id, prevalidated=True)
+        if result.get("success") and is_metadata_database_target(settings):
+            result["warning"] = (
+                "You are selecting the SQAuto application database as a simulation destination. "
+                "This is allowed only for testing if simulation uses a temporary schema and cleanup is guaranteed. "
+                "Do not use this for live migration."
+            )
+            result["is_application_db"] = True
+        else:
+            result["warning"] = None
+            result["is_application_db"] = False
+        return result
 
     def test_connection(self, config: dict, *, caller: str = "test_connection", target_id: str | None = None, prevalidated: bool = False) -> dict:
         """Test connectivity to a target PostgreSQL database.

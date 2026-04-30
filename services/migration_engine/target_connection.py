@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 from typing import Any
 
 
@@ -57,4 +58,21 @@ def build_localhost_hint(host: str) -> str | None:
         "localhost points to the SQAuto backend container, not your laptop database. "
         f"Use {docker_host} for Docker-to-host access, a docker-compose service name, "
         "or a public/private reachable database host."
+    )
+
+
+def is_metadata_database_target(settings: dict[str, Any]) -> bool:
+    metadata_url = os.getenv("METADATA_DATABASE_URL") or os.getenv("DATABASE_URL")
+    if not metadata_url:
+        return False
+    parsed = urlparse(metadata_url.replace("+psycopg", ""))
+    metadata_host = (parsed.hostname or "").strip().lower()
+    metadata_port = parsed.port or 5432
+    metadata_db = (parsed.path or "").lstrip("/").strip().lower()
+    metadata_user = (parsed.username or "").strip().lower()
+    return (
+        settings.get("host", "").strip().lower() == metadata_host
+        and int(settings.get("port", 5432) or 5432) == metadata_port
+        and settings.get("database_name", "").strip().lower() == metadata_db
+        and settings.get("username", "").strip().lower() == metadata_user
     )

@@ -278,6 +278,11 @@ export default function SimulationPage({ params }: { params: { projectId: string
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">
                 Keep previous results on screen while refreshing. The page will only poll while a simulation is actively running.
               </div>
+              {selectedTargetRecord?.is_application_db ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                  You are selecting the SQAuto application database as a simulation destination. This is allowed only for testing if simulation uses a temporary schema and cleanup is guaranteed. Do not use this for live migration.
+                </div>
+              ) : null}
             </div>
           </SectionCard>
 

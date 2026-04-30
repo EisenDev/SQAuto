@@ -17,7 +17,7 @@ import {
   workspaceMeta,
   workspacePageShell,
 } from "@/components/workspace/project-workspace";
-import { createMigrationTarget, deleteMigrationTarget, listMigrationTargets, testMigrationTargetConnection } from "@/lib/api";
+import { createMigrationTarget, deleteMigrationTarget, getConnectionHints, listMigrationTargets, testMigrationTargetConnection } from "@/lib/api";
 
 export default function DestinationPage({ params }: { params: { projectId: string } }) {
   const workspace = useProjectWorkspaceData(params.projectId);
@@ -26,6 +26,8 @@ export default function DestinationPage({ params }: { params: { projectId: strin
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState(false);
   const [pageError, setPageError] = React.useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<WorkspaceTarget | null>(null);
+  const [connectionHints, setConnectionHints] = React.useState<string[]>([]);
   const [form, setForm] = React.useState({
     name: "",
     host: "",
@@ -70,6 +72,22 @@ export default function DestinationPage({ params }: { params: { projectId: strin
   React.useEffect(() => {
     loadTargets();
   }, [loadTargets]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadHints() {
+      try {
+        const response = await getConnectionHints();
+        if (!cancelled) setConnectionHints(response.recommended_hosts || []);
+      } catch {
+        if (!cancelled) setConnectionHints(["host.docker.internal", "db_staging"]);
+      }
+    }
+    void loadHints();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const testConnection = async () => {
     const validationError = validateForm();
@@ -179,17 +197,10 @@ export default function DestinationPage({ params }: { params: { projectId: strin
                 render: (row) => (
                   <button
                     className={workspaceActions.secondary}
-                    onClick={async () => {
-                      try {
-                        await deleteMigrationTarget(params.projectId, row.id);
-                        setTargets((current) => current.filter((item) => item.id !== row.id));
-                      } catch (error: any) {
-                        toast.error(error?.message || "Unable to remove destination");
-                      }
-                    }}
+                    onClick={() => setPendingDelete(row)}
                   >
                     <Trash2 className="h-4 w-4" />
-                    Remove
+                    {row.has_history ? "Archive" : "Remove"}
                   </button>
                 ),
               },
@@ -239,6 +250,16 @@ export default function DestinationPage({ params }: { params: { projectId: strin
                 </div>
               ) : null}
 
+              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                <div className="font-medium text-white">Connection Help</div>
+                <ul className="mt-2 space-y-1 text-slate-400">
+                  <li>If the database is on the host VM, use <span className="text-slate-200">host.docker.internal</span>.</li>
+                  <li>If the database is another compose service, use the service name.</li>
+                  <li>Do not use localhost unless the database is inside the same backend container.</li>
+                  {connectionHints.length ? <li>Suggested hosts: <span className="text-slate-200">{connectionHints.join(", ")}</span></li> : null}
+                </ul>
+              </div>
+
               <div className="mt-6 flex justify-end gap-3">
                 <button className={workspaceActions.secondary} onClick={testConnection} disabled={testing}>
                   <Server className="h-4 w-4" />
@@ -247,6 +268,39 @@ export default function DestinationPage({ params }: { params: { projectId: strin
                 <button className={workspaceActions.primary} onClick={saveTarget} disabled={saving}>
                   <Plus className="h-4 w-4" />
                   {saving ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {pendingDelete ? (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950 p-6 shadow-[0_40px_120px_rgba(2,6,23,0.65)]">
+              <h3 className="text-xl font-semibold text-white">{pendingDelete.has_history ? "Archive destination?" : "Remove destination?"}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-400">
+                {pendingDelete.has_history
+                  ? "This destination may have simulation history. Archiving hides it but keeps audit records."
+                  : "This destination has no recorded migration history and can be removed permanently."}
+              </p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button className={workspaceActions.secondary} onClick={() => setPendingDelete(null)}>
+                  Cancel
+                </button>
+                <button
+                  className={workspaceActions.primary}
+                  onClick={async () => {
+                    try {
+                      const response = await deleteMigrationTarget(params.projectId, pendingDelete.id);
+                      setTargets((current) => current.filter((item) => item.id !== pendingDelete.id));
+                      toast.success(response.status === "archived" ? "Destination archived." : "Destination removed.");
+                      setPendingDelete(null);
+                    } catch (error: any) {
+                      toast.error(error?.message || "Unable to remove destination");
+                    }
+                  }}
+                >
+                  {pendingDelete.has_history ? "Archive" : "Remove"}
                 </button>
               </div>
             </div>

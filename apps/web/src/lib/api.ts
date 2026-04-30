@@ -254,8 +254,17 @@ export interface MigrationTarget {
   username: string;
   db_type?: string;
   ssl_mode?: string | null;
+  is_active?: boolean;
+  deleted_at?: string | null;
+  has_history?: boolean;
+  is_application_db?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface ConnectionHintsResponse {
+  backend_runtime: string;
+  recommended_hosts: string[];
 }
 
 export interface MigrationRun {
@@ -530,8 +539,12 @@ export async function testSavedMigrationTarget(projectId: string, targetId: stri
   });
 }
 
-export async function deleteMigrationTarget(projectId: string, targetId: string): Promise<{ status: string; id: string }> {
-  return apiFetch<{ status: string; id: string }>(`/migration/targets/${targetId}?project_id=${projectId}`, { method: "DELETE" });
+export async function deleteMigrationTarget(projectId: string, targetId: string): Promise<{ success: boolean; status: string; id: string; error_type?: string; message?: string }> {
+  return apiFetch<{ success: boolean; status: string; id: string; error_type?: string; message?: string }>(`/migration/targets/${targetId}?project_id=${projectId}`, { method: "DELETE" });
+}
+
+export async function getConnectionHints(): Promise<ConnectionHintsResponse> {
+  return apiFetch<ConnectionHintsResponse>(`/migration/system/connection-hints`);
 }
 
 export async function listMigrationRuns(sourceJobId: string): Promise<MigrationRun[]> {

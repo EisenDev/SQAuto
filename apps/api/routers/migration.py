@@ -8,6 +8,7 @@ SAFETY: Passwords are NEVER returned in any API response.
 """
 
 import logging
+import os
 import time
 import uuid
 from datetime import datetime
@@ -15,6 +16,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from apps.api.database import get_db, SessionLocal
 from apps.api.models import (
@@ -24,6 +26,7 @@ from apps.api.models import (
 )
 from services.migration_engine.service import MigrationEngineService
 from services.migration_engine.execution_engine import ExecutionEngineService
+from services.migration_engine.target_connection import backend_runs_in_container, is_metadata_database_target
 from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 router = APIRouter()
@@ -99,6 +102,8 @@ def serialize_target(t: MigrationTarget) -> dict:
         "username": t.username,
         "db_type": t.db_type,
         "ssl_mode": t.ssl_mode,
+        "is_active": t.is_active,
+        "deleted_at": t.deleted_at.isoformat() if t.deleted_at else None,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
     }
@@ -161,6 +166,8 @@ def create_target(request: TargetCreateRequest, db: Session = Depends(get_db)):
         password=settings["password"],
         db_type=settings["db_type"],
         ssl_mode=settings["ssl_mode"],
+        is_active=True,
+        deleted_at=None,
     )
     db.add(target)
     db.commit()
@@ -198,14 +205,51 @@ def test_saved_target_connection(target_id: str, project_id: Optional[str] = Non
     return engine_service.precheck_connection(target, caller="test_connection", target_id=str(target.id))
 
 
+@router.get("/system/connection-hints", summary="Connection hints for destination testing")
+def get_connection_hints():
+    backend_runtime = "docker" if backend_runs_in_container() else "local"
+    docker_host = os.getenv("HOST_DOCKER_INTERNAL", "host.docker.internal")
+    recommended_hosts = [docker_host, "db_staging", "postgres", "database.internal"]
+    return {
+        "backend_runtime": backend_runtime,
+        "recommended_hosts": recommended_hosts,
+    }
+
+
 @router.get("/targets", summary="List saved target connections")
 def list_targets(project_id: Optional[str] = None, db: Session = Depends(get_db)):
     """List all saved target connections. Passwords are excluded."""
-    query = db.query(MigrationTarget)
+    query = db.query(MigrationTarget).filter(MigrationTarget.is_active == True, MigrationTarget.deleted_at.is_(None))
     if project_id:
         query = query.filter(MigrationTarget.project_id == project_id)
     targets = query.order_by(MigrationTarget.created_at.desc()).all()
-    return [serialize_target(t) for t in targets]
+    target_ids = [t.id for t in targets]
+    history_counts = {}
+    if target_ids:
+        history_counts = {
+            str(target_id): count
+            for target_id, count in (
+                db.query(MigrationRun.target_id, func.count(MigrationRun.id))
+                .filter(MigrationRun.target_id.in_(target_ids))
+                .group_by(MigrationRun.target_id)
+                .all()
+            )
+        }
+    return [
+        {
+            **serialize_target(t),
+            "has_history": bool(history_counts.get(str(t.id), 0)),
+            "is_application_db": is_metadata_database_target(
+                {
+                    "host": t.host,
+                    "port": t.port,
+                    "database_name": t.database_name,
+                    "username": t.username,
+                }
+            ),
+        }
+        for t in targets
+    ]
 
 
 @router.patch("/targets/{target_id}", summary="Update a saved target connection")
@@ -269,11 +313,25 @@ def delete_target(target_id: str, project_id: Optional[str] = None, db: Session 
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
-    
+    history_count = db.query(func.count(MigrationRun.id)).filter(MigrationRun.target_id == target.id).scalar() or 0
+    if history_count > 0:
+        target.is_active = False
+        target.deleted_at = datetime.utcnow()
+        target.updated_at = datetime.utcnow()
+        db.commit()
+        logger.info(f"Target archived: {target_id}")
+        return {
+            "success": False,
+            "error_type": "target_has_history",
+            "message": "This destination has simulation or migration history and was archived instead of deleted.",
+            "status": "archived",
+            "id": target_id,
+        }
+
     db.delete(target)
     db.commit()
     logger.info(f"Target deleted: {target_id}")
-    return {"status": "deleted", "id": target_id}
+    return {"success": True, "status": "deleted", "id": target_id}
 
 
 # ============================================================

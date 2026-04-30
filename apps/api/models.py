@@ -93,6 +93,8 @@ class MigrationTarget(Base):
     password = Column(String, nullable=False)
     db_type = Column(String, nullable=False, default="postgresql")
     ssl_mode = Column(String, nullable=True, default="prefer")
+    is_active = Column(Boolean, nullable=False, default=True)
+    deleted_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

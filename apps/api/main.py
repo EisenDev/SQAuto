@@ -50,6 +50,8 @@ def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
         with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE IF EXISTS public.migration_targets ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+            conn.execute(text("ALTER TABLE IF EXISTS public.migration_targets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_jobs_project_id_status ON public.jobs (project_id, status)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_jobs_project_id_created_at ON public.jobs (project_id, created_at DESC)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_runs_project_id ON public.migration_runs (project_id)"))
