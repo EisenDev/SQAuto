@@ -124,9 +124,9 @@ export default function SimulationPage({ params }: { params: { projectId: string
   const failureTarget = summary?.target || pageError?.target || selectedTargetRecord;
   const exportArtifacts = (exportStatusQuery.data as ExportStatusResponse | undefined)?.artifacts;
   const hasStoredArtifact = Boolean(
-    exportArtifacts?.manual_edits_version?.sql ||
-      exportArtifacts?.cleaned_sql_version?.sql ||
-      Object.values(exportArtifacts?.translated_sql_version || {}).some((value: any) => Boolean(value?.sql)),
+    exportArtifacts?.manual_edits_version?.artifact_id ||
+      exportArtifacts?.cleaned_sql_version?.artifact_id ||
+      Object.values(exportArtifacts?.translated_sql_version || {}).some((value: any) => Boolean(value?.artifact_id)),
   );
   const diffData = summary
     ? [

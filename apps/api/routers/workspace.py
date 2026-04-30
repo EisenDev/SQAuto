@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
@@ -32,6 +33,15 @@ class ExportValidateRequest(BaseModel):
     export_mode: str = "full"
     override_validation: bool = False
     manual_sql: str | None = None
+
+
+class ExportGenerateRequest(BaseModel):
+    kind: str = "clean"
+    target: str = "postgresql"
+    export_mode: str = "full"
+    override_validation: bool = False
+    sample_rows_per_table: int | None = None
+    sample_table_limit: int | None = None
 
 
 class SimulationRequest(BaseModel):
@@ -679,6 +689,132 @@ def validate_job_export(job_id: str, payload: ExportValidateRequest, request: Re
         return result
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+def _run_export_artifact_generation_task(
+    job_id: str,
+    artifact_id: str,
+    kind: str,
+    target: str,
+    export_mode: str,
+    override_validation: bool = False,
+    sample_rows_per_table: int | None = None,
+    sample_table_limit: int | None = None,
+):
+    db = SessionLocal()
+    try:
+        job = _get_job_or_404(job_id, db)
+        try:
+            export_engine.generate_artifact(
+                job=job,
+                db_session=db,
+                artifact_id=artifact_id,
+                kind=kind,
+                target_dialect=target,
+                export_mode=export_mode,
+                override_validation=override_validation,
+                sample_rows_per_table=sample_rows_per_table,
+                sample_table_limit=sample_table_limit,
+            )
+        except Exception as exc:
+            export_engine.mark_artifact_failed(job=job, db_session=db, artifact_id=artifact_id, error=str(exc))
+    finally:
+        db.close()
+
+
+@router.post("/jobs/{job_id}/exports/generate")
+def generate_job_export_artifact(
+    job_id: str,
+    payload: ExportGenerateRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        artifact = export_engine.initialize_artifact_generation(
+            job=job,
+            db_session=db,
+            kind=payload.kind,
+            target_dialect=payload.target,
+            export_mode=payload.export_mode,
+            override_validation=payload.override_validation,
+            sample_rows_per_table=payload.sample_rows_per_table,
+            sample_table_limit=payload.sample_table_limit,
+        )
+        background_tasks.add_task(
+            _run_export_artifact_generation_task,
+            str(job.id),
+            artifact["artifact_id"],
+            payload.kind,
+            payload.target,
+            payload.export_mode,
+            payload.override_validation,
+            payload.sample_rows_per_table,
+            payload.sample_table_limit,
+        )
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return {
+            "artifact_id": artifact["artifact_id"],
+            "status": "queued",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.get("/jobs/{job_id}/exports/artifacts")
+def list_job_export_artifacts(job_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        payload = {
+            "job_id": str(job.id),
+            "project_id": str(job.project_id),
+            "artifacts": export_engine.list_artifacts(job),
+        }
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(payload["artifacts"]))
+        return payload
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.post("/jobs/{job_id}/exports/artifacts/{artifact_id}/validate")
+def validate_stored_export_artifact(job_id: str, artifact_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        artifact = export_engine.validate_stored_artifact(job=job, db_session=db, artifact_id=artifact_id)
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return artifact
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.get("/jobs/{job_id}/exports/artifacts/{artifact_id}/download")
+def download_stored_export_artifact(job_id: str, artifact_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        artifact = export_engine.get_artifact_entry(job, artifact_id)
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Stored artifact not found.")
+        file_path = artifact.get("file_path")
+        if not file_path:
+            raise HTTPException(status_code=409, detail="Stored artifact file is not ready yet.")
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        filename = f'{job_id}_{artifact.get("kind")}_{artifact.get("target_dialect")}_{artifact.get("export_mode")}.sql'
+        return FileResponse(file_path, filename=filename, content_type="application/sql")
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise

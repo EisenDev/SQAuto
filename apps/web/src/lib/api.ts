@@ -193,6 +193,12 @@ export interface ExportStatusResponse {
   project_id: string;
   clean_sql_ready: boolean;
   translated_sql_ready: boolean;
+  can_generate_clean_sql?: boolean;
+  can_generate_translated_sql?: boolean;
+  clean_sql_artifact_stored?: boolean;
+  translated_sql_artifact_stored?: boolean;
+  manual_sql_artifact_stored?: boolean;
+  simulation_ready?: boolean;
   excel_ready: boolean;
   artifact_sizes: Record<string, number | null>;
   preview_available: boolean;
@@ -211,6 +217,26 @@ export interface ExportStatusResponse {
     manual_edits_version?: Record<string, any> | null;
     validation_result?: Record<string, any> | null;
     created_at?: string | null;
+  };
+  export_variants?: {
+    clean_sql?: {
+      can_generate: boolean;
+      artifact_stored: boolean;
+      requires_generation: boolean;
+      latest_artifact?: Record<string, any> | null;
+    };
+    translated_sql?: {
+      can_generate: boolean;
+      artifact_stored: boolean;
+      requires_generation: boolean;
+      latest_artifact?: Record<string, any> | null;
+    };
+    manual_sql?: {
+      can_generate: boolean;
+      artifact_stored: boolean;
+      requires_generation: boolean;
+      latest_artifact?: Record<string, any> | null;
+    };
   };
   quality_summary?: Record<string, number>;
 }
@@ -242,6 +268,46 @@ export interface ExportValidateResponse {
   blocking_issues: string[];
   unmapped_columns: string[];
   created_at: string;
+  artifact_id?: string;
+}
+
+export interface ExportGenerateResponse {
+  artifact_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+}
+
+export interface ExportArtifactRecord {
+  artifact_id: string;
+  kind: "clean" | "translated" | "manual";
+  target_dialect: string;
+  export_mode: string;
+  file_path?: string | null;
+  size_bytes: number;
+  statement_count: number;
+  row_count: number;
+  status: "queued" | "running" | "completed" | "failed";
+  warnings?: string[];
+  blocking_issues?: string[];
+  unmapped_columns?: string[];
+  auto_fixes_applied?: string[];
+  validation_result?: {
+    blocked: boolean;
+    warnings: string[];
+    blocking_issues: string[];
+    unmapped_columns: string[];
+    validated_at?: string | null;
+  } | null;
+  sample_rows_per_table?: number | null;
+  sample_table_limit?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  error?: string | null;
+}
+
+export interface ExportArtifactsResponse {
+  job_id: string;
+  project_id: string;
+  artifacts: ExportArtifactRecord[];
 }
 
 export interface MigrationTarget {
@@ -510,6 +576,41 @@ export async function validateJobExport(
       override_validation: Boolean(payload.overrideValidation),
       manual_sql: payload.manualSql ?? null,
     }),
+  });
+}
+
+export async function generateJobExportArtifact(
+  jobId: string,
+  payload: {
+    kind: "clean" | "translated";
+    target?: string;
+    exportMode?: string;
+    overrideValidation?: boolean;
+    sampleRowsPerTable?: number | null;
+    sampleTableLimit?: number | null;
+  },
+): Promise<ExportGenerateResponse> {
+  return apiFetch<ExportGenerateResponse>(`/jobs/${jobId}/exports/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: payload.kind,
+      target: payload.target || "postgresql",
+      export_mode: payload.exportMode || "full",
+      override_validation: Boolean(payload.overrideValidation),
+      sample_rows_per_table: payload.sampleRowsPerTable ?? null,
+      sample_table_limit: payload.sampleTableLimit ?? null,
+    }),
+  });
+}
+
+export async function listJobExportArtifacts(jobId: string): Promise<ExportArtifactsResponse> {
+  return apiFetch<ExportArtifactsResponse>(`/jobs/${jobId}/exports/artifacts`);
+}
+
+export async function validateStoredJobExportArtifact(jobId: string, artifactId: string): Promise<ExportArtifactRecord> {
+  return apiFetch<ExportArtifactRecord>(`/jobs/${jobId}/exports/artifacts/${artifactId}/validate`, {
+    method: "POST",
   });
 }
 

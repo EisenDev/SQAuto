@@ -3,6 +3,7 @@ import re
 import time
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import create_engine, text
@@ -115,8 +116,6 @@ class SimulationEngineService:
             return
 
         schema_name = f"simulation_{str(job.id).replace('-', '')[:12]}_{int(time.time())}"
-        statements = self._split_sql_statements(sql_payload["sql"])
-        schema_statements, data_statements = self._partition_statements(statements)
         table_expectations = self._expected_table_rows(job)
         warnings: list[str] = []
         errors: list[str] = []
@@ -130,9 +129,9 @@ class SimulationEngineService:
                 conn.commit()
                 self._log(db_session, run, MigrationLogLevel.INFO, None, f'Temporary schema "{schema_name}" created')
 
-                for statement in schema_statements:
+                for statement in self._iter_sql_statements_from_file(sql_payload["file_path"], statement_type="schema"):
                     self._execute_statement(conn, self._rewrite_sql_for_schema(statement, schema_name), statement_errors_by_table, warnings, errors)
-                for statement in data_statements:
+                for statement in self._iter_sql_statements_from_file(sql_payload["file_path"], statement_type="data"):
                     self._execute_statement(conn, self._rewrite_sql_for_schema(statement, schema_name), statement_errors_by_table, warnings, errors)
 
                 table_results = []
@@ -221,18 +220,30 @@ class SimulationEngineService:
     def get_simulation_sql(self, job: Job, db_session: Session, target_dialect: str) -> dict[str, str]:
         profile = job.profile or {}
         artifacts = profile.get("export_artifacts") or {}
-        manual = (artifacts.get("manual_edits_version") or {}).get("sql")
+
+        def pick(entry: dict[str, Any] | None) -> dict[str, str] | None:
+            if not entry or entry.get("status") != "completed":
+                return None
+            file_path = entry.get("file_path")
+            if not file_path or not Path(file_path).exists():
+                return None
+            return {"file_path": file_path, "source": entry.get("kind") or "clean"}
+
+        manual = pick(artifacts.get("manual_edits_version") or {})
         if manual:
-            return {"sql": manual, "source": "manual"}
+            manual["source"] = "manual"
+            return manual
 
         translated_versions = artifacts.get("translated_sql_version") or {}
-        translated = (translated_versions.get(target_dialect) or {}).get("sql")
+        translated = pick(translated_versions.get(target_dialect) or {})
         if translated:
-            return {"sql": translated, "source": "translated"}
+            translated["source"] = "translated"
+            return translated
 
-        clean = (artifacts.get("cleaned_sql_version") or {}).get("sql")
+        clean = pick(artifacts.get("cleaned_sql_version") or {})
         if clean:
-            return {"sql": clean, "source": "clean"}
+            clean["source"] = "clean"
+            return clean
         raise RuntimeError(
             "No stored SQL artifact is available for simulation. Validate and store Clean SQL or Translated SQL first."
         )
@@ -250,6 +261,33 @@ class SimulationEngineService:
     def _build_target_engine(self, config: dict):
         url = build_target_connection_url(config)
         return create_engine(url, connect_args={"connect_timeout": 15}, echo=False, future=True)
+
+    def _iter_sql_statements_from_file(self, file_path: str, *, statement_type: str):
+        current = []
+        in_single = False
+        in_double = False
+        prev = ""
+        with open(file_path, "r", encoding="utf-8") as handle:
+            while True:
+                chunk = handle.read(65536)
+                if not chunk:
+                    break
+                for char in chunk:
+                    if char == "'" and not in_double and prev != "\\":
+                        in_single = not in_single
+                    elif char == '"' and not in_single and prev != "\\":
+                        in_double = not in_double
+                    if char == ";" and not in_single and not in_double:
+                        statement = "".join(current).strip()
+                        if statement and self._statement_matches_type(statement, statement_type):
+                            yield statement
+                        current = []
+                    else:
+                        current.append(char)
+                    prev = char
+        tail = "".join(current).strip()
+        if tail and self._statement_matches_type(tail, statement_type):
+            yield tail
 
     def _split_sql_statements(self, sql: str) -> list[str]:
         statements = []
@@ -274,6 +312,11 @@ class SimulationEngineService:
         if tail:
             statements.append(tail)
         return statements
+
+    def _statement_matches_type(self, statement: str, statement_type: str) -> bool:
+        normalized = statement.strip().lower()
+        is_data = normalized.startswith("insert into") or normalized.startswith("copy ")
+        return is_data if statement_type == "data" else not is_data
 
     def _partition_statements(self, statements: list[str]) -> tuple[list[str], list[str]]:
         schema_statements = []

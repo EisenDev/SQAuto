@@ -83,34 +83,11 @@ def export_clean_sql(
     started_at = time.perf_counter()
     try:
         job = _get_job(job_id, db)
-        try:
-            artifact = export_engine.build_export(
-                job=job,
-                db_session=db,
-                target_dialect="postgresql",
-                export_mode=export_mode,
-                override_validation=override_validation,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc))
-
-        tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_{export_mode}_clean.sql")
-        with open(tmp_path, "w", encoding="utf-8") as handle:
-            handle.write(artifact.sql)
-        export_engine._store_artifact(
-            job,
-            db,
-            artifact_kind="clean-sql",
-            target_dialect=artifact.target_dialect,
-            export_mode=artifact.mode,
-            sql=artifact.sql,
-            validation=artifact.validation,
-            warnings=artifact.warnings,
-            auto_fixes=artifact.auto_fixes_applied,
-        )
-
-        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(artifact.table_order))
-        return FileResponse(tmp_path, filename=f"{job_id}_{export_mode}_clean.sql", content_type="application/sql")
+        artifact = export_engine.resolve_download_artifact(job, kind="clean")
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return FileResponse(artifact["file_path"], filename=f"{job_id}_{export_mode}_clean.sql", content_type="application/sql")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
@@ -128,34 +105,11 @@ def export_translated_sql(
     started_at = time.perf_counter()
     try:
         job = _get_job(job_id, db)
-        try:
-            artifact = export_engine.build_export(
-                job=job,
-                db_session=db,
-                target_dialect=target,
-                export_mode=export_mode,
-                override_validation=override_validation,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc))
-
-        tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_{export_mode}_{target}.sql")
-        with open(tmp_path, "w", encoding="utf-8") as handle:
-            handle.write(artifact.sql)
-        export_engine._store_artifact(
-            job,
-            db,
-            artifact_kind="translated-sql",
-            target_dialect=artifact.target_dialect,
-            export_mode=artifact.mode,
-            sql=artifact.sql,
-            validation=artifact.validation,
-            warnings=artifact.warnings,
-            auto_fixes=artifact.auto_fixes_applied,
-        )
-
-        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=len(artifact.table_order))
-        return FileResponse(tmp_path, filename=f"{job_id}_{export_mode}_{target}.sql", content_type="application/sql")
+        artifact = export_engine.resolve_download_artifact(job, kind="translated", target_dialect=target)
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return FileResponse(artifact["file_path"], filename=f"{job_id}_{export_mode}_{target}.sql", content_type="application/sql")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
@@ -166,17 +120,12 @@ def export_manual_sql(job_id: str, request: Request, db: Session = Depends(get_d
     started_at = time.perf_counter()
     try:
         job = _get_job(job_id, db)
-        store = ((job.profile or {}).get("export_artifacts") or {}) if job.profile else {}
-        manual = store.get("manual_edits_version") or {}
-        sql = manual.get("sql")
-        if not sql:
-            raise HTTPException(status_code=404, detail="Manual SQL version not found.")
+        manual = export_engine.resolve_download_artifact(job, kind="manual")
         target = manual.get("target_dialect") or "postgresql"
-        tmp_path = os.path.join(tempfile.gettempdir(), f"{job_id}_manual_{target}.sql")
-        with open(tmp_path, "w", encoding="utf-8") as handle:
-            handle.write(sql)
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
-        return FileResponse(tmp_path, filename=f"{job_id}_manual_{target}.sql", content_type="application/sql")
+        return FileResponse(manual["file_path"], filename=f"{job_id}_manual_{target}.sql", content_type="application/sql")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
