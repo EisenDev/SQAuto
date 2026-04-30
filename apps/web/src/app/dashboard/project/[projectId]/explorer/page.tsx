@@ -20,6 +20,7 @@ import { useParams, useRouter } from "next/navigation";
 
 export default function ExplorerPage() {
   const ROWS_PER_PAGE = 20;
+  const ROWS_VISIBLE_HEIGHT = "max-h-[31rem]";
   const params = useParams<{ projectId: string }>();
   const router = useRouter();
   const { projectId } = params;
@@ -75,12 +76,14 @@ export default function ExplorerPage() {
   );
 
   const selected = tables.find((table) => table.name === selectedTable) || filteredTables[0];
+  const selectedTableName = selected?.name || null;
+  const activeJobId = workspace.activeJob?.id || null;
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function loadPreview() {
-      if (!selected || !workspace.activeJob?.id) {
+      if (!selectedTableName || !activeJobId) {
         setPreview(null);
         setColumns([]);
         return;
@@ -90,8 +93,8 @@ export default function ExplorerPage() {
       try {
         const offset = (page - 1) * ROWS_PER_PAGE;
         const [rowsResult, columnsResult] = await Promise.all([
-          getJobTableRows(workspace.activeJob.id, selected.name, ROWS_PER_PAGE, offset, rowSearch),
-          getJobTableColumns(workspace.activeJob.id, selected.name),
+          getJobTableRows(activeJobId, selectedTableName, ROWS_PER_PAGE, offset, rowSearch),
+          getJobTableColumns(activeJobId, selectedTableName),
         ]);
         if (cancelled) return;
         setColumns(columnsResult);
@@ -111,11 +114,11 @@ export default function ExplorerPage() {
       setLoadingPreview(false);
     }
 
-    loadPreview();
+    void loadPreview();
     return () => {
       cancelled = true;
     };
-  }, [page, rowSearch, selected, workspace.activeJob]);
+  }, [activeJobId, page, rowSearch, selectedTableName]);
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
@@ -217,7 +220,7 @@ export default function ExplorerPage() {
               <div className={`flex h-full flex-col space-y-4 ${workspaceViewportHeight} overflow-hidden`}>
                 <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-white/10">
                   <div className="flex-1 overflow-hidden rounded-t-2xl">
-                    <div className="h-full max-h-[31rem] overflow-auto">
+                    <div className={`h-full ${ROWS_VISIBLE_HEIGHT} overflow-auto`}>
                       <table className="min-w-full divide-y divide-white/5">
                         <thead className="sticky top-0 z-10 bg-slate-950/95">
                           <tr>

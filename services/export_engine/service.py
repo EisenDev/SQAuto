@@ -115,7 +115,7 @@ class ExportEngineService:
 
     def build_status_payload(self, job: Job, db_session: Session) -> dict[str, Any]:
         quality_report = self._ensure_quality_report(job, db_session)
-        validation = self._validate(job, db_session, self._load_context(job), "postgresql")
+        validation = self._validate(job, db_session, self._load_status_context(job), "postgresql")
         metadata = ((job.profile or {}).get("metadata") or {}) if job.profile else {}
         return {
             "job_id": str(job.id),
@@ -188,6 +188,32 @@ class ExportEngineService:
                     "rows": [dict(row) for row in rows],
                     "mapping_state": mapping_state.get(table_name, {}),
                 }
+        return {"tables": tables}
+
+    def _load_status_context(self, job: Job) -> dict[str, Any]:
+        inspector = inspect(staging_engine)
+        profile = job.profile or {}
+        profile_tables = profile.get("tables") or {}
+        table_names = list(profile_tables.keys()) or inspector.get_table_names(schema="staging")
+        mapping_state = profile.get("mapping_state") or {}
+        tables: dict[str, dict[str, Any]] = {}
+
+        for table_name in table_names:
+            table_profile = profile_tables.get(table_name) or {}
+            columns = inspector.get_columns(table_name, schema="staging")
+            tables[table_name] = {
+                "name": table_name,
+                "columns": [
+                    {
+                        "name": column["name"],
+                        "type": str(self._lookup_profile_type(table_profile, column["name"]) or column["type"]),
+                        "nullable": bool(column.get("nullable", True)),
+                        "default": column.get("default"),
+                    }
+                    for column in columns
+                ],
+                "mapping_state": mapping_state.get(table_name, {}),
+            }
         return {"tables": tables}
 
     def _lookup_profile_type(self, table_profile: dict[str, Any], column_name: str) -> str | None:
