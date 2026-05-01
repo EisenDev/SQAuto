@@ -277,6 +277,7 @@ export interface ExportGenerateResponse {
 }
 
 export interface ExportArtifactRecord {
+  id?: string;
   artifact_id: string;
   kind: "clean" | "translated" | "manual";
   target_dialect: string;
@@ -302,6 +303,9 @@ export interface ExportArtifactRecord {
   created_at?: string | null;
   updated_at?: string | null;
   error?: string | null;
+  file_path_exists?: boolean;
+  validation_status?: string;
+  simulation_ready?: boolean;
 }
 
 export interface ExportArtifactsResponse {
@@ -610,6 +614,12 @@ export async function listJobExportArtifacts(jobId: string): Promise<ExportArtif
 
 export async function validateStoredJobExportArtifact(jobId: string, artifactId: string): Promise<ExportArtifactRecord> {
   return apiFetch<ExportArtifactRecord>(`/jobs/${jobId}/exports/artifacts/${artifactId}/validate`, {
+    method: "POST",
+  });
+}
+
+export async function selectStoredJobExportArtifact(jobId: string, artifactId: string): Promise<ExportArtifactRecord> {
+  return apiFetch<ExportArtifactRecord>(`/jobs/${jobId}/exports/artifacts/${artifactId}/select`, {
     method: "POST",
   });
 }

@@ -6,9 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 import uuid
+import copy
 
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from apps.api.database import staging_engine
 from apps.api.models import Job
@@ -277,6 +279,16 @@ class ExportEngineService:
         normalized_kind = self._normalize_generate_kind(kind)
         target = self._normalize_dialect(target_dialect if normalized_kind == "translated" else "postgresql")
         mode = self._normalize_mode(export_mode)
+        existing = self.find_reusable_artifact(
+            job,
+            kind=normalized_kind,
+            target_dialect=target,
+            export_mode=mode,
+            sample_rows_per_table=sample_rows_per_table,
+            sample_table_limit=sample_table_limit,
+        )
+        if existing:
+            return existing
         validation = self._validate(job, db_session, self._load_status_context(job, table_limit=sample_table_limit), target)
         if validation.blocked and not override_validation:
             raise ValueError("Export blocked by validation gate")
@@ -452,6 +464,40 @@ class ExportEngineService:
         self._save_artifact_entry(job, db_session, artifact_entry)
         return artifact_entry
 
+    def select_artifact_for_simulation(self, *, job: Job, db_session: Session, artifact_id: str) -> dict[str, Any]:
+        artifact_entry = self.get_artifact_entry(job, artifact_id)
+        if not artifact_entry:
+            raise ValueError("Stored artifact not found.")
+        if artifact_entry.get("status") != "completed":
+            raise ValueError("Only completed artifacts can be selected for simulation.")
+        if not artifact_entry.get("file_path") or not Path(str(artifact_entry.get("file_path"))).exists():
+            raise ValueError("Stored artifact file is missing.")
+
+        profile = copy.deepcopy(job.profile or {})
+        artifacts = profile.get("export_artifacts") or {}
+        latest = artifacts.get("latest") or {"translated": {}}
+        kind = artifact_entry.get("kind")
+        if kind == "clean":
+            latest["clean"] = artifact_id
+        elif kind == "translated":
+            translated = latest.get("translated") or {}
+            translated[artifact_entry.get("target_dialect") or "postgresql"] = artifact_id
+            latest["translated"] = translated
+        elif kind == "manual":
+            latest["manual"] = artifact_id
+        else:
+            raise ValueError("Unsupported artifact kind.")
+
+        artifacts["latest"] = latest
+        profile["export_artifacts"] = artifacts
+        job.profile = profile
+        flag_modified(job, "profile")
+        db_session.add(job)
+        db_session.commit()
+        db_session.refresh(job)
+        self._save_artifact_entry(job, db_session, artifact_entry)
+        return self.get_artifact_entry(job, artifact_id) or artifact_entry
+
     def store_manual_artifact(
         self,
         *,
@@ -515,10 +561,45 @@ class ExportEngineService:
         artifact = catalog.get(artifact_id)
         return dict(artifact) if artifact else None
 
+    def find_reusable_artifact(
+        self,
+        job: Job,
+        *,
+        kind: str,
+        target_dialect: str,
+        export_mode: str,
+        sample_rows_per_table: int | None,
+        sample_table_limit: int | None,
+    ) -> dict[str, Any] | None:
+        for artifact in self.list_artifacts(job):
+            if artifact.get("kind") != kind:
+                continue
+            if artifact.get("target_dialect") != target_dialect:
+                continue
+            if artifact.get("export_mode") != export_mode:
+                continue
+            if artifact.get("sample_rows_per_table") != sample_rows_per_table:
+                continue
+            if artifact.get("sample_table_limit") != sample_table_limit:
+                continue
+            if artifact.get("status") in {"queued", "running", "completed"}:
+                return artifact
+        return None
+
     def list_artifacts(self, job: Job) -> list[dict[str, Any]]:
         store = ((job.profile or {}).get("export_artifacts") or {}) if job.profile else {}
         catalog = store.get("catalog") or {}
-        return sorted((dict(item) for item in catalog.values()), key=lambda item: item.get("created_at") or "", reverse=True)
+        enriched = []
+        for item in catalog.values():
+            record = dict(item)
+            record["id"] = record.get("artifact_id")
+            file_path = record.get("file_path")
+            file_exists = bool(file_path and Path(file_path).exists())
+            record["file_path_exists"] = file_exists
+            record["validation_status"] = "validated" if record.get("validation_result", {}).get("validated_at") else "pending"
+            record["simulation_ready"] = bool(record.get("status") == "completed" and file_exists and (record.get("size_bytes") or 0) > 0)
+            enriched.append(record)
+        return sorted(enriched, key=lambda item: item.get("created_at") or "", reverse=True)
 
     def resolve_download_artifact(self, job: Job, *, kind: str, target_dialect: str = "postgresql") -> dict[str, Any]:
         artifact_status = self._artifact_status(job)
@@ -613,6 +694,9 @@ class ExportEngineService:
         def pick(artifact_id: str | None) -> dict[str, Any] | None:
             artifact = catalog.get(artifact_id) if artifact_id else None
             if not artifact or artifact.get("status") != "completed":
+                return None
+            file_path = artifact.get("file_path")
+            if not file_path or not Path(file_path).exists() or int(artifact.get("size_bytes") or 0) <= 0:
                 return None
             return dict(artifact)
 
@@ -753,7 +837,7 @@ class ExportEngineService:
         )
 
     def _save_artifact_entry(self, job: Job, db_session: Session, artifact_entry: dict[str, Any]) -> None:
-        profile = job.profile or {}
+        profile = copy.deepcopy(job.profile or {})
         artifacts = profile.get("export_artifacts") or {}
         catalog = artifacts.get("catalog") or {}
         latest = artifacts.get("latest") or {"translated": {}}
@@ -786,6 +870,7 @@ class ExportEngineService:
         artifacts["created_at"] = artifacts.get("created_at") or artifact_entry.get("created_at") or datetime.utcnow().isoformat()
         profile["export_artifacts"] = artifacts
         job.profile = profile
+        flag_modified(job, "profile")
         db_session.add(job)
         db_session.commit()
         db_session.refresh(job)

@@ -746,21 +746,36 @@ def generate_job_export_artifact(
             sample_rows_per_table=payload.sample_rows_per_table,
             sample_table_limit=payload.sample_table_limit,
         )
-        background_tasks.add_task(
-            _run_export_artifact_generation_task,
-            str(job.id),
-            artifact["artifact_id"],
-            payload.kind,
-            payload.target,
-            payload.export_mode,
-            payload.override_validation,
-            payload.sample_rows_per_table,
-            payload.sample_table_limit,
-        )
+        is_lightweight = bool(payload.sample_rows_per_table or payload.sample_table_limit or payload.export_mode == "schema-only")
+        if artifact.get("status") in {"queued", "running"}:
+            if is_lightweight:
+                artifact = export_engine.generate_artifact(
+                    job=job,
+                    db_session=db,
+                    artifact_id=artifact["artifact_id"],
+                    kind=payload.kind,
+                    target_dialect=payload.target,
+                    export_mode=payload.export_mode,
+                    override_validation=payload.override_validation,
+                    sample_rows_per_table=payload.sample_rows_per_table,
+                    sample_table_limit=payload.sample_table_limit,
+                )
+            else:
+                background_tasks.add_task(
+                    _run_export_artifact_generation_task,
+                    str(job.id),
+                    artifact["artifact_id"],
+                    payload.kind,
+                    payload.target,
+                    payload.export_mode,
+                    payload.override_validation,
+                    payload.sample_rows_per_table,
+                    payload.sample_table_limit,
+                )
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
         return {
             "artifact_id": artifact["artifact_id"],
-            "status": "queued",
+            "status": artifact.get("status", "queued"),
         }
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -792,6 +807,21 @@ def validate_stored_export_artifact(job_id: str, artifact_id: str, request: Requ
     try:
         job = _get_job_or_404(job_id, db)
         artifact = export_engine.validate_stored_artifact(job=job, db_session=db, artifact_id=artifact_id)
+        log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
+        return artifact
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except Exception as exc:
+        raise_if_database_resource_exhausted(exc)
+        raise
+
+
+@router.post("/jobs/{job_id}/exports/artifacts/{artifact_id}/select")
+def select_stored_export_artifact(job_id: str, artifact_id: str, request: Request, db: Session = Depends(get_db)):
+    started_at = time.perf_counter()
+    try:
+        job = _get_job_or_404(job_id, db)
+        artifact = export_engine.select_artifact_for_simulation(job=job, db_session=db, artifact_id=artifact_id)
         log_endpoint_audit(path=str(request.url.path), project_id=str(job.project_id), job_id=str(job.id), started_at=started_at, row_count=1)
         return artifact
     except ValueError as exc:

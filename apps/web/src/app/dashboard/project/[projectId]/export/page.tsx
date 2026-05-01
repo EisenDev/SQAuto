@@ -25,6 +25,7 @@ import {
   getJobExportPreview,
   getJobExportStatus,
   listJobExportArtifacts,
+  selectStoredJobExportArtifact,
   validateJobExport,
   validateStoredJobExportArtifact,
 } from "@/lib/api";
@@ -228,7 +229,7 @@ export default function ExportPage({ params }: { params: { projectId: string } }
     if (!activeJobId || !isSqlKind) return;
     setGenerating(true);
     try {
-      await generateJobExportArtifact(activeJobId, {
+      const response = await generateJobExportArtifact(activeJobId, {
         kind: selectedKind === "translated-sql" ? "translated" : "clean",
         target: targetDialect,
         exportMode,
@@ -236,7 +237,11 @@ export default function ExportPage({ params }: { params: { projectId: string } }
         sampleRowsPerTable: lightweight ? 1000 : null,
         sampleTableLimit: lightweight ? 10 : null,
       });
-      toast.success(lightweight ? "Lightweight artifact generation queued" : "Artifact generation queued");
+      toast.success(
+        response.status === "completed"
+          ? (lightweight ? "Lightweight artifact generated" : "Artifact generated")
+          : (lightweight ? "Lightweight artifact generation queued" : "Artifact generation queued"),
+      );
       setPageError(null);
       await refreshExportState();
     } catch (error: any) {
@@ -285,6 +290,17 @@ export default function ExportPage({ params }: { params: { projectId: string } }
       setPageError(error?.message || "Unable to validate SQL");
     }
     setValidating(false);
+  }
+
+  async function handleSelectArtifact(artifactId: string) {
+    if (!activeJobId) return;
+    try {
+      await selectStoredJobExportArtifact(activeJobId, artifactId);
+      toast.success("Artifact selected for simulation");
+      await refreshExportState();
+    } catch (error: any) {
+      setPageError(error?.message || "Unable to select artifact");
+    }
   }
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
@@ -480,6 +496,43 @@ export default function ExportPage({ params }: { params: { projectId: string } }
                   <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Manual SQL artifact</div>
                   <div className="mt-2 text-white">{currentManualArtifact?.created_at || "Not stored yet"}</div>
                 </div>
+                {storedArtifacts.length ? (
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-slate-500">Stored artifacts</div>
+                    <div className="mt-3 space-y-2">
+                      {storedArtifacts.map((artifact) => (
+                        <div key={artifact.artifact_id} className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm text-white">
+                                {artifact.kind} · {artifact.target_dialect} · {artifact.export_mode}
+                              </div>
+                              <div className="mt-1 text-xs text-slate-500">
+                                {artifact.status} · {artifact.size_bytes || 0} bytes · {artifact.validation_status || "pending"}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={artifact.simulation_ready ? "completed" : artifact.status === "failed" ? "error" : artifact.status === "running" ? "processing" : "idle"}>
+                                {artifact.simulation_ready ? "Simulation-ready" : artifact.status}
+                              </StatusBadge>
+                              <button
+                                className={workspaceActions.secondary}
+                                onClick={() => void handleSelectArtifact(artifact.artifact_id)}
+                                disabled={!artifact.simulation_ready}
+                              >
+                                Use for simulation
+                              </button>
+                            </div>
+                          </div>
+                          {(artifact.status === "queued" || artifact.status === "running") ? (
+                            <div className="mt-2 text-xs text-amber-200">Queued artifact is not executable yet. Wait until it becomes Completed.</div>
+                          ) : null}
+                          {artifact.error ? <div className="mt-2 text-xs text-rose-300">{artifact.error}</div> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </SectionCard>
 
