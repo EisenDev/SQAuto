@@ -6,6 +6,8 @@
 
 SQAuto is a project-based data migration platform designed to securely manage the transition of legacy database structures into modern systems. 
 
+For local Windows and Linux setup, see [Running Locally](./RUNNING_LOCALLY.md).
+
 The platform follows a **Supabase-style project workspace** structure:
 - **Organization**: Top-level grouping (e.g., "Agency A", "Company B").
 - **Project**: Individual migration targets (e.g., "Legacy CRM Migration", "Inventory Overhaul").

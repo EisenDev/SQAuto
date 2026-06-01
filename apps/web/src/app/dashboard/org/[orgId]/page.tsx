@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { safeFetch } from '@/lib/api_client';
 import { 
   Building2, Plus, ArrowRight, Layers, Search, 
-  ChevronLeft, Layout, Rocket, AlertCircle, Loader2
+  ChevronLeft, Layout, Rocket, AlertCircle, Database, GitCompare
 } from 'lucide-react';
 
 export default function OrganizationProjectsPage() {
@@ -19,8 +19,27 @@ export default function OrganizationProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getProjectTypeMeta = (projectType?: string) => {
+    if (projectType === 'comparison') {
+      return {
+        label: 'Comparison',
+        description: 'Two SQL dumps',
+        icon: GitCompare,
+        className: 'border-sky-500/20 bg-sky-500/10 text-sky-300',
+      };
+    }
+
+    return {
+      label: 'Individual',
+      description: 'One SQL dump',
+      icon: Database,
+      className: 'border-teal-500/20 bg-teal-500/10 text-teal-300',
+    };
+  };
+
   useEffect(() => {
     if (!orgId) return;
+    router.prefetch(`/dashboard/new/${orgId}`);
 
     const fetchData = async () => {
       setLoading(true);
@@ -30,6 +49,12 @@ export default function OrganizationProjectsPage() {
         const projectsRes = await safeFetch(`${API_URL}/organizations/${orgId}/projects`);
         if (projectsRes.success && Array.isArray(projectsRes.data)) {
           setProjects(projectsRes.data);
+          projectsRes.data.forEach((project: any) => {
+            if (project?.id) {
+              router.prefetch(`/dashboard/project/${project.id}`);
+              router.prefetch(`/dashboard/project/${project.id}/comparison`);
+            }
+          });
         } else {
           setError(projectsRes.error || "Failed to load projects");
         }
@@ -47,7 +72,7 @@ export default function OrganizationProjectsPage() {
     };
 
     fetchData();
-  }, [orgId, API_URL]);
+  }, [orgId, API_URL, router]);
 
   return (
     <div className="flex-1 bg-slate-950 text-slate-200 p-8 min-h-screen bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-teal-900/10 via-slate-950 to-slate-950">
@@ -113,7 +138,7 @@ export default function OrganizationProjectsPage() {
             </div>
             <div className="text-center">
               <p className="text-slate-400 font-bold text-lg">No projects yet</p>
-              <p className="text-slate-500 text-sm mt-1">Kickstart your workflow by creating your first project.</p>
+              <p className="text-slate-500 text-sm mt-1">Create an individual SQL dump project or a comparison project inside this organization.</p>
             </div>
             <button 
               onClick={() => router.push(`/dashboard/new/${orgId}`)}
@@ -125,40 +150,49 @@ export default function OrganizationProjectsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project, i) => (
-              <div 
-                key={project.id}
-                onClick={() => router.push(`/dashboard/project/${project.id}`)}
-                style={{ animationDelay: `${i * 50}ms` }}
-                className="group relative bg-slate-900/80 border border-slate-800/50 rounded-2xl p-6 hover:border-teal-500/40 hover:bg-slate-800/60 transition-all cursor-pointer shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-500 active:scale-[0.98]"
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="h-12 w-12 rounded-xl bg-teal-900/20 flex items-center justify-center border border-teal-500/10 group-hover:scale-110 group-hover:bg-teal-500/20 transition-all duration-300">
-                    <Layout className="h-6 w-6 text-teal-400" />
-                  </div>
-                  <div className="px-2 py-1 bg-slate-950 border border-slate-800 rounded-md text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                    Active
-                  </div>
-                </div>
+            {projects.map((project, i) => {
+              const typeMeta = getProjectTypeMeta(project.project_type);
+              const TypeIcon = typeMeta.icon;
 
-                <div className="space-y-1">
-                  <h2 className="text-xl font-bold text-white group-hover:text-teal-300 transition-colors tracking-tight">
-                    {project.name}
-                  </h2>
-                  <p className="text-xs text-slate-500 font-mono truncate opacity-60">
-                    ID: {project.id}
-                  </p>
-                </div>
-
-                <div className="mt-8 pt-5 border-t border-slate-800/50 flex items-center justify-between">
-                  <div className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-teal-500/80 transition-colors">
-                    <Rocket className="h-3 w-3 mr-2 opacity-50 group-hover:opacity-100" />
-                    Open Dashboard
+              return (
+                <div 
+                  key={project.id}
+                  onClick={() => router.push(`/dashboard/project/${project.id}`)}
+                  style={{ animationDelay: `${i * 50}ms` }}
+                  className="group relative bg-slate-900/80 border border-slate-800/50 rounded-2xl p-6 hover:border-teal-500/40 hover:bg-slate-800/60 transition-all cursor-pointer shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-500 active:scale-[0.98]"
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="h-12 w-12 rounded-xl bg-teal-900/20 flex items-center justify-center border border-teal-500/10 group-hover:scale-110 group-hover:bg-teal-500/20 transition-all duration-300">
+                      <Layout className="h-6 w-6 text-teal-400" />
+                    </div>
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-[10px] font-bold uppercase tracking-wider ${typeMeta.className}`}>
+                      <TypeIcon className="h-3 w-3" />
+                      {typeMeta.label}
+                    </div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-slate-700 group-hover:text-teal-400 group-hover:translate-x-1 transition-all" />
+
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-bold text-white group-hover:text-teal-300 transition-colors tracking-tight">
+                      {project.name}
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      {typeMeta.description}
+                    </p>
+                    <p className="text-xs text-slate-500 font-mono truncate opacity-60">
+                      ID: {project.id}
+                    </p>
+                  </div>
+
+                  <div className="mt-8 pt-5 border-t border-slate-800/50 flex items-center justify-between">
+                    <div className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-widest group-hover:text-teal-500/80 transition-colors">
+                      <Rocket className="h-3 w-3 mr-2 opacity-50 group-hover:opacity-100" />
+                      Open Dashboard
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-slate-700 group-hover:text-teal-400 group-hover:translate-x-1 transition-all" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

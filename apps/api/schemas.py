@@ -1,8 +1,8 @@
 # apps/api/schemas.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 class OrganizationBase(BaseModel):
     name: str
@@ -25,6 +25,7 @@ class Organization(OrganizationBase):
 class ProjectBase(BaseModel):
     name: str
     description: Optional[str] = None
+    project_type: Literal["individual", "comparison"] = Field("individual", description="individual for one SQL dump, comparison for two SQL dumps")
 
 class ProjectCreate(ProjectBase):
     pass
@@ -78,3 +79,18 @@ class ProjectLogResponse(BaseModel):
     limit: int
     total_lines: int
     lines: List[str]
+
+
+class ComparisonRun(BaseModel):
+    id: UUID
+    project_id: UUID
+    source_a_original_filename: str
+    source_b_original_filename: str
+    status: str
+    result: Optional[dict] = None
+    log: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

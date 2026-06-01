@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -15,12 +15,14 @@ import {
   BarChart3,
   Database,
   FileCode2,
+  GitCompare,
   PlayCircle,
   RefreshCw,
   Search,
   UploadCloud,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
+import { ComparisonRun, getLatestComparisonRun } from "@/lib/api";
 import {
   ActionLink,
   DataTable,
@@ -41,6 +43,98 @@ export default function ProjectDashboardPage() {
   const router = useRouter();
   const { projectId } = params;
   const workspace = useProjectWorkspaceData(projectId);
+  const [comparisonRun, setComparisonRun] = useState<ComparisonRun | null>(null);
+
+  useEffect(() => {
+    if (workspace.project.project_type !== "comparison") return;
+    void getLatestComparisonRun(projectId).then(setComparisonRun).catch(() => setComparisonRun(null));
+  }, [projectId, workspace.project.project_type]);
+
+  if (workspace.project.project_type === "comparison") {
+    const summary = comparisonRun?.result?.summary || {};
+    const needsReview = Boolean(summary.needs_review);
+
+    return (
+      <PageFrame>
+        <div className={workspacePageShell}>
+          <PageHeader
+            title={workspace.project.name}
+            description={workspace.project.description || "Comparison workspace for scanning two SQL dumps and reviewing schema differences."}
+            badge={<StatusBadge status={comparisonRun?.status || "idle"}>{comparisonRun?.status || "idle"}</StatusBadge>}
+            actions={
+              <>
+                <button className={workspaceActions.secondary} onClick={() => void getLatestComparisonRun(projectId).then(setComparisonRun)}>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+                <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/comparison`)}>
+                  <GitCompare className="h-4 w-4" />
+                  Compare dumps
+                </button>
+              </>
+            }
+          />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard title="Review Status" value={comparisonRun ? (needsReview ? "Needs Review" : "No Mismatches") : "No Scan"} hint="Comparison readiness state" tone={needsReview ? "amber" : "teal"} />
+            <StatCard title="Source A Tables" value={summary.source_a_tables || 0} hint={comparisonRun?.source_a_original_filename || "No source uploaded"} tone="blue" />
+            <StatCard title="Source B Tables" value={summary.source_b_tables || 0} hint={comparisonRun?.source_b_original_filename || "No source uploaded"} tone="violet" />
+            <StatCard title="Total Mismatches" value={comparisonRun?.result?.differences?.counts?.total_mismatches || 0} hint="Tables, columns, types, and primary keys" tone="amber" />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <button
+              onClick={() => router.push(`/dashboard/project/${projectId}/comparison`)}
+              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
+            >
+              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
+                <GitCompare className="h-5 w-5 text-teal-300" />
+              </div>
+              <div className="mt-5 text-lg font-semibold text-white">Upload and compare dumps</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Scan two SQL dumps from the same or different dialects without modifying staging data.</p>
+              <div className="mt-5"><ActionLink>Open comparison setup</ActionLink></div>
+            </button>
+
+            <button
+              onClick={() => router.push(`/dashboard/project/${projectId}/comparison/mismatches`)}
+              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
+            >
+              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
+                <BarChart3 className="h-5 w-5 text-amber-300" />
+              </div>
+              <div className="mt-5 text-lg font-semibold text-white">Review mismatches</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Inspect missing tables, missing columns, type differences, and primary-key differences.</p>
+              <div className="mt-5"><ActionLink>Open mismatch review</ActionLink></div>
+            </button>
+          </div>
+
+          <SectionCard title="Latest Comparison" description="Most recent scan result for this comparison project">
+            {comparisonRun ? (
+              <DataTable
+                columns={[
+                  { key: "metric", label: "Metric" },
+                  { key: "value", label: "Value" },
+                ]}
+                rows={[
+                  { metric: "Source A", value: comparisonRun.source_a_original_filename },
+                  { metric: "Source B", value: comparisonRun.source_b_original_filename },
+                  { metric: "Matched tables", value: summary.matched_tables || 0 },
+                  { metric: "Column mismatches", value: summary.column_mismatches || 0 },
+                  { metric: "Type mismatches", value: summary.type_mismatches || 0 },
+                  { metric: "Primary-key mismatches", value: summary.primary_key_mismatches || 0 },
+                  { metric: "Row-count mismatches", value: summary.row_count_mismatches || 0 },
+                  { metric: "Missing rows", value: summary.missing_rows || 0 },
+                  { metric: "Cell mismatches", value: summary.cell_mismatches || 0 },
+                ]}
+              />
+            ) : (
+              <EmptyState title="No comparison run yet" description="Upload two SQL dumps to generate a comparison overview." />
+            )}
+          </SectionCard>
+        </div>
+      </PageFrame>
+    );
+  }
 
   const quickActions = [
     {

@@ -14,13 +14,17 @@ export default function OrganizationsPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   useEffect(() => {
+    router.prefetch('/dashboard/new');
     safeFetch(`${API_URL}/organizations/`).then(res => {
       if (res.success && Array.isArray(res.data)) {
         setOrgs(res.data);
+        res.data.forEach((org: any) => {
+          if (org?.id) router.prefetch(`/dashboard/org/${org.id}`);
+        });
       }
       setLoading(false);
     });
-  }, [API_URL]);
+  }, [API_URL, router]);
 
   return (
     <div className="flex-1 bg-slate-950 text-slate-200 p-8">

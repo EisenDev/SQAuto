@@ -19,7 +19,7 @@ from apps.api.deps import logger
 from configs.settings import settings
 from services.dump_restore.service import DumpRestoreService
 from services.schema_profiler.service import SchemaProfilerService
-from apps.api.routers import debug, organizations, projects, workspace
+from apps.api.routers import comparison, debug, organizations, projects, workspace
 from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 api_router = APIRouter()
@@ -298,6 +298,7 @@ api_router.include_router(debug.router, prefix="/debug", tags=["debug"])
 api_router.include_router(export.router, prefix="/jobs", tags=["jobs", "export"])
 api_router.include_router(explorer.router, prefix="/explorer", tags=["jobs", "explorer"])
 api_router.include_router(workspace.router, tags=["workspace"])
+api_router.include_router(comparison.router, tags=["comparison"])
 api_router.include_router(migration.router, prefix="/migration", tags=["migration"])
 api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 api_router.include_router(fixes.router, prefix="/fixes", tags=["fixes", "smart_fix"])

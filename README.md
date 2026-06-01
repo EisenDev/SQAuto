@@ -80,9 +80,10 @@ SQAuto follows a service-oriented monorepo architecture designed to isolate heav
 
 ### Prerequisites
 - Python 3.12+
-- Node.js 20+
-- PostgreSQL
-- Redis
+- Node.js 20+ recommended
+- Docker with Docker Compose
+
+`./run.sh` starts the local Postgres and Redis services through Docker, then starts the FastAPI backend and Next.js frontend.
 
 ### Installation
 
@@ -92,26 +93,30 @@ SQAuto follows a service-oriented monorepo architecture designed to isolate heav
    cd SQAuto
    ```
 
-2. **Install dependencies:**
+2. **Run the local development stack:**
    ```bash
-   # Install backend & frontend dependencies
-   npm run install:all
+   ./run.sh
    ```
 
-3. **Environment Setup:**
-   Copy `.env.example` to `.env` and configure your database and AI API keys.
+   Default local URLs:
+   ```text
+   API: http://localhost:8000
+   Web: http://localhost:3000
+   Health: http://localhost:8000/health
+   ```
+
+3. **Optional environment setup:**
+   `./run.sh` can run without `.env` by using local development defaults. To customize ports, database URLs, secrets, or AI keys, copy the example file and edit it:
    ```bash
    cp .env.example .env
    ```
 
-4. **Run the application:**
+   Common overrides:
    ```bash
-   # Start the Backend (API)
-   npm run dev:api
-
-   # Start the Frontend (Web)
-   npm run dev:web
+   API_PORT=8010 WEB_PORT=3010 SQAUTO_DB_PORT=55434 ./run.sh
    ```
+
+For Windows and Linux setup details, Docker Desktop WSL notes, and troubleshooting, see [Running Locally](./docs/RUNNING_LOCALLY.md).
 
 ---
 
@@ -127,6 +132,7 @@ Final exports provide a structured workbook or SQL script:
 
 ## 📜 Documentation
 For more detailed information, see the `/docs` directory:
+- [Running Locally](./docs/RUNNING_LOCALLY.md)
 - [Architecture Overview](./ARCHITECTURE.md)
 - [Safety Rules](./SAFETY_RULES.md)
 - [Export Pipeline](./EXPORT_PIPELINE.md)

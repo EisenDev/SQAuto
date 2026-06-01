@@ -82,6 +82,42 @@ export interface ProjectLogsResponse {
   lines: string[];
 }
 
+export interface ComparisonRun {
+  id: string;
+  project_id: string;
+  source_a_original_filename: string;
+  source_b_original_filename: string;
+  status: "scanning" | "completed" | "failed";
+  result?: {
+    summary?: Record<string, any>;
+    sources?: Record<string, any>;
+    differences?: Record<string, any>;
+    validation?: Record<string, any>;
+  } | null;
+  log?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComparisonMismatchesResponse {
+  run_id: string;
+  project_id: string;
+  status: string;
+  summary: Record<string, any>;
+  tables: {
+    matched?: string[];
+    missing_in_a?: string[];
+    missing_in_b?: string[];
+  };
+  columns: Array<{ table: string; column: string; issue: string }>;
+  types: Array<{ table: string; column: string; source_a_type: string; source_b_type: string }>;
+  primary_keys: Array<{ table: string; source_a_primary_keys: string[]; source_b_primary_keys: string[] }>;
+  row_counts: Array<{ table: string; source_a_rows: number; source_b_rows: number }>;
+  missing_rows: Array<{ table: string; row_key: unknown[]; issue: string; source_a_row?: Record<string, unknown>; source_b_row?: Record<string, unknown> }>;
+  cells: Array<{ table: string; row_key: unknown[]; column: string; source_a_value: unknown; source_b_value: unknown }>;
+  validation: Record<string, any>;
+}
+
 export interface JobProfileSummary {
   job_id: string;
   project_id: string;
@@ -505,6 +541,24 @@ export async function getProjectActiveJob(projectId: string): Promise<Job | null
 
 export async function getProjectLogs(projectId: string, limit = 10, page = 1): Promise<ProjectLogsResponse> {
   return apiFetch<ProjectLogsResponse>(`/projects/${projectId}/logs?limit=${limit}&page=${page}`);
+}
+
+export async function uploadComparisonDumps(projectId: string, sourceA: File, sourceB: File): Promise<ComparisonRun> {
+  const formData = new FormData();
+  formData.append("source_a", sourceA);
+  formData.append("source_b", sourceB);
+  return apiFetch<ComparisonRun>(`/projects/${projectId}/comparison/upload`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function getLatestComparisonRun(projectId: string): Promise<ComparisonRun | null> {
+  return apiFetch<ComparisonRun | null>(`/projects/${projectId}/comparison/latest`);
+}
+
+export async function getComparisonMismatches(projectId: string): Promise<ComparisonMismatchesResponse> {
+  return apiFetch<ComparisonMismatchesResponse>(`/projects/${projectId}/comparison/mismatches`);
 }
 
 /** Get job details */

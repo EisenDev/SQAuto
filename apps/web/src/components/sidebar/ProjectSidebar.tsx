@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   BarChart2, Database, Layout, Settings, FileSearch, 
   Map, Activity, Share2, Upload, AlertCircle, CheckCircle2,
-  Lock, ChevronRight, ClipboardList
+  Lock, ChevronRight, ClipboardList, GitCompare
 } from 'lucide-react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useJob } from '@/components/JobProvider';
+import { safeFetch } from '@/lib/api_client';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -54,15 +55,31 @@ export const ProjectSidebar = () => {
   const router = useRouter();
   const projectId = params?.projectId;
   const [isHovered, setIsHovered] = useState(false);
+  const [projectType, setProjectType] = useState<string>('individual');
 
   // If we are NOT in a project context, some items should be disabled or hidden
   const hasProject = !!projectId;
 
   const extractionCompleted = activeJob?.status === 'completed';
 
+  useEffect(() => {
+    const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
+    if (!normalizedProjectId) return;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
+    safeFetch(`${API_URL}/projects/${normalizedProjectId}`).then((res) => {
+      if (res.success && res.data?.project_type) {
+        setProjectType(res.data.project_type);
+      }
+    });
+  }, [projectId]);
+
+  const isComparisonProject = projectType === 'comparison';
+
   const getActiveTab = () => {
     const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
     if (pathname === `/dashboard/project/${normalizedProjectId}`) return 'overview';
+    if (pathname.includes('/comparison/mismatches')) return 'comparison-mismatches';
+    if (pathname.includes('/comparison')) return 'comparison';
     if (pathname.endsWith('/sql')) return 'upload';
     if (pathname.includes('/diagnostics')) return 'diagnostics';
     if (pathname.includes('/explorer')) return 'explorer';
@@ -83,6 +100,8 @@ export const ProjectSidebar = () => {
     const routeMap: Record<string, string> = {
       overview: `/dashboard/project/${normalizedProjectId}`,
       upload: `/dashboard/project/${normalizedProjectId}/sql`,
+      comparison: `/dashboard/project/${normalizedProjectId}/comparison`,
+      'comparison-mismatches': `/dashboard/project/${normalizedProjectId}/comparison/mismatches`,
       diagnostics: `/dashboard/project/${normalizedProjectId}/diagnostics`,
       explorer: `/dashboard/project/${normalizedProjectId}/explorer`,
       visualizer: `/dashboard/project/${normalizedProjectId}/visualizer`,
@@ -122,9 +141,31 @@ export const ProjectSidebar = () => {
           label={isHovered ? "SQL Upload" : ""} 
           id="upload" 
           active={getActiveTab() === 'upload'} 
-          disabled={!hasProject}
+          disabled={!hasProject || isComparisonProject}
+          unlockRequirement={isComparisonProject ? "individual project" : undefined}
           onClick={handleNav} 
         />
+
+        {isComparisonProject ? (
+          <>
+            <SidebarItem
+              icon={GitCompare}
+              label={isHovered ? "Compare Dumps" : ""}
+              id="comparison"
+              active={getActiveTab() === 'comparison'}
+              disabled={!hasProject}
+              onClick={handleNav}
+            />
+            <SidebarItem
+              icon={AlertCircle}
+              label={isHovered ? "Mismatches" : ""}
+              id="comparison-mismatches"
+              active={getActiveTab() === 'comparison-mismatches'}
+              disabled={!hasProject}
+              onClick={handleNav}
+            />
+          </>
+        ) : null}
 
         <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
           <SectionLabel label="Analysis" />

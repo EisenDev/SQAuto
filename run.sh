@@ -13,15 +13,26 @@ WEB_PORT="${WEB_PORT:-3000}"
 COMPOSE_FILE="$ROOT_DIR/docker/docker-compose.yml"
 PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
 
-set -a
-source "$ROOT_DIR/.env"
-set +a
+if [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  source "$ROOT_DIR/.env"
+  set +a
+else
+  echo "[sqauto] No .env found; using local development defaults."
+fi
 
 API_PORT="${API_PORT:-8000}"
 WEB_PORT="${WEB_PORT:-3000}"
 API_PORT="${REQUESTED_API_PORT:-$API_PORT}"
 WEB_PORT="${REQUESTED_WEB_PORT:-$WEB_PORT}"
 SQAUTO_DB_PORT="${SQAUTO_DB_PORT:-55433}"
+
+export SQAUTO_DB_PORT
+export METADATA_DATABASE_URL="${METADATA_DATABASE_URL:-postgresql+psycopg://postgres:postgres@localhost:${SQAUTO_DB_PORT}/sqauto}"
+export DATABASE_URL="${DATABASE_URL:-$METADATA_DATABASE_URL}"
+export STAGING_DATABASE_URL="${STAGING_DATABASE_URL:-postgresql+psycopg://postgres:postgres@localhost:${SQAUTO_DB_PORT}/staging_db}"
+export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
+export SECRET_KEY="${SECRET_KEY:-change-me-local-dev}"
 
 find_free_port() {
   "$PYTHON_BIN" - "$1" <<'PY'

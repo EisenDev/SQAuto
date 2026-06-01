@@ -111,6 +111,7 @@ export interface WorkspaceDataState {
     name: string;
     description?: string | null;
     organization_id?: string | null;
+    project_type?: string;
   };
   sourceStatus: {
     project_id: string;
@@ -275,6 +276,7 @@ async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDa
           name: projectRes.data.name,
           description: projectRes.data.description,
           organization_id: projectRes.data.organization_id,
+          project_type: projectRes.data.project_type || "individual",
         }
       : buildEmptyState(projectId).project,
     sourceStatus,

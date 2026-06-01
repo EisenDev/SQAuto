@@ -14,6 +14,10 @@ export default function NewOrganizationPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  React.useEffect(() => {
+    router.prefetch('/dashboard/organizations');
+  }, [router]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
@@ -36,6 +40,7 @@ export default function NewOrganizationPage() {
       }
 
       if (orgData.id) {
+        router.prefetch(`/dashboard/new/${orgData.id}`);
         router.push(`/dashboard/new/${orgData.id}`);
       }
     } catch (err) {

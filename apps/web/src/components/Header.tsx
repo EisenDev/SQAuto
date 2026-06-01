@@ -4,16 +4,20 @@ import React from 'react';
 import { useJob } from '@/components/JobProvider';
 import { Database, Triangle, User, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 
 export default function Header() {
   const { activeJob } = useJob();
   const params = useParams();
+  const pathname = usePathname();
   const projectId = params?.projectId as string;
   const [projectData, setProjectData] = React.useState<{ name: string, organization?: { name: string } } | null>(null);
   
   React.useEffect(() => {
-    if (!projectId) return;
+    if (!projectId) {
+      setProjectData(null);
+      return;
+    }
     
     import('@/lib/api_client').then(({ safeFetch }) => {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -45,6 +49,14 @@ export default function Header() {
       });
     });
   }, [projectId]);
+
+  const fallbackSection = React.useMemo(() => {
+    if (pathname.startsWith('/dashboard/organizations')) return 'Organizations';
+    if (pathname.startsWith('/dashboard/org/')) return 'Projects';
+    if (pathname.startsWith('/dashboard/new')) return 'Setup';
+    if (pathname.startsWith('/dashboard')) return 'Dashboard';
+    return 'SQAuto';
+  }, [pathname]);
   
   const statusColor = activeJob?.status === 'completed' 
     ? 'text-teal-400 bg-teal-400/10' 
@@ -71,7 +83,7 @@ export default function Header() {
           <div className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">
             <span className="opacity-30">/</span>
             <span className="mx-2 hover:text-slate-300 cursor-default transition-colors">
-              {projectData?.organization?.name || "Loading..."}
+              {projectData?.organization?.name || fallbackSection}
             </span>
             {projectId && (
               <>
@@ -110,4 +122,3 @@ export default function Header() {
     </header>
   );
 }
-

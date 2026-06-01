@@ -50,6 +50,7 @@ def startup_event():
     try:
         Base.metadata.create_all(bind=engine)
         with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE IF EXISTS public.projects ADD COLUMN IF NOT EXISTS project_type VARCHAR NOT NULL DEFAULT 'individual'"))
             conn.execute(text("ALTER TABLE IF EXISTS public.migration_targets ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"))
             conn.execute(text("ALTER TABLE IF EXISTS public.migration_targets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_jobs_project_id_status ON public.jobs (project_id, status)"))
@@ -58,6 +59,7 @@ def startup_event():
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_logs_project_id ON public.migration_logs (project_id)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_logs_project_id_created_at ON public.migration_logs (project_id, created_at DESC)"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_migration_targets_project_id ON public.migration_targets (project_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_comparison_runs_project_id_created_at ON public.comparison_runs (project_id, created_at DESC)"))
         print("[+] PostgreSQL connected and tables verified.")
     except Exception as e:
         print(f"[!] Database connection failed on startup: {e}")

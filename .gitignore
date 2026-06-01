@@ -42,6 +42,8 @@ SQAuto.code-workspace
 # Large Data & Keys
 uploads/
 *.sql
+!docs/sample_dumps/
+!docs/sample_dumps/*.sql
 *.pem
 *.key
 SQAUTO_key.pem

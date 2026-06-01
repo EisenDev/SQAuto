@@ -40,6 +40,7 @@ class Project(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("public.organizations.id"), nullable=False)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
+    project_type = Column(String, nullable=False, default="individual")
     optional_password_hash = Column(String, nullable=True)  # Future: project-level security
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -73,6 +74,24 @@ class Job(Base):
     is_active = Column(Boolean, default=False, nullable=False)
     profile = Column(JSON, nullable=True)
     log = Column(Text, nullable=True)
+
+
+class ComparisonRun(Base):
+    """Read-only comparison scan between two SQL dump files in a project."""
+    __tablename__ = "comparison_runs"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("public.projects.id"), nullable=False, index=True)
+    source_a_filename = Column(String, nullable=False)
+    source_a_original_filename = Column(String, nullable=False)
+    source_b_filename = Column(String, nullable=False)
+    source_b_original_filename = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="completed")
+    result = Column(JSON, nullable=True)
+    log = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
 # ============================================================
