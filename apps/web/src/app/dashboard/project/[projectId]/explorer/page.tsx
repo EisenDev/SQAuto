@@ -6,6 +6,7 @@ import {
   EmptyState,
   PageFrame,
   PageHeader,
+  ProjectLockGuard,
   SectionCard,
   StatusBadge,
   useProjectWorkspaceData,
@@ -122,26 +123,29 @@ export default function ExplorerPage() {
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader title={workspaceMeta.explorer.title} description={workspaceMeta.explorer.description} />
-        <div className="mt-8">
-          <EmptyState
-            title="No tables available yet"
-            description="Complete a source upload and extraction cycle to browse staged tables in the truth explorer."
-            action={
-              <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
-                <UploadCloud className="h-4 w-4" />
-                Upload SQL dump
-              </button>
-            }
-          />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.explorer.title} description={workspaceMeta.explorer.description} />
+          <div className="mt-8">
+            <EmptyState
+              title="No tables available yet"
+              description="Complete a source upload and extraction cycle to browse staged tables in the truth explorer."
+              action={
+                <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
+                  <UploadCloud className="h-4 w-4" />
+                  Upload SQL dump
+                </button>
+              }
+            />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
   return (
-    <PageFrame>
+    <ProjectLockGuard projectId={projectId} allowedType="individual">
+      <PageFrame>
       <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.explorer.title}
@@ -301,5 +305,6 @@ export default function ExplorerPage() {
         </div>
       </div>
     </PageFrame>
+    </ProjectLockGuard>
   );
 }

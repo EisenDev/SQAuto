@@ -18,7 +18,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def _validate_sql_dump(file: UploadFile) -> bool:
     filename = (file.filename or "").lower()
-    return filename.endswith(".sql") or filename.endswith(".sql.gz")
+    return filename.endswith(".sql") or filename.endswith(".sql.gz") or filename.endswith(".bak")
 
 
 def _save_upload(project_id: uuid.UUID, run_id: uuid.UUID, label: str, file: UploadFile) -> str:
@@ -44,7 +44,7 @@ async def upload_comparison_sources(
     if project.project_type != "comparison":
         raise HTTPException(status_code=400, detail="This project is not configured for SQL dump comparison.")
     if not _validate_sql_dump(source_a) or not _validate_sql_dump(source_b):
-        raise HTTPException(status_code=400, detail="Only .sql and .sql.gz files are allowed.")
+        raise HTTPException(status_code=400, detail="Only .sql, .sql.gz, and .bak files are allowed.")
 
     run_id = uuid.uuid4()
     path_a = _save_upload(project_id, run_id, "source_a", source_a)

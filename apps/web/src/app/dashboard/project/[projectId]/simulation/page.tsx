@@ -19,6 +19,7 @@ import {
   EmptyState,
   PageFrame,
   PageHeader,
+  ProjectLockGuard,
   SectionCard,
   StatCard,
   StatusBadge,
@@ -178,17 +179,20 @@ export default function SimulationPage({ params }: { params: { projectId: string
 
   if (!workspace.hasAnyJob && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader title={workspaceMeta.simulation.title} description={workspaceMeta.simulation.description} />
-        <div className="mt-8">
-          <EmptyState title="No source job available" description="A source upload and a destination target are required before dry-run simulation makes sense." />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.simulation.title} description={workspaceMeta.simulation.description} />
+          <div className="mt-8">
+            <EmptyState title="No source job available" description="A source upload and a destination target are required before dry-run simulation makes sense." />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
   return (
-    <PageFrame>
+    <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+      <PageFrame>
       <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.simulation.title}
@@ -411,5 +415,6 @@ export default function SimulationPage({ params }: { params: { projectId: string
         </div>
       </div>
     </PageFrame>
+    </ProjectLockGuard>
   );
 }

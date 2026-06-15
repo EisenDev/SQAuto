@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { 
   Building2,
-  Shield, Sparkles 
+  CheckCircle2,
+  Rocket,
+  AlertCircle
 } from 'lucide-react';
 
 export default function NewOrganizationPage() {
@@ -54,67 +56,77 @@ export default function NewOrganizationPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-3rem)] bg-slate-950 text-slate-200 flex items-start justify-center overflow-hidden px-6 pt-10 pb-8 md:pt-14">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen bg-brand-bg text-text-primary flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_rgba(15,118,110,0.06),transparent_35%)]">
+      <div className="w-full max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        
         <div className="space-y-2">
-          <div className="h-10 w-10 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-6">
-            <Building2 className="h-5 w-5 text-teal-500" />
+          <div className="h-12 w-12 rounded-xl bg-brand-primaryLight border border-brand-primaryBorder flex items-center justify-center mb-6">
+            <Building2 className="h-6 w-6 text-brand-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Create a new organization</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
+          <h1 className="text-3xl font-bold text-text-primary tracking-tight">Create a new organization</h1>
+          <p className="text-text-secondary">
             Organizations are a way to group your projects. Each organization can be configured with different team members and billing settings.
           </p>
         </div>
 
+        {error && (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start space-x-3 text-red-700 animate-in fade-in zoom-in duration-300">
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <div className="text-sm font-medium">{error}</div>
+          </div>
+        )}
+
         <form onSubmit={handleCreate} className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">Organization Name</label>
-              <input 
-                required
-                autoFocus
-                type="text" 
-                placeholder="e.g. Acme Corporation" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-white focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all placeholder:text-slate-600"
-              />
-              <p className="text-[10px] text-slate-500 ml-0.5">What's the name of your company or team? You can change this later.</p>
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-text-secondary ml-1">Organization Name</label>
+            <input 
+              required
+              autoFocus
+              type="text" 
+              placeholder="e.g. Acme Corporation" 
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 bg-white border border-brand-border rounded-xl text-text-primary focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all placeholder:text-text-muted/50"
+            />
+            <p className="text-xs text-text-muted mt-2 ml-1">What's the name of your company or team? You can change this later.</p>
           </div>
 
-          {error ? (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between pt-4 border-t border-slate-800/60">
+          <div className="flex items-center justify-between pt-6 border-t border-brand-border">
             <button 
               type="button"
               onClick={() => router.push('/dashboard/organizations')}
-              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded transition-all border border-slate-800"
+              className="px-6 py-2 bg-white hover:bg-stone-50 text-text-secondary text-sm font-semibold rounded-xl transition-all border border-brand-border"
             >
               Cancel
             </button>
             <button 
               disabled={loading || !name}
-              className="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 rounded text-xs font-bold text-white transition-all shadow-lg shadow-teal-900/20 active:scale-[0.98]"
+              className="px-6 py-2 bg-brand-primary hover:bg-brand-primaryHover disabled:opacity-50 rounded-xl text-sm font-bold text-white transition-all shadow-md shadow-brand-primary/10 active:scale-[0.98] flex items-center space-x-2"
             >
-              {loading ? 'Creating...' : 'Create organization'}
+              {loading ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <span>Create Organization</span>
+                  <Rocket className="h-4 w-4" />
+                </>
+              )}
             </button>
           </div>
         </form>
 
-        <div className="pt-8 grid grid-cols-2 gap-6 border-t border-slate-800/30 opacity-40">
-           <div className="flex items-start space-x-2">
-             <Shield className="h-3.5 w-3.5 text-teal-500 mt-0.5" />
-             <span className="text-[10px] text-slate-400 leading-tight">Enterprise-grade security isolation</span>
-           </div>
-           <div className="flex items-start space-x-2">
-             <Sparkles className="h-3.5 w-3.5 text-teal-500 mt-0.5" />
-             <span className="text-[10px] text-slate-400 leading-tight">Automatic infrastructure scaling</span>
-           </div>
+        <div className="pt-8 border-t border-brand-border flex items-center justify-center space-x-6 text-text-muted text-xs font-medium">
+          <div className="flex items-center">
+            <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary/60 mr-1.5" />
+            Enterprise-grade security isolation
+          </div>
+          <div className="flex items-center">
+            <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary/60 mr-1.5" />
+            Automatic infrastructure scaling
+          </div>
         </div>
       </div>
     </div>

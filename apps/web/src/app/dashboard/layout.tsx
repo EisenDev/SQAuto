@@ -12,21 +12,21 @@ export default function DashboardLayout({
   const showProjectSidebar = pathname.startsWith('/dashboard/project/');
 
   return (
-    <div className="flex-1 flex bg-slate-950 relative min-h-0">
+    <div className="flex-1 flex bg-brand-bg relative min-h-0 text-text-primary">
       {showProjectSidebar ? (
         <>
           {/* Sidebar Spacer (Maintains space for fixed sidebar drawer) */}
-          <div className="w-14 flex-shrink-0 border-r border-slate-800/40" />
-
-          {/* Fixed Side Navigation */}
-          <ProjectSidebar />
-        </>
-      ) : null}
-
-      {/* Main Content Area */}
-      <main className="flex-1 min-w-0 relative min-h-0 overflow-x-hidden">
-        {children}
-      </main>
-    </div>
-  );
-}
+          <div className="w-14 flex-shrink-0 border-r border-brand-border" />
+ 
+           {/* Fixed Side Navigation */}
+           <ProjectSidebar />
+         </>
+       ) : null}
+ 
+       {/* Main Content Area */}
+       <main className="flex-1 min-w-0 relative min-h-0 overflow-x-hidden bg-brand-bg">
+         {children}
+       </main>
+     </div>
+   );
+ }

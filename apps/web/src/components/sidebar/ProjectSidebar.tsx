@@ -21,19 +21,19 @@ interface SidebarItemProps {
 
 const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockRequirement }: SidebarItemProps) => (
   <div 
-    className={`group flex items-center pl-[18px] py-2.5 text-sm font-medium rounded-md cursor-pointer transition-all ${
+    className={`group flex items-center pl-[18px] py-2.5 text-sm font-semibold rounded-md cursor-pointer transition-all ${
       active 
-        ? 'bg-teal-900/40 text-teal-300 border-l-2 border-teal-500' 
+        ? 'bg-brand-primaryLight text-brand-primary border-l-2 border-brand-primary' 
         : disabled 
-          ? 'text-slate-600 cursor-not-allowed' 
-          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+          ? 'text-text-muted/50 cursor-not-allowed' 
+          : 'text-text-secondary hover:text-text-primary hover:bg-stone-100'
     }`}
     onClick={() => !disabled && onClick(id)}
     title={disabled ? `Requires ${unlockRequirement}` : ''}
   >
     {/* Precisely centered icon in the narrow w-14 drawer (center at 28px) */}
     <div className="w-5 flex-shrink-0 flex items-center justify-center mr-3">
-      <Icon className={`h-5 w-5 ${active ? 'text-teal-400' : 'text-slate-500'}`} />
+      <Icon className={`h-5 w-5 ${active ? 'text-brand-primary' : 'text-text-muted/80'}`} />
     </div>
     <span className={`flex-1 truncate transition-opacity duration-200 ${label ? 'opacity-100' : 'opacity-0 w-0'}`}>
       {label}
@@ -42,7 +42,7 @@ const SidebarItem = ({ icon: Icon, label, id, active, disabled, onClick, unlockR
 );
 
 const SectionLabel = ({ label }: { label: string }) => (
-  <h3 className="pl-[18px] mt-6 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-[0.1em]">
+  <h3 className="pl-[18px] mt-6 mb-2 text-[10px] font-bold text-text-muted uppercase tracking-[0.1em]">
     {label}
   </h3>
 );
@@ -56,11 +56,13 @@ export const ProjectSidebar = () => {
   const projectId = params?.projectId;
   const [isHovered, setIsHovered] = useState(false);
   const [projectType, setProjectType] = useState<string>('individual');
+  const [comparisonCompleted, setComparisonCompleted] = useState(false);
 
   // If we are NOT in a project context, some items should be disabled or hidden
   const hasProject = !!projectId;
 
   const extractionCompleted = activeJob?.status === 'completed';
+  const isComparisonProject = projectType === 'comparison';
 
   useEffect(() => {
     const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
@@ -69,11 +71,21 @@ export const ProjectSidebar = () => {
     safeFetch(`${API_URL}/projects/${normalizedProjectId}`).then((res) => {
       if (res.success && res.data?.project_type) {
         setProjectType(res.data.project_type);
+        
+        if (res.data.project_type === 'comparison') {
+          safeFetch(`${API_URL}/projects/${normalizedProjectId}/comparison/latest`).then((compRes) => {
+            if (compRes.success && compRes.data && (compRes.data.status === 'completed' || compRes.data.result)) {
+              setComparisonCompleted(true);
+            } else {
+              setComparisonCompleted(false);
+            }
+          });
+        }
       }
     });
-  }, [projectId]);
+  }, [projectId, pathname]);
 
-  const isComparisonProject = projectType === 'comparison';
+  const isAnalysisDisabled = !hasProject;
 
   const getActiveTab = () => {
     const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
@@ -120,8 +132,8 @@ export const ProjectSidebar = () => {
     <div 
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`fixed top-12 bottom-0 left-0 flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ease-in-out z-50 overflow-x-hidden ${
-        isHovered ? 'w-64 shadow-2xl shadow-black/80' : 'w-14'
+      className={`fixed top-14 bottom-0 left-0 flex flex-col bg-brand-bg border-r border-brand-border transition-all duration-300 ease-in-out z-50 overflow-x-hidden ${
+        isHovered ? 'w-64 shadow-premium' : 'w-14'
       }`}
     >
       <nav className="flex-1 px-0 py-4 space-y-1 overflow-x-hidden custom-scrollbar">
@@ -141,31 +153,25 @@ export const ProjectSidebar = () => {
           label={isHovered ? "SQL Upload" : ""} 
           id="upload" 
           active={getActiveTab() === 'upload'} 
-          disabled={!hasProject || isComparisonProject}
-          unlockRequirement={isComparisonProject ? "individual project" : undefined}
+          disabled={!hasProject}
           onClick={handleNav} 
         />
-
-        {isComparisonProject ? (
-          <>
-            <SidebarItem
-              icon={GitCompare}
-              label={isHovered ? "Compare Dumps" : ""}
-              id="comparison"
-              active={getActiveTab() === 'comparison'}
-              disabled={!hasProject}
-              onClick={handleNav}
-            />
-            <SidebarItem
-              icon={AlertCircle}
-              label={isHovered ? "Mismatches" : ""}
-              id="comparison-mismatches"
-              active={getActiveTab() === 'comparison-mismatches'}
-              disabled={!hasProject}
-              onClick={handleNav}
-            />
-          </>
-        ) : null}
+        <SidebarItem
+          icon={GitCompare}
+          label={isHovered ? "Compare Dumps" : ""}
+          id="comparison"
+          active={getActiveTab() === 'comparison'}
+          disabled={!hasProject}
+          onClick={handleNav}
+        />
+        <SidebarItem
+          icon={AlertCircle}
+          label={isHovered ? "Mismatches" : ""}
+          id="comparison-mismatches"
+          active={getActiveTab() === 'comparison-mismatches'}
+          disabled={!hasProject}
+          onClick={handleNav}
+        />
 
         <div className={`transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
           <SectionLabel label="Analysis" />
@@ -175,8 +181,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Extraction Diagnostics" : ""} 
           id="diagnostics" 
           active={getActiveTab() === 'diagnostics'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -184,8 +189,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Truth Explorer" : ""} 
           id="explorer" 
           active={getActiveTab() === 'explorer'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -193,8 +197,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Schema Visualizer" : ""} 
           id="visualizer" 
           active={getActiveTab() === 'visualizer'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -202,8 +205,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Data Quality" : ""} 
           id="quality" 
           active={getActiveTab() === 'quality'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
 
@@ -215,8 +217,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Schema Mapping" : ""} 
           id="mapping" 
           active={getActiveTab() === 'mapping'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -224,8 +225,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Export SQL" : ""} 
           id="export" 
           active={getActiveTab() === 'export'} 
-          disabled={!extractionCompleted}
-          unlockRequirement="Extraction"
+          disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />
 
@@ -237,6 +237,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Live Destination" : ""} 
           id="destination" 
           active={getActiveTab() === 'destination'} 
+          disabled={!hasProject}
           onClick={handleNav} 
         />
         <SidebarItem 
@@ -244,6 +245,7 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Simulation" : ""} 
           id="simulation" 
           active={getActiveTab() === 'simulation'} 
+          disabled={!hasProject}
           onClick={handleNav} 
         />
 
@@ -255,9 +257,11 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Settings" : ""} 
           id="settings" 
           active={getActiveTab() === 'settings'} 
+          disabled={!hasProject}
           onClick={handleNav} 
         />
       </nav>
     </div>
   );
 };
+;

@@ -66,13 +66,13 @@ export default function SettingsPage({ params }: { params: { projectId: string }
 
         <SectionCard title="Project Info" description="Rename the project and update its description">
           <div className="grid gap-4">
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-stone-700 font-medium">
               <span>Project name</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none" />
+              <input value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-900 outline-none focus:border-teal-500" />
             </label>
-            <label className="space-y-2 text-sm text-slate-300">
+            <label className="space-y-2 text-sm text-stone-700 font-medium">
               <span>Description</span>
-              <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-[120px] w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none" />
+              <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-[120px] w-full rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-900 outline-none focus:border-teal-500" />
             </label>
             <div className="flex justify-end">
               <button className={workspaceActions.primary} onClick={save}>
@@ -85,7 +85,7 @@ export default function SettingsPage({ params }: { params: { projectId: string }
 
         <div className="grid gap-6 md:grid-cols-2">
           <SectionCard title="Reset Data" description="Clear uploaded jobs while keeping the project shell intact">
-            <p className="text-sm leading-6 text-slate-400">
+            <p className="text-sm leading-6 text-stone-600 font-medium">
               This removes project job records and resets the workspace back to a pre-upload state. Use it when you want a clean migration pass.
             </p>
             <div className="mt-5">
@@ -97,7 +97,7 @@ export default function SettingsPage({ params }: { params: { projectId: string }
           </SectionCard>
 
           <SectionCard title="Danger Zone" description="Delete the project and all metadata references">
-            <p className="text-sm leading-6 text-slate-400">
+            <p className="text-sm leading-6 text-stone-600 font-medium">
               This is destructive. The UI remains non-blocking, but the backend delete endpoint will run if it is available.
             </p>
             <div className="mt-5">

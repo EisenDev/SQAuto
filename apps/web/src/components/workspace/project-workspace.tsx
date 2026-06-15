@@ -18,7 +18,9 @@ import {
   ShieldAlert,
   Sparkles,
   Upload,
+  Lock,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { safeFetch } from "@/lib/api_client";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
@@ -152,6 +154,7 @@ export interface WorkspaceDataState {
   usingMockData: boolean;
   hasAnyJob: boolean;
   hasExtraction: boolean;
+  comparisonCompleted: boolean;
   loading: boolean;
   error: string | null;
 }
@@ -196,6 +199,7 @@ function buildEmptyState(projectId: string): WorkspaceDataState {
     usingMockData: false,
     hasAnyJob: false,
     hasExtraction: false,
+    comparisonCompleted: false,
     loading: true,
     error: null,
   };
@@ -238,12 +242,13 @@ function deriveTimeline(jobs: WorkspaceDataState["jobs"], sourceStatus: Workspac
 }
 
 async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDataState> {
-  const [projectRes, sourceRes, jobsRes, logsRes, activeJobRes] = await Promise.all([
+  const [projectRes, sourceRes, jobsRes, logsRes, activeJobRes, comparisonRes] = await Promise.all([
     safeFetch(`${API_URL}/projects/${projectId}`),
     safeFetch(`${API_URL}/projects/${projectId}/source-status`),
     safeFetch(`${API_URL}/projects/${projectId}/jobs`),
     safeFetch(`${API_URL}/projects/${projectId}/logs?limit=10&page=1`),
     safeFetch(`${API_URL}/projects/${projectId}/active-job`),
+    safeFetch(`${API_URL}/projects/${projectId}/comparison/latest`),
   ]);
   const jobs =
     jobsRes.success && Array.isArray(jobsRes.data)
@@ -267,6 +272,13 @@ async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDa
         },
       }
     : buildEmptyState(projectId).sourceStatus;
+
+  const isComparisonProject = projectRes.success && projectRes.data?.project_type === "comparison";
+  const comparisonCompleted = isComparisonProject && !!(
+    comparisonRes.success &&
+    comparisonRes.data &&
+    (comparisonRes.data.status === "completed" || comparisonRes.data.result)
+  );
 
   return {
     ...buildEmptyState(projectId),
@@ -296,8 +308,9 @@ async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDa
       { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: sourceStatus.status === "completed" },
     ],
     usingMockData: false,
-    hasAnyJob: jobs.length > 0 || Boolean(sourceStatus.active_job_id),
-    hasExtraction: sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed",
+    hasAnyJob: isComparisonProject ? comparisonCompleted : (jobs.length > 0 || Boolean(sourceStatus.active_job_id)),
+    hasExtraction: isComparisonProject ? comparisonCompleted : (sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed"),
+    comparisonCompleted,
     loading: false,
     error:
       projectRes.success || sourceRes.success || jobsRes.success || logsRes.success
@@ -337,21 +350,21 @@ export function StatusBadge({ status, children }: { status: WorkspaceStatus | st
   const value = String(status).toLowerCase();
   const tone =
     value === "completed"
-      ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/20"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-600/10"
       : value === "processing" || value === "restoring" || value === "analyzing" || value === "uploaded"
-        ? "bg-sky-500/15 text-sky-300 ring-sky-500/20"
+        ? "bg-sky-50 text-sky-700 ring-sky-600/10"
         : value === "failed"
-          ? "bg-rose-500/15 text-rose-300 ring-rose-500/20"
+          ? "bg-rose-50 text-rose-700 ring-rose-600/10"
           : value === "warning"
-            ? "bg-amber-500/15 text-amber-300 ring-amber-500/20"
+            ? "bg-amber-50 text-amber-700 ring-amber-600/10"
             : value === "mock"
-              ? "bg-violet-500/15 text-violet-300 ring-violet-500/20"
+              ? "bg-violet-50 text-violet-700 ring-violet-600/10"
               : value === "locked"
-                ? "bg-slate-700/50 text-slate-300 ring-slate-600/40"
-                : "bg-slate-800/90 text-slate-300 ring-slate-700/40";
+                ? "bg-stone-100 text-stone-700 ring-stone-600/10"
+                : "bg-stone-100 text-stone-600 ring-stone-500/10";
 
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1", tone)}>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1", tone)}>
       {children || value.replace(/_/g, " ")}
     </span>
   );
@@ -372,10 +385,10 @@ export function PageHeader({
     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight text-white">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-primary">{title}</h1>
           {badge}
         </div>
-        <p className="max-w-3xl text-sm leading-6 text-slate-400">{description}</p>
+        <p className="max-w-3xl text-sm leading-6 text-text-secondary">{description}</p>
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
     </div>
@@ -398,14 +411,14 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.86),rgba(2,6,23,0.9))] p-6 shadow-[0_20px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl",
+        "rounded-3xl border border-brand-border bg-white p-6 shadow-premium",
         className,
       )}
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-white">{title}</h2>
-          {description ? <p className="text-sm text-slate-400">{description}</p> : null}
+          <h2 className="text-base font-bold text-text-primary">{title}</h2>
+          {description ? <p className="text-sm text-text-secondary">{description}</p> : null}
         </div>
         {action}
       </div>
@@ -428,27 +441,27 @@ export function StatCard({
   tone?: "teal" | "blue" | "violet" | "amber" | "rose";
 }) {
   const tones: Record<string, string> = {
-    teal: "from-teal-400/20 via-teal-400/10 to-transparent text-teal-300 ring-teal-400/20",
-    blue: "from-sky-400/20 via-sky-400/10 to-transparent text-sky-300 ring-sky-400/20",
-    violet: "from-violet-400/20 via-violet-400/10 to-transparent text-violet-300 ring-violet-400/20",
-    amber: "from-amber-400/20 via-amber-400/10 to-transparent text-amber-300 ring-amber-400/20",
-    rose: "from-rose-400/20 via-rose-400/10 to-transparent text-rose-300 ring-rose-400/20",
+    teal: "bg-teal-50 text-brand-primary border-teal-500/20 ring-teal-500/10",
+    blue: "bg-sky-50 text-sky-700 border-sky-500/20 ring-sky-500/10",
+    violet: "bg-violet-50 text-violet-700 border-violet-500/20 ring-violet-500/10",
+    amber: "bg-amber-50 text-amber-705 border-amber-500/20 ring-amber-500/10",
+    rose: "bg-rose-50 text-rose-700 border-rose-500/20 ring-rose-500/10",
   };
 
   return (
-    <div className="group rounded-2xl border border-white/10 bg-slate-950/60 p-5 transition-transform duration-200 hover:-translate-y-1 hover:border-white/15">
+    <div className="group rounded-2xl border border-brand-border bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-borderHover shadow-premium">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">{title}</p>
-          <div className="text-3xl font-semibold tracking-tight text-white">{value}</div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted">{title}</p>
+          <div className="text-3xl font-bold tracking-tight text-text-primary">{value}</div>
         </div>
         {Icon ? (
-          <div className={cn("rounded-2xl bg-gradient-to-br p-3 ring-1", tones[tone])}>
+          <div className={cn("rounded-2xl p-3 ring-1 border", tones[tone])}>
             <Icon className="h-5 w-5" />
           </div>
         ) : null}
       </div>
-      {hint ? <p className="mt-3 text-sm text-slate-400">{hint}</p> : null}
+      {hint ? <p className="mt-3 text-xs text-text-secondary leading-relaxed">{hint}</p> : null}
     </div>
   );
 }
@@ -465,11 +478,11 @@ export function ChartCard({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-5">
+    <div className="rounded-2xl border border-brand-border bg-white p-5 shadow-premium">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
-          {description ? <p className="text-xs text-slate-400">{description}</p> : null}
+          <h3 className="text-sm font-bold text-text-primary">{title}</h3>
+          {description ? <p className="text-xs text-text-secondary">{description}</p> : null}
         </div>
         {action}
       </div>
@@ -490,12 +503,12 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-950/40 px-6 text-center">
-      <div className="mb-5 rounded-3xl bg-slate-900/80 p-4 ring-1 ring-white/10">
-        <Icon className="h-8 w-8 text-teal-300" />
+    <div className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-dashed border-brand-border bg-stone-50 px-6 text-center">
+      <div className="mb-5 rounded-3xl bg-white p-4 ring-1 ring-brand-border shadow-sm">
+        <Icon className="h-8 w-8 text-brand-primary" />
       </div>
-      <h3 className="text-lg font-semibold text-white">{title}</h3>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-400">{description}</p>
+      <h3 className="text-lg font-bold text-text-primary">{title}</h3>
+      <p className="mt-2 max-w-md text-sm leading-relaxed text-text-secondary">{description}</p>
       {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
@@ -511,26 +524,26 @@ export function DataTable({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-white/10", className)}>
+    <div className={cn("overflow-hidden rounded-2xl border border-brand-border shadow-sm", className)}>
       <div className="max-h-[56vh] overflow-auto">
-        <table className="min-w-full divide-y divide-white/5">
-          <thead className="bg-slate-950/90">
+        <table className="min-w-full divide-y divide-brand-border">
+          <thead className="bg-stone-50">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={cn("px-4 py-3 text-left text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500", column.className)}
+                  className={cn("px-4 py-3 text-left text-[11px] font-bold uppercase tracking-[0.18em] text-text-secondary", column.className)}
                 >
                   {column.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5 bg-slate-950/40">
+          <tbody className="divide-y divide-brand-border bg-white">
             {rows.map((row, index) => (
-              <tr key={row.id || row.name || index} className="transition-colors hover:bg-white/[0.03]">
+              <tr key={row.id || row.name || index} className="transition-colors hover:bg-stone-50/50">
                 {columns.map((column) => (
-                  <td key={column.key} className="px-4 py-3 text-sm text-slate-300">
+                  <td key={column.key} className="px-4 py-3 text-sm text-text-secondary">
                     {column.render ? column.render(row) : String(row[column.key] ?? "—")}
                   </td>
                 ))}
@@ -555,9 +568,9 @@ export function WorkspaceNote({
   if (!usingMockData && !loading && !error) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-slate-300">
-      {loading ? <Loader2 className="h-4 w-4 animate-spin text-teal-300" /> : error ? <AlertTriangle className="h-4 w-4 text-amber-300" /> : <Sparkles className="h-4 w-4 text-violet-300" />}
-      <span>
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-primaryBorder bg-brand-primaryLight px-4 py-3 text-sm text-brand-primary shadow-sm">
+      {loading ? <Loader2 className="h-4 w-4 animate-spin text-brand-primary" /> : error ? <AlertTriangle className="h-4 w-4 text-brand-primary" /> : <Sparkles className="h-4 w-4 text-brand-primary" />}
+      <span className="font-semibold text-xs">
         {loading
           ? "Loading real workspace data."
           : error
@@ -582,9 +595,9 @@ export const workspaceIcons = {
 };
 
 export const workspaceActions = {
-  primary: "inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-teal-400",
-  secondary: "inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10",
-  danger: "inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20",
+  primary: "inline-flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-primaryHover hover:scale-[1.01] active:scale-[0.99] shadow-sm",
+  secondary: "inline-flex items-center gap-2 rounded-xl border border-brand-border bg-white px-4 py-2 text-sm font-semibold text-text-secondary transition hover:bg-stone-50 active:scale-[0.99] shadow-sm",
+  danger: "inline-flex items-center gap-2 rounded-xl border border-rose-250 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 active:scale-[0.99]",
 };
 
 export const workspaceEmptyActions = {
@@ -656,21 +669,21 @@ export function formatDurationFromRows(rows: number) {
 
 export function statusIcon(status: WorkspaceStatus | string) {
   const value = String(status).toLowerCase();
-  if (value === "completed") return <CheckCircle2 className="h-4 w-4 text-emerald-300" />;
-  if (value === "processing" || value === "analyzing" || value === "restoring") return <Loader2 className="h-4 w-4 animate-spin text-sky-300" />;
-  if (value === "failed") return <AlertTriangle className="h-4 w-4 text-rose-300" />;
-  if (value === "warning") return <AlertTriangle className="h-4 w-4 text-amber-300" />;
-  return <Clock3 className="h-4 w-4 text-slate-400" />;
+  if (value === "completed") return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+  if (value === "processing" || value === "analyzing" || value === "restoring") return <Loader2 className="h-4 w-4 animate-spin text-sky-600" />;
+  if (value === "failed") return <AlertTriangle className="h-4 w-4 text-rose-600" />;
+  if (value === "warning") return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+  return <Clock3 className="h-4 w-4 text-text-muted" />;
 }
 
 export function severityTone(severity: string) {
-  if (severity === "high") return "text-rose-300 bg-rose-500/15 ring-rose-500/20";
-  if (severity === "medium") return "text-amber-300 bg-amber-500/15 ring-amber-500/20";
-  return "text-sky-300 bg-sky-500/15 ring-sky-500/20";
+  if (severity === "high") return "text-rose-700 bg-rose-50 ring-rose-600/10";
+  if (severity === "medium") return "text-amber-700 bg-amber-50 ring-amber-600/10";
+  return "text-sky-700 bg-sky-50 ring-sky-600/10";
 }
 
 export const systemGradient =
-  "bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.18),transparent_28%),radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_24%),linear-gradient(180deg,#020617_0%,#020617_100%)]";
+  "bg-brand-bg bg-[radial-gradient(circle_at_top_right,rgba(15,118,110,0.06),transparent_35%),radial-gradient(circle_at_top_left,rgba(20,184,166,0.04),transparent_30%)]";
 
 export const workspacePageShell =
   "mx-auto w-full max-w-[1720px] space-y-8 animate-in fade-in duration-500";
@@ -684,9 +697,27 @@ export function PageFrame({ children }: { children: React.ReactNode }) {
 
 export function ActionLink({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-medium text-teal-300">
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-primary">
       {children}
       <ArrowRight className="h-4 w-4" />
     </span>
   );
 }
+
+export function ProjectLockGuard({
+  projectId,
+  allowedType,
+  children,
+}: {
+  projectId: string;
+  allowedType: "individual" | "comparison";
+  children: React.ReactNode;
+}) {
+  // Lock is bypassed - allowedType and projectId are referenced in dependency array
+  React.useEffect(() => {
+    console.log(`Bypassed lock guard for project ${projectId} (${allowedType})`);
+  }, [projectId, allowedType]);
+
+  return <>{children}</>;
+}
+

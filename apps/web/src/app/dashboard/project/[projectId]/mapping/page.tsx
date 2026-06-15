@@ -8,6 +8,7 @@ import {
   EmptyState,
   PageFrame,
   PageHeader,
+  ProjectLockGuard,
   SectionCard,
   StatCard,
   StatusBadge,
@@ -78,106 +79,110 @@ export default function MappingPage({ params }: { params: { projectId: string } 
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader title={workspaceMeta.mapping.title} description={workspaceMeta.mapping.description} />
-        <div className="mt-8">
-          <EmptyState title="No schema available for mapping" description="An extracted source profile is required before column mapping can start." />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.mapping.title} description={workspaceMeta.mapping.description} />
+          <div className="mt-8">
+            <EmptyState title="No schema available for mapping" description="An extracted source profile is required before column mapping can start." />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
   return (
-    <PageFrame>
-      <div className={workspacePageShell}>
-        <PageHeader
-          title={workspaceMeta.mapping.title}
-          description={workspaceMeta.mapping.description}
-          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
-          actions={
-            <>
-              <button className={workspaceActions.secondary} onClick={workspace.reload}>
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              <button
-                className={`${workspaceActions.primary} opacity-60`}
-                disabled
-                onClick={() => {
-                  toast.warning("Mapping persistence is not implemented yet");
-                }}
-              >
-                <Save className="h-4 w-4" />
-                Save Mapping
-              </button>
-            </>
-          }
-        />
-
-        <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <StatCard title="Mapped" value={mapped} tone="teal" />
-          <StatCard title="Unmapped" value={unmapped} tone="blue" />
-          <StatCard title="Type Conflicts" value={conflicts} tone="amber" />
-        </div>
-
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <SectionCard
-            title="Mapping Table"
-            description="Source column to target column bindings"
-            action={
-              <select
-                value={selectedTable}
-                onChange={(event) => setSelectedTable(event.target.value)}
-                className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-slate-200 outline-none"
-              >
-                {tables.map((item: any) => (
-                  <option key={item.table} value={item.table}>
-                    {item.table}
-                  </option>
-                ))}
-              </select>
+    <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+      <PageFrame>
+        <div className={workspacePageShell}>
+          <PageHeader
+            title={workspaceMeta.mapping.title}
+            description={workspaceMeta.mapping.description}
+            badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
+            actions={
+              <>
+                <button className={workspaceActions.secondary} onClick={workspace.reload}>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+                <button
+                  className={`${workspaceActions.primary} opacity-60`}
+                  disabled
+                  onClick={() => {
+                    toast.warning("Mapping persistence is not implemented yet");
+                  }}
+                >
+                  <Save className="h-4 w-4" />
+                  Save Mapping
+                </button>
+              </>
             }
-          >
-            <DataTable
-              columns={[
-                { key: "source", label: "Source Column" },
-                { key: "sourceType", label: "Type" },
-                {
-                  key: "target",
-                  label: "Target Column",
-                  render: (row) => (
-                    <input
-                      value={mapping[row.source] ?? row.source}
-                      onChange={(event) => setMapping((current) => ({ ...current, [row.source]: event.target.value }))}
-                      className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none"
-                    />
-                  ),
-                },
-                {
-                  key: "status",
-                  label: "Status",
-                  render: (row) => <StatusBadge status={row.status}>{row.status === "completed" ? "OK" : row.status === "warning" ? "Mismatch" : "Unmapped"}</StatusBadge>,
-                },
-              ]}
-              rows={rows}
-            />
-          </SectionCard>
+          />
 
-          <SectionCard title="Suggestions" description="Real mapping state and target context">
-            <div className="space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-400">
-                <div className="flex items-center gap-2 text-slate-200">
-                  <CheckCircle2 className="h-4 w-4 text-teal-300" />
-                  Target schema context: Export SQL structure or no live target selected.
+          <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <StatCard title="Mapped" value={mapped} tone="teal" />
+            <StatCard title="Unmapped" value={unmapped} tone="blue" />
+            <StatCard title="Type Conflicts" value={conflicts} tone="amber" />
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <SectionCard
+              title="Mapping Table"
+              description="Source column to target column bindings"
+              action={
+                <select
+                  value={selectedTable}
+                  onChange={(event) => setSelectedTable(event.target.value)}
+                  className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 outline-none focus:border-teal-500"
+                >
+                  {tables.map((item: any) => (
+                    <option key={item.table} value={item.table}>
+                      {item.table}
+                    </option>
+                  ))}
+                </select>
+              }
+            >
+              <DataTable
+                columns={[
+                  { key: "source", label: "Source Column" },
+                  { key: "sourceType", label: "Type" },
+                  {
+                    key: "target",
+                    label: "Target Column",
+                    render: (row) => (
+                      <input
+                        value={mapping[row.source] ?? row.source}
+                        onChange={(event) => setMapping((current) => ({ ...current, [row.source]: event.target.value }))}
+                        className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 outline-none focus:border-teal-500"
+                      />
+                    ),
+                  },
+                  {
+                    key: "status",
+                    label: "Status",
+                    render: (row) => <StatusBadge status={row.status}>{row.status === "completed" ? "OK" : row.status === "warning" ? "Mismatch" : "Unmapped"}</StatusBadge>,
+                  },
+                ]}
+                rows={rows}
+              />
+            </SectionCard>
+
+            <SectionCard title="Suggestions" description="Real mapping state and target context">
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-stone-200 bg-stone-50/40 p-4 text-sm text-stone-600">
+                  <div className="flex items-center gap-2 font-bold text-stone-900">
+                    <CheckCircle2 className="h-4 w-4 text-teal-700" />
+                    Target schema context: Export SQL structure or no live target selected.
+                  </div>
+                  <p className="mt-3 leading-relaxed font-medium">Saved mappings from the active job are shown in the table. No AI suggestions are generated unless a real mapping API returns them.</p>
                 </div>
-                <p className="mt-3 leading-6">Saved mappings from the active job are shown in the table. No AI suggestions are generated unless a real mapping API returns them.</p>
               </div>
-            </div>
-          </SectionCard>
+            </SectionCard>
+          </div>
         </div>
-      </div>
-    </PageFrame>
+      </PageFrame>
+    </ProjectLockGuard>
   );
 }

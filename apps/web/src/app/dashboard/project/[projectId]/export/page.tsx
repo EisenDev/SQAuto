@@ -8,6 +8,7 @@ import {
   EmptyState,
   PageFrame,
   PageHeader,
+  ProjectLockGuard,
   SectionCard,
   StatusBadge,
   useProjectWorkspaceData,
@@ -305,17 +306,20 @@ export default function ExportPage({ params }: { params: { projectId: string } }
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader title={workspaceMeta.export.title} description={workspaceMeta.export.description} />
-        <div className="mt-8">
-          <EmptyState title="Generate first" description="Exports become available after a source has been restored and profiled in staging." />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.export.title} description={workspaceMeta.export.description} />
+          <div className="mt-8">
+            <EmptyState title="Generate first" description="Exports become available after a source has been restored and profiled in staging." />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
   return (
-    <PageFrame>
+    <ProjectLockGuard projectId={params.projectId} allowedType="individual">
+      <PageFrame>
       <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.export.title}
@@ -558,5 +562,6 @@ export default function ExportPage({ params }: { params: { projectId: string } }
         </div>
       </div>
     </PageFrame>
+    </ProjectLockGuard>
   );
 }

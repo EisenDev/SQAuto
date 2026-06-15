@@ -29,6 +29,7 @@ import {
   workspaceActions,
   workspaceMeta,
   workspacePageShell,
+  ProjectLockGuard,
 } from "@/components/workspace/project-workspace";
 import { getJobDiagnostics } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -39,10 +40,9 @@ export default function DiagnosticsPage() {
   const { projectId } = params;
   const workspace = useProjectWorkspaceData(projectId);
   const [diagnostics, setDiagnostics] = React.useState<any | null>(null);
+  const [loadingDiagnostics, setLoadingDiagnostics] = React.useState(false);
   const [pageError, setPageError] = React.useState<string | null>(null);
   const [errorsOpen, setErrorsOpen] = React.useState(true);
-
-  const meta = workspaceMeta.diagnostics;
 
   React.useEffect(() => {
     let cancelled = false;
@@ -53,6 +53,7 @@ export default function DiagnosticsPage() {
         setPageError(null);
         return;
       }
+      setLoadingDiagnostics(true);
       try {
         const result = await getJobDiagnostics(workspace.sourceStatus.active_job_id);
         if (!cancelled) {
@@ -64,10 +65,15 @@ export default function DiagnosticsPage() {
           setDiagnostics(null);
           setPageError(error?.message || "Unable to load real data");
         }
+      } finally {
+        if (!cancelled) {
+          setLoadingDiagnostics(false);
+        }
       }
     }
 
     void loadDiagnostics();
+
     return () => {
       cancelled = true;
     };
@@ -75,47 +81,66 @@ export default function DiagnosticsPage() {
 
   if (!workspace.hasAnyJob && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader
-          title={meta.title}
-          description={meta.description}
-          actions={
-            <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
-              <UploadCloud className="h-4 w-4" />
-              Upload SQL dump
-            </button>
-          }
-        />
-        <div className="mt-8">
-          <EmptyState
-            title="Upload a SQL dump to view diagnostics"
-            description="Pipeline metrics, row throughput, and extraction health will appear here once a project source has been processed."
-          />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.diagnostics.title} description={workspaceMeta.diagnostics.description} />
+          <div className="mt-8">
+            <EmptyState
+              title="No source job available"
+              description="A source schema must be uploaded before diagnostics telemetry can be populated."
+              action={
+                <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
+                  <UploadCloud className="h-4 w-4" />
+                  Upload SQL Dump
+                </button>
+              }
+            />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
+  const durationData = diagnostics?.timeline?.timeline
+    ? diagnostics.timeline.timeline.map((item: any) => ({
+        name: item.step,
+        duration: Number(item.duration_ms) / 1000,
+      }))
+    : workspace.pipeline.map((item) => ({
+        name: item.name,
+        duration: parseFloat(item.duration) || 0,
+      }));
+
+  const rowsWrittenData = diagnostics?.table_counts?.counts
+    ? Object.entries(diagnostics.table_counts.counts).map(([name, count]) => ({
+        name,
+        rows: count,
+      }))
+    : workspace.tableDistribution.map((item) => ({
+        name: item.name,
+        rows: item.rows,
+      }));
+
   return (
-    <PageFrame>
-      <div className={workspacePageShell}>
-        <PageHeader
-          title={meta.title}
-          description={meta.description}
-          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
-          actions={
-            <>
-              <button className={workspaceActions.secondary} onClick={workspace.reload}>
+    <ProjectLockGuard projectId={projectId} allowedType="individual">
+      <PageFrame>
+        <div className={workspacePageShell}>
+          <PageHeader
+            title={workspaceMeta.diagnostics.title}
+            description={workspaceMeta.diagnostics.description}
+            badge={<StatusBadge status={workspace.sourceStatus.status || "idle"}>{workspace.sourceStatus.status || "idle"}</StatusBadge>}
+            actions={
+              <button
+                className={workspaceActions.secondary}
+                onClick={async () => {
+                  await workspace.reload();
+                }}
+              >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
-              <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
-                <UploadCloud className="h-4 w-4" />
-                Manage Upload
-              </button>
-            </>
-          }
-        />
+            }
+          />
 
         <WorkspaceNote usingMockData={false} loading={workspace.loading} error={workspace.error || pageError} />
 
@@ -131,11 +156,11 @@ export default function DiagnosticsPage() {
             {diagnostics?.row_processing_timeline?.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={diagnostics.row_processing_timeline}>
-                <CartesianGrid stroke="rgba(148,163,184,0.08)" strokeDasharray="4 4" />
-                <XAxis dataKey="label" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip contentStyle={{ background: "#020617", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 16 }} />
-                <Line type="monotone" dataKey="rows" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 3, fill: "#2dd4bf" }} />
+                <CartesianGrid stroke="rgba(28,25,23,0.04)" strokeDasharray="4 4" />
+                <XAxis dataKey="label" stroke="#78716c" fontSize={12} />
+                <YAxis stroke="#78716c" fontSize={12} />
+                <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid rgba(28,25,23,0.08)", borderRadius: 16 }} />
+                <Line type="monotone" dataKey="rows" stroke="#0f766e" strokeWidth={3} dot={{ r: 3, fill: "#0f766e" }} />
               </LineChart>
             </ResponsiveContainer>
             ) : (
@@ -147,11 +172,11 @@ export default function DiagnosticsPage() {
             {diagnostics?.largest_tables?.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={diagnostics.largest_tables.slice(0, 6)}>
-                <CartesianGrid stroke="rgba(148,163,184,0.08)" strokeDasharray="4 4" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={11} interval={0} angle={-18} textAnchor="end" height={50} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip contentStyle={{ background: "#020617", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 16 }} />
-                <Bar dataKey="size_mb" fill="#60a5fa" radius={[8, 8, 0, 0]} />
+                <CartesianGrid stroke="rgba(28,25,23,0.04)" strokeDasharray="4 4" />
+                <XAxis dataKey="name" stroke="#78716c" fontSize={11} interval={0} angle={-18} textAnchor="end" height={50} />
+                <YAxis stroke="#78716c" fontSize={12} />
+                <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid rgba(28,25,23,0.08)", borderRadius: 16 }} />
+                <Bar dataKey="size_mb" fill="#3b82f6" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             ) : (
@@ -164,12 +189,12 @@ export default function DiagnosticsPage() {
           <SectionCard title="Pipeline Status" description="Current ingestion pipeline state and stage durations">
             <div className="space-y-3">
               {(diagnostics?.pipeline_steps || []).map((step: any) => (
-                <div key={step.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+                <div key={step.name} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/40 px-4 py-3">
                   <div className="flex items-center gap-3">
                     {statusIcon(step.status)}
                     <div>
-                      <div className="text-sm font-medium text-white">{step.name}</div>
-                      <div className="text-xs text-slate-500">{step.duration}</div>
+                      <div className="text-sm font-semibold text-stone-900">{step.name}</div>
+                      <div className="text-xs text-stone-500">{step.duration}</div>
                     </div>
                   </div>
                   <StatusBadge status={step.status} />
@@ -193,12 +218,12 @@ export default function DiagnosticsPage() {
               <div className="space-y-3">
                 {(((diagnostics?.errors || []).concat(diagnostics?.warnings || [])).length > 0
                   ? (diagnostics?.errors || []).concat(diagnostics?.warnings || [])
-                  : ["No data available yet"]
+                  : ["No diagnostics logs generated for this project run yet."]
                 ).map((line: string, index: number) => (
-                  <div key={`${line}-${index}`} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
+                  <div key={`${line}-${index}`} className="rounded-2xl border border-stone-200 bg-stone-50/40 px-4 py-3 text-sm text-stone-700">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-300" />
-                      <span className="font-mono text-[13px] leading-6">{line}</span>
+                      <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600 shrink-0" />
+                      <span className="font-mono text-[13px] leading-relaxed">{line}</span>
                     </div>
                   </div>
                 ))}
@@ -208,5 +233,6 @@ export default function DiagnosticsPage() {
         </div>
       </div>
     </PageFrame>
+    </ProjectLockGuard>
   );
 }

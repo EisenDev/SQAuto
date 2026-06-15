@@ -162,6 +162,13 @@ def detect_dialect_from_file(file_path: str) -> dict:
     import gzip
 
     try:
+        if file_path.lower().endswith(".bak"):
+            return {
+                "dialect": "sqlserver",
+                "confidence": 1.0,
+                "scores": {"sqlserver": 10.0},
+                "indicators": ["file_extension_bak"],
+            }
         opener = gzip.open if file_path.lower().endswith(".gz") else open
         with opener(file_path, "rt", encoding="utf-8", errors="ignore") as f:
             sample = f.read(102400)

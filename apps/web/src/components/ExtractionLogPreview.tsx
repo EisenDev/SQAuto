@@ -19,32 +19,32 @@ export default function ExtractionLogPreview({ logs, onViewFullLogs }: Extractio
   return (
     <div className="boos lobos">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center">
+        <h4 className="text-xs font-black text-stone-500 uppercase tracking-widest flex items-center">
           <Terminal className="h-4 w-4 mr-2" />
           Extraction Log Preview
         </h4>
         <button
           onClick={onViewFullLogs}
-          className="text-[10px] font-black text-teal-500 hover:text-teal-400 uppercase tracking-widest flex items-center"
+          className="text-[10px] font-black text-teal-600 hover:text-teal-700 uppercase tracking-widest flex items-center"
         >
           View All <ChevronRight className="h-3 w-3 ml-1" />
         </button>
       </div>
 
-      <div className="bg-slate-950 rounded-2xl border border-slate-800/50 p-6 font-mono text-[11px] space-y-2 overflow-hidden shadow-inner">
+      <div className="bg-stone-50 rounded-2xl border border-stone-200 p-6 font-mono text-[11px] space-y-2 overflow-hidden shadow-inner">
         {logLines.length > 0 ? (
           logLines.map((line, i) => (
             <div key={i} className="flex items-start space-x-3 group">
               <div className="mt-0.5 opacity-50 group-hover:opacity-100 transition-opacity">
                 {getLogIcon(line)}
               </div>
-              <p className="text-slate-400 break-all leading-relaxed hover:text-slate-200 transition-colors">
+              <p className="text-stone-700 break-all leading-relaxed hover:text-stone-900 transition-colors font-medium">
                 {line}
               </p>
             </div>
           ))
         ) : (
-          <p className="text-slate-600 italic">No logs available for the current active source.</p>
+          <p className="text-stone-400 italic font-medium">No logs available for the current active source.</p>
         )}
       </div>
     </div>

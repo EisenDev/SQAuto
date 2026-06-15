@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertCircle,
   ArrowRight,
   BarChart3,
   Database,
@@ -45,96 +46,22 @@ export default function ProjectDashboardPage() {
   const workspace = useProjectWorkspaceData(projectId);
   const [comparisonRun, setComparisonRun] = useState<ComparisonRun | null>(null);
 
+  const refreshDashboard = React.useCallback(async () => {
+    await workspace.reload();
+    try {
+      const run = await getLatestComparisonRun(projectId);
+      setComparisonRun(run);
+    } catch {
+      setComparisonRun(null);
+    }
+  }, [projectId, workspace]);
+
   useEffect(() => {
-    if (workspace.project.project_type !== "comparison") return;
-    void getLatestComparisonRun(projectId).then(setComparisonRun).catch(() => setComparisonRun(null));
-  }, [projectId, workspace.project.project_type]);
+    void refreshDashboard();
+  }, [projectId]);
 
-  if (workspace.project.project_type === "comparison") {
-    const summary = comparisonRun?.result?.summary || {};
-    const needsReview = Boolean(summary.needs_review);
-
-    return (
-      <PageFrame>
-        <div className={workspacePageShell}>
-          <PageHeader
-            title={workspace.project.name}
-            description={workspace.project.description || "Comparison workspace for scanning two SQL dumps and reviewing schema differences."}
-            badge={<StatusBadge status={comparisonRun?.status || "idle"}>{comparisonRun?.status || "idle"}</StatusBadge>}
-            actions={
-              <>
-                <button className={workspaceActions.secondary} onClick={() => void getLatestComparisonRun(projectId).then(setComparisonRun)}>
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
-                </button>
-                <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/comparison`)}>
-                  <GitCompare className="h-4 w-4" />
-                  Compare dumps
-                </button>
-              </>
-            }
-          />
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Review Status" value={comparisonRun ? (needsReview ? "Needs Review" : "No Mismatches") : "No Scan"} hint="Comparison readiness state" tone={needsReview ? "amber" : "teal"} />
-            <StatCard title="Source A Tables" value={summary.source_a_tables || 0} hint={comparisonRun?.source_a_original_filename || "No source uploaded"} tone="blue" />
-            <StatCard title="Source B Tables" value={summary.source_b_tables || 0} hint={comparisonRun?.source_b_original_filename || "No source uploaded"} tone="violet" />
-            <StatCard title="Total Mismatches" value={comparisonRun?.result?.differences?.counts?.total_mismatches || 0} hint="Tables, columns, types, and primary keys" tone="amber" />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <button
-              onClick={() => router.push(`/dashboard/project/${projectId}/comparison`)}
-              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
-            >
-              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
-                <GitCompare className="h-5 w-5 text-teal-300" />
-              </div>
-              <div className="mt-5 text-lg font-semibold text-white">Upload and compare dumps</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Scan two SQL dumps from the same or different dialects without modifying staging data.</p>
-              <div className="mt-5"><ActionLink>Open comparison setup</ActionLink></div>
-            </button>
-
-            <button
-              onClick={() => router.push(`/dashboard/project/${projectId}/comparison/mismatches`)}
-              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
-            >
-              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
-                <BarChart3 className="h-5 w-5 text-amber-300" />
-              </div>
-              <div className="mt-5 text-lg font-semibold text-white">Review mismatches</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Inspect missing tables, missing columns, type differences, and primary-key differences.</p>
-              <div className="mt-5"><ActionLink>Open mismatch review</ActionLink></div>
-            </button>
-          </div>
-
-          <SectionCard title="Latest Comparison" description="Most recent scan result for this comparison project">
-            {comparisonRun ? (
-              <DataTable
-                columns={[
-                  { key: "metric", label: "Metric" },
-                  { key: "value", label: "Value" },
-                ]}
-                rows={[
-                  { metric: "Source A", value: comparisonRun.source_a_original_filename },
-                  { metric: "Source B", value: comparisonRun.source_b_original_filename },
-                  { metric: "Matched tables", value: summary.matched_tables || 0 },
-                  { metric: "Column mismatches", value: summary.column_mismatches || 0 },
-                  { metric: "Type mismatches", value: summary.type_mismatches || 0 },
-                  { metric: "Primary-key mismatches", value: summary.primary_key_mismatches || 0 },
-                  { metric: "Row-count mismatches", value: summary.row_count_mismatches || 0 },
-                  { metric: "Missing rows", value: summary.missing_rows || 0 },
-                  { metric: "Cell mismatches", value: summary.cell_mismatches || 0 },
-                ]}
-              />
-            ) : (
-              <EmptyState title="No comparison run yet" description="Upload two SQL dumps to generate a comparison overview." />
-            )}
-          </SectionCard>
-        </div>
-      </PageFrame>
-    );
-  }
+  const summary = comparisonRun?.result?.summary || {};
+  const needsReview = Boolean(summary.needs_review);
 
   const quickActions = [
     {
@@ -160,9 +87,23 @@ export default function ProjectDashboardPage() {
     },
     {
       id: "simulation",
-      title: "Resume Last Job",
-      description: "Continue from the latest active extraction or dry-run path.",
+      title: "Simulation Sandbox",
+      description: "Dry-run migration scripts to verify target compatibility.",
       icon: PlayCircle,
+      tone: "amber" as const,
+    },
+    {
+      id: "comparison",
+      title: "Compare SQL Dumps",
+      description: "Statically compare two SQL dumps to isolate dialect differences.",
+      icon: GitCompare,
+      tone: "teal" as const,
+    },
+    {
+      id: "comparison/mismatches",
+      title: "Review Mismatches",
+      description: "Audit missing tables, column data-type conflicts, and PK mismatches.",
+      icon: AlertCircle,
       tone: "amber" as const,
     },
   ];
@@ -173,51 +114,84 @@ export default function ProjectDashboardPage() {
     processing: job.status === "restoring" || job.status === "analyzing" || job.status === "uploaded" ? 1 : 0,
   }));
 
+  // Format bytes helper for showing file sizes
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   return (
     <PageFrame>
       <div className={workspacePageShell}>
         <PageHeader
           title={workspace.project.name}
-          description={workspace.project.description || "Project workspace overview for migration progress, source health, and next actions."}
+          description={workspace.project.description || "Unified database migration, schema integrity audit, and translation workspace."}
           badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
           actions={
             <>
-              <button className={workspaceActions.secondary} onClick={workspace.reload}>
+              <button className={workspaceActions.secondary} onClick={refreshDashboard}>
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
-              <button
-                className={workspaceActions.primary}
-                onClick={() => router.push(`/dashboard/project/${projectId}/${workspace.sourceStatus.active_job_id ? "simulation" : "sql"}`)}
-              >
-                <PlayCircle className="h-4 w-4" />
-                Resume last job
-              </button>
+              {workspace.sourceStatus.active_job_id && (
+                <button
+                  className={workspaceActions.primary}
+                  onClick={() => router.push(`/dashboard/project/${projectId}/simulation`)}
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Simulation Sandbox
+                </button>
+              )}
             </>
           }
         />
 
         <WorkspaceNote usingMockData={workspace.usingMockData} loading={workspace.loading} error={workspace.error} />
 
+        {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Current Status" value={(workspace.sourceStatus.status || "idle").replace(/_/g, " ")} hint={workspace.sourceStatus.filename || "No source attached"} tone="teal" />
-          <StatCard title="Tables" value={workspace.sourceStatus.metrics.tables} hint="Profiled in the latest workspace source" tone="blue" />
-          <StatCard title="Rows" value={workspace.sourceStatus.metrics.rows.toLocaleString()} hint="Current staged row volume" tone="violet" />
-          <StatCard title="Recent Jobs" value={workspace.recentJobs.length} hint={workspace.hasAnyJob ? "Jobs found in this project" : "Waiting for first upload"} tone="amber" />
+          <StatCard 
+            title="Migration Status" 
+            value={(workspace.sourceStatus.status || "idle").replace(/_/g, " ")} 
+            hint={workspace.sourceStatus.filename || "No source dump uploaded"} 
+            tone="teal" 
+          />
+          <StatCard 
+            title="Staged Database" 
+            value={`${workspace.sourceStatus.metrics.tables} Tables`} 
+            hint={`${workspace.sourceStatus.metrics.rows.toLocaleString()} staged rows`} 
+            tone="blue" 
+          />
+          <StatCard 
+            title="Reconciliation" 
+            value={comparisonRun ? (needsReview ? "Mismatches Found" : "Schemas Match") : "No Comparison"} 
+            hint={comparisonRun ? "Audit scan complete" : "Awaiting scan execution"} 
+            tone={needsReview ? "amber" : "teal"} 
+          />
+          <StatCard 
+            title="Total Mismatches" 
+            value={comparisonRun?.result?.differences?.counts?.total_mismatches || 0} 
+            hint="Table, column, type, and row differences" 
+            tone="amber" 
+          />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        {/* Quick Actions Grid */}
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {quickActions.map((action) => (
             <button
               key={action.id}
               onClick={() => router.push(`/dashboard/project/${projectId}/${action.id}`)}
-              className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:-translate-y-1 hover:bg-white/[0.04]"
+              className="rounded-3xl border border-brand-border bg-white p-6 text-left transition hover:-translate-y-0.5 hover:border-brand-borderHover shadow-premium"
             >
-              <div className="rounded-2xl bg-slate-950/70 p-3 w-fit">
-                <action.icon className="h-5 w-5 text-teal-300" />
+              <div className="rounded-2xl bg-stone-100 p-3 w-fit">
+                <action.icon className="h-5 w-5 text-brand-primary" />
               </div>
-              <div className="mt-5 text-lg font-semibold text-white">{action.title}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{action.description}</p>
+              <div className="mt-5 text-lg font-semibold text-text-primary">{action.title}</div>
+              <p className="mt-2 text-sm leading-6 text-text-secondary">{action.description}</p>
               <div className="mt-5">
                 <ActionLink>Open workspace</ActionLink>
               </div>
@@ -225,100 +199,104 @@ export default function ProjectDashboardPage() {
           ))}
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <SectionCard title="Activity Timeline" description="Recent workspace events and source transitions">
-            {workspace.timeline.length > 0 ? (
-            <div className="space-y-4">
-              {workspace.timeline.map((entry) => (
-                <div key={`${entry.title}-${entry.time}`} className="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/40 px-4 py-4">
-                  <div className="mt-1 h-3 w-3 rounded-full bg-teal-400 shadow-[0_0_16px_rgba(45,212,191,0.55)]" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="text-sm font-medium text-white">{entry.title}</div>
-                      <StatusBadge status={entry.status} />
+        {/* Activity & Comparison Grid */}
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-6">
+            <SectionCard title="Activity Timeline" description="Recent workspace events and source transitions">
+              {workspace.timeline.length > 0 ? (
+                <div className="space-y-4">
+                  {workspace.timeline.map((entry) => (
+                    <div key={`${entry.title}-${entry.time}`} className="flex gap-4 rounded-2xl border border-brand-border bg-white px-4 py-4 shadow-sm">
+                      <div className="mt-1 h-3 w-3 rounded-full bg-brand-primary" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="text-sm font-medium text-text-primary">{entry.title}</div>
+                          <StatusBadge status={entry.status} />
+                        </div>
+                        <div className="mt-1 text-sm text-text-secondary">{entry.subtitle}</div>
+                      </div>
+                      <div className="text-xs text-text-muted">{entry.time}</div>
                     </div>
-                    <div className="mt-1 text-sm text-slate-400">{entry.subtitle}</div>
-                  </div>
-                  <div className="text-xs text-slate-500">{entry.time}</div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            ) : (
-              <EmptyState title="No data available yet" description="Upload a SQL source to start building a project activity timeline." />
-            )}
-          </SectionCard>
+              ) : (
+                <EmptyState title="No data available yet" description="Upload a SQL source to start building a project activity timeline." />
+              )}
+            </SectionCard>
 
-          <SectionCard title="Status Graph" description="Latest job progression snapshot">
-            {statusSeries.length > 0 ? (
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={statusSeries}>
-                  <defs>
-                    <linearGradient id="completedFill" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity={0.02} />
-                    </linearGradient>
-                    <linearGradient id="processingFill" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="rgba(148,163,184,0.08)" strokeDasharray="4 4" />
-                  <XAxis dataKey="label" stroke="#64748b" fontSize={12} />
-                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: "#020617", border: "1px solid rgba(148,163,184,0.2)", borderRadius: 16 }} />
-                  <Area type="monotone" dataKey="completed" stroke="#2dd4bf" fill="url(#completedFill)" />
-                  <Area type="monotone" dataKey="processing" stroke="#60a5fa" fill="url(#processingFill)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-            ) : (
-              <EmptyState title="No data available yet" description="Recent job status activity appears here after the first project upload." />
-            )}
-          </SectionCard>
-        </div>
+            {comparisonRun ? (
+              <SectionCard title="Latest Comparison Summary" description="Reconciliation overview between the uploaded schema comparison runs">
+                <DataTable
+                  columns={[
+                    { key: "metric", label: "Metric" },
+                    { key: "value", label: "Value" },
+                  ]}
+                  rows={[
+                    { metric: "Source A (Baseline)", value: comparisonRun.source_a_original_filename },
+                    { metric: "Source B (Target)", value: comparisonRun.source_b_original_filename },
+                    { metric: "Matched tables", value: summary.matched_tables || 0 },
+                    { metric: "Column name mismatches", value: summary.column_mismatches || 0 },
+                    { metric: "Data-type conflicts", value: summary.type_mismatches || 0 },
+                    { metric: "Primary-key conflicts", value: summary.primary_key_mismatches || 0 },
+                    { metric: "Row-count conflicts", value: summary.row_count_mismatches || 0 },
+                    { metric: "Missing rows count", value: summary.missing_rows || 0 },
+                    { metric: "Value (cell) mismatches", value: summary.cell_mismatches || 0 },
+                  ]}
+                />
+              </SectionCard>
+            ) : null}
+          </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <SectionCard title="Recent Jobs" description="Most recent jobs attached to this project">
-            {workspace.recentJobs.length > 0 ? (
-            <DataTable
-              columns={[
-                { key: "filename", label: "Source File" },
-                {
-                  key: "status",
-                  label: "Status",
-                  render: (row) => <StatusBadge status={row.status}>{row.status}</StatusBadge>,
-                },
-                { key: "created_at", label: "Created", render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : "—" },
-              ]}
-              rows={workspace.recentJobs}
-            />
-            ) : (
-              <EmptyState title="No data available yet" description="This project has no job history yet." />
-            )}
-          </SectionCard>
-
-          <SectionCard title="Current Source" description="Latest active source-of-truth attachment">
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
-                <div className="flex items-center gap-3">
-                  <Database className="h-5 w-5 text-teal-300" />
-                  <div>
-                    <div className="text-sm font-medium text-white">{workspace.sourceStatus.filename || "No source attached"}</div>
-                    <div className="text-xs text-slate-500">{workspace.sourceStatus.dialect || "Dialect pending"}</div>
+          <div className="space-y-6">
+            <SectionCard title="Current Source Profile" description="Staged legacy database attachment">
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-brand-border bg-stone-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <Database className="h-5 w-5 text-brand-primary" />
+                    <div>
+                      <div className="text-sm font-medium text-text-primary">{workspace.sourceStatus.filename || "No source attached"}</div>
+                      <div className="text-xs text-text-muted capitalize">{workspace.sourceStatus.dialect || "Dialect pending"}</div>
+                    </div>
                   </div>
+                </div>
+                {workspace.sourceStatus.file_size ? (
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50/40 p-4 text-xs font-semibold text-stone-600 flex justify-between">
+                    <span>File size</span>
+                    <span>{formatBytes(workspace.sourceStatus.file_size)}</span>
+                  </div>
+                ) : null}
+                <div className="flex flex-col gap-2">
+                  <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/diagnostics`)}>
+                    <BarChart3 className="h-4 w-4" />
+                    View extraction diagnostics
+                  </button>
+                  <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
+                    <ArrowRight className="h-4 w-4" />
+                    Manage source uploads
+                  </button>
                 </div>
               </div>
-              <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/diagnostics`)}>
-                <BarChart3 className="h-4 w-4" />
-                View diagnostics
-              </button>
-              <button className={workspaceActions.secondary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
-                <ArrowRight className="h-4 w-4" />
-                Manage source upload
-              </button>
-            </div>
-          </SectionCard>
+            </SectionCard>
+
+            <SectionCard title="Job Execution History" description="Extraction runs and staging jobs recorded inside this project">
+              {workspace.recentJobs.length > 0 ? (
+                <DataTable
+                  columns={[
+                    { key: "filename", label: "Source File" },
+                    {
+                      key: "status",
+                      label: "Status",
+                      render: (row) => <StatusBadge status={row.status}>{row.status}</StatusBadge>,
+                    },
+                    { key: "created_at", label: "Created", render: (row) => row.created_at ? new Date(row.created_at).toLocaleString() : "—" },
+                  ]}
+                  rows={workspace.recentJobs}
+                />
+              ) : (
+                <EmptyState title="No staging history" description="Recent job statuses appear here after your first upload." />
+              )}
+            </SectionCard>
+          </div>
         </div>
       </div>
     </PageFrame>

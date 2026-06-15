@@ -76,18 +76,18 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="glass-panel p-6 rounded-3xl border border-slate-800/50 bg-slate-900/40 backdrop-blur-xl relative overflow-hidden">
+      <div className="p-6 rounded-3xl border border-stone-250 bg-white shadow-premium relative overflow-hidden">
         {/* Decorative background pulse */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl" />
         
         <div className="relative z-10">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="h-10 w-10 bg-teal-500/10 rounded-xl flex items-center justify-center border border-teal-500/20">
-              <Upload className="h-5 w-5 text-teal-400" />
+            <div className="h-10 w-10 bg-teal-50 rounded-xl flex items-center justify-center border border-teal-200">
+              <Upload className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">SQL Ingestion</h2>
-              <p className="text-slate-500 text-xs">Initialize the migration staging area.</p>
+              <h2 className="text-xl font-bold text-stone-900 tracking-tight">SQL Ingestion</h2>
+              <p className="text-stone-500 text-xs font-medium">Initialize the migration staging area.</p>
             </div>
           </div>
 
@@ -95,7 +95,7 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
             <div className="space-y-6">
               <div 
                 className={`group relative border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
-                  file ? 'border-teal-500/40 bg-teal-500/5' : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/20'
+                  file ? 'border-teal-400 bg-teal-50/50' : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
                 }`}
               >
                 <input 
@@ -106,18 +106,18 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
                 />
                 
                 <div className="space-y-4">
-                  <div className="h-12 w-12 bg-slate-800 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                    <Database className={`h-6 w-6 ${file ? 'text-teal-400' : 'text-slate-500'}`} />
+                  <div className="h-12 w-12 bg-stone-100 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                    <Database className={`h-6 w-6 ${file ? 'text-teal-600' : 'text-stone-400'}`} />
                   </div>
                   {file ? (
                     <div>
-                      <p className="text-lg font-bold text-white">{file.name}</p>
-                      <p className="text-teal-500 text-sm">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready for pipeline</p>
+                      <p className="text-lg font-bold text-stone-900">{file.name}</p>
+                      <p className="text-teal-600 text-sm font-bold">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready for pipeline</p>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-lg font-medium text-slate-300">Click or drag to upload SQL dump</p>
-                      <p className="text-slate-500 text-sm mt-1">Supports .sql or .sql.gz (compressed recommended)</p>
+                      <p className="text-lg font-medium text-stone-700">Click or drag to upload SQL dump</p>
+                      <p className="text-stone-500 text-sm mt-1 font-medium">Supports .sql or .sql.gz (compressed recommended)</p>
                     </div>
                   )}
                 </div>
@@ -126,7 +126,7 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
               {file && (
                 <button 
                   onClick={startUpload}
-                  className="w-full py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-black rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-teal-500/20 flex items-center justify-center space-x-2 group"
+                  className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-teal-600/10 flex items-center justify-center space-x-2 group"
                 >
                   <span>INITIALIZE PIPELINE</span>
                   <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -139,15 +139,15 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
               <div className="space-y-4">
                 <div className="flex justify-between items-end">
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-teal-500 uppercase tracking-widest">{status}</p>
-                    <p className="text-lg font-bold text-white">{file?.name}</p>
+                    <p className="text-xs font-bold text-teal-600 uppercase tracking-widest">{status}</p>
+                    <p className="text-lg font-bold text-stone-900">{file?.name}</p>
                   </div>
-                  <span className="text-3xl font-black text-white">{progress}%</span>
+                  <span className="text-3xl font-black text-stone-900">{progress}%</span>
                 </div>
                 
-                <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+                <div className="h-3 w-full bg-stone-100 rounded-full overflow-hidden border border-stone-200">
                   <div 
-                    className="h-full bg-teal-500 shadow-[0_0_20px_rgba(20,184,166,0.4)] transition-all duration-500 ease-out relative"
+                    className="h-full bg-teal-605 bg-teal-600 shadow-[0_0_20px_rgba(13,148,136,0.2)] transition-all duration-500 ease-out relative"
                     style={{ width: `${progress}%` }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
@@ -157,22 +157,22 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
 
               {/* Status Indicator */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center space-x-3">
-                  <div className={`h-2 w-2 rounded-full ${progress > 0 ? 'bg-teal-500 animate-pulse' : 'bg-slate-700'}`} />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ingestion Active</span>
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center space-x-3">
+                  <div className={`h-2 w-2 rounded-full ${progress > 0 ? 'bg-teal-650 bg-teal-600 animate-pulse' : 'bg-stone-300'}`} />
+                  <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">Ingestion Active</span>
                 </div>
-                <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center space-x-3">
-                  <div className={`h-2 w-2 rounded-full ${job ? 'bg-teal-500 animate-pulse' : 'bg-slate-700'}`} />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Restore Pipeline</span>
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center space-x-3">
+                  <div className={`h-2 w-2 rounded-full ${job ? 'bg-teal-650 bg-teal-600 animate-pulse' : 'bg-stone-300'}`} />
+                  <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">Restore Pipeline</span>
                 </div>
               </div>
 
               {/* Live Console Toggle */}
               {job && (
-                <div className="pt-4 border-t border-slate-800/50">
+                <div className="pt-4 border-t border-stone-200">
                   <button 
                     onClick={() => setShowConsole(!showConsole)}
-                    className="text-xs font-bold text-teal-500 hover:text-teal-400 flex items-center space-x-2 transition-colors"
+                    className="text-xs font-bold text-teal-655 text-teal-600 hover:text-teal-700 flex items-center space-x-2 transition-colors"
                   >
                     <Activity className="h-4 w-4" />
                     <span>{showConsole ? 'HIDE' : 'VIEW'} LIVE RESTORATION STREAM</span>
@@ -200,28 +200,28 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
           )}
 
           {error && (
-            <div className="mt-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center space-x-3 animate-in shake-in duration-500">
-              <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
-              <p className="text-sm text-red-200 font-medium">{error}</p>
-              <button onClick={() => setError(null)} className="ml-auto p-1 hover:bg-red-500/20 rounded-lg">
-                <X className="h-4 w-4 text-red-400" />
+            <div className="mt-6 p-4 bg-rose-50 border border-rose-250 rounded-2xl flex items-center space-x-3 animate-in shake-in duration-500">
+              <AlertCircle className="h-5 w-5 text-rose-605 text-rose-605 text-rose-600 flex-shrink-0" />
+              <p className="text-sm text-rose-800 font-semibold">{error}</p>
+              <button onClick={() => setError(null)} className="ml-auto p-1 hover:bg-rose-100 rounded-lg">
+                <X className="h-4 w-4 text-rose-600" />
               </button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-center space-x-6 text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">
+      <div className="flex items-center justify-center space-x-6 text-[10px] font-black text-stone-500 uppercase tracking-[0.2em]">
         <div className="flex items-center space-x-2">
           <ShieldCheck className="h-3 w-3" />
           <span>Read-Only Source</span>
         </div>
-        <div className="h-1 w-1 bg-slate-800 rounded-full" />
+        <div className="h-1 w-1 bg-stone-300 rounded-full" />
         <div className="flex items-center space-x-2">
           <Layers className="h-3 w-3" />
           <span>Staging Isolation</span>
         </div>
-        <div className="h-1 w-1 bg-slate-800 rounded-full" />
+        <div className="h-1 w-1 bg-stone-300 rounded-full" />
         <div className="flex items-center space-x-2">
           <CheckCircle className="h-3 w-3" />
           <span>Audit Trail Active</span>

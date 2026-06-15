@@ -9,6 +9,7 @@ import {
   EmptyState,
   PageFrame,
   PageHeader,
+  ProjectLockGuard,
   SectionCard,
   StatusBadge,
   useProjectWorkspaceData,
@@ -24,10 +25,10 @@ function SchemaNode({ data }: { data: { label: string; columns?: Array<{ name: s
   const columns = data.columns || [];
   const primaryKeys = new Set(data.primaryKeys || []);
   return (
-    <div className="w-[260px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-[0_24px_80px_rgba(2,6,23,0.5)]">
-      <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/90 px-4 py-3">
-        <div className="text-sm font-semibold text-white">{data.label}</div>
-        <span className="rounded-full border border-white/10 bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-slate-300">
+    <div className="w-[260px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-premium">
+      <div className="flex items-center justify-between border-b border-stone-200 bg-stone-50 px-4 py-3">
+        <div className="text-sm font-bold text-stone-900">{data.label}</div>
+        <span className="rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-stone-600 font-semibold">
           {columns.length} cols
         </span>
       </div>
@@ -36,14 +37,14 @@ function SchemaNode({ data }: { data: { label: string; columns?: Array<{ name: s
           const isPrimary = column.primary || primaryKeys.has(column.name);
           const isForeign = Boolean(column.foreign);
           return (
-            <div key={column.name} className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-2.5 text-xs">
+            <div key={column.name} className="flex items-center justify-between gap-3 border-b border-stone-100 px-4 py-2.5 text-xs">
               <div className="min-w-0">
-                <div className="truncate font-medium text-slate-100">{column.name}</div>
-                <div className="truncate text-slate-500">{String(column.type || "text").toUpperCase()}</div>
+                <div className="truncate font-semibold text-stone-850">{column.name}</div>
+                <div className="truncate text-stone-500 font-bold">{String(column.type || "text").toUpperCase()}</div>
               </div>
               <div className="flex items-center gap-1.5">
-                {isPrimary ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300">PK</span> : null}
-                {isForeign ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] text-amber-300">FK</span> : null}
+                {isPrimary ? <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-150 px-2 py-0.5 text-[10px] font-bold">PK</span> : null}
+                {isForeign ? <span className="rounded-full bg-amber-50 text-amber-700 border border-amber-150 px-2 py-0.5 text-[10px] font-bold">FK</span> : null}
               </div>
             </div>
           );
@@ -111,9 +112,9 @@ export default function VisualizerPage() {
     label: edge.label,
     type: "smoothstep",
     animated: edge.relation_type === "inferred",
-    style: { stroke: edge.relation_type === "inferred" ? "#60a5fa" : "#2dd4bf", strokeWidth: 2.2 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: edge.relation_type === "inferred" ? "#60a5fa" : "#2dd4bf" },
-    labelStyle: { fill: "#cbd5e1", fontSize: 11 },
+    style: { stroke: edge.relation_type === "inferred" ? "#3b82f6" : "#0f766e", strokeWidth: 2.2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: edge.relation_type === "inferred" ? "#3b82f6" : "#0f766e" },
+    labelStyle: { fill: "#44403c", fontSize: 11, fontWeight: "bold" },
   })), [graph.edges]);
   const nodeTypes = React.useMemo(() => ({ schemaNode: SchemaNode }), []);
 
@@ -127,26 +128,29 @@ export default function VisualizerPage() {
 
   if (!workspace.hasExtraction && !workspace.usingMockData) {
     return (
-      <PageFrame>
-        <PageHeader title={workspaceMeta.visualizer.title} description={workspaceMeta.visualizer.description} />
-        <div className="mt-8">
-          <EmptyState
-            title="No schema graph available yet"
-            description="Complete extraction first so the schema visualizer can generate table nodes and relationship edges."
-            action={
-              <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
-                <UploadCloud className="h-4 w-4" />
-                Upload SQL dump
-              </button>
-            }
-          />
-        </div>
-      </PageFrame>
+      <ProjectLockGuard projectId={projectId} allowedType="individual">
+        <PageFrame>
+          <PageHeader title={workspaceMeta.visualizer.title} description={workspaceMeta.visualizer.description} />
+          <div className="mt-8">
+            <EmptyState
+              title="No schema graph available yet"
+              description="Complete extraction first so the schema visualizer can generate table nodes and relationship edges."
+              action={
+                <button className={workspaceActions.primary} onClick={() => router.push(`/dashboard/project/${projectId}/sql`)}>
+                  <UploadCloud className="h-4 w-4" />
+                  Upload SQL dump
+                </button>
+              }
+            />
+          </div>
+        </PageFrame>
+      </ProjectLockGuard>
     );
   }
 
   return (
-    <PageFrame>
+    <ProjectLockGuard projectId={projectId} allowedType="individual">
+      <PageFrame>
       <div className={workspacePageShell}>
         <PageHeader
           title={workspaceMeta.visualizer.title}
@@ -165,7 +169,7 @@ export default function VisualizerPage() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
           <SectionCard title="Schema Graph" description="Detected tables and deterministic relationships">
             {nodes.length > 0 ? (
-            <div className="h-[720px] overflow-hidden rounded-3xl border border-white/10 bg-slate-950/60">
+            <div className="h-[720px] overflow-hidden rounded-3xl border border-stone-200 bg-stone-50/50 shadow-inner">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -177,8 +181,8 @@ export default function VisualizerPage() {
                 fitView
                 fitViewOptions={{ padding: 0.16 }}
               >
-                <Background color="rgba(148,163,184,0.15)" gap={24} />
-                <MiniMap nodeColor="#2dd4bf" maskColor="rgba(2,6,23,0.55)" />
+                <Background color="rgba(28,25,23,0.06)" gap={24} />
+                <MiniMap nodeColor="#0f766e" maskColor="rgba(28,25,23,0.15)" />
                 <Controls />
               </ReactFlow>
             </div>
@@ -189,16 +193,16 @@ export default function VisualizerPage() {
 
           <div className="space-y-6">
             <SectionCard title="Legend" description="Relationship cues used by the workspace">
-              <div className="space-y-3 text-sm text-slate-300">
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+              <div className="space-y-3 text-sm text-stone-750 font-medium">
+                <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/40 px-4 py-3">
                   <span>Primary Key</span>
                   <StatusBadge status="completed">PK</StatusBadge>
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/40 px-4 py-3">
                   <span>Foreign Key</span>
                   <StatusBadge status="warning">FK</StatusBadge>
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+                <div className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/40 px-4 py-3">
                   <span>Broken Relation</span>
                   <StatusBadge status="failed">Future</StatusBadge>
                 </div>
@@ -227,5 +231,6 @@ export default function VisualizerPage() {
         </div>
       </div>
     </PageFrame>
+    </ProjectLockGuard>
   );
 }
