@@ -110,4 +110,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
     CMD nc -z localhost 3000 || exit 1
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
