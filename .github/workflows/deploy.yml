@@ -205,6 +205,10 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            # ── Persist config ────────────────────────────────────
+            echo "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}" > .env.deploy
+            echo "IMAGE_TAG=${DEPLOY_TAG}" >> .env.deploy
+
             # ── Login to GHCR ─────────────────────────────────────
             printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
@@ -220,7 +224,7 @@ jobs:
             docker compose -f docker/docker-compose.yml up -d \
               --remove-orphans \
               --wait \
-              --wait-timeout 120
+              --wait-timeout 300
 
             # ── Verify all services are healthy ───────────────────
             docker compose -f docker/docker-compose.yml ps

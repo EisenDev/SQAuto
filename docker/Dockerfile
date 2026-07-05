@@ -20,9 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
+# Copy application source (all Python packages)
 COPY apps/ ./apps/
 COPY services/ ./services/
+COPY configs/ ./configs/
 
 # ============================================================
 # Stage 2: API — FastAPI via Gunicorn/Uvicorn workers
