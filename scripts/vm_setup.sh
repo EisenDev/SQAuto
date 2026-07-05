@@ -17,7 +17,20 @@ echo "════════════════════════�
 echo "  SQAuto — VM Bootstrap (Ubuntu 24.04 / Azure)"
 echo "═══════════════════════════════════════════════════════════"
 
-# ─── 1. System update ─────────────────────────────────────────────────────────
+# ─── 1. Configure Swapfile (Crucial for 2GB RAM VM) ─────────────────────────
+echo "→ Configuring 4GB swapfile..."
+if [ ! -f /swapfile ]; then
+  sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  echo "✅ Swapfile created and enabled."
+else
+  echo "✅ Swapfile already exists."
+fi
+
+# ─── 2. System update ─────────────────────────────────────────────────────────
 echo "→ Updating system packages..."
 sudo apt-get update -y
 sudo apt-get upgrade -y

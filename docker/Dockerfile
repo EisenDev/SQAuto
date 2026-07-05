@@ -38,7 +38,7 @@ HEALTHCHECK --interval=15s --timeout=10s --start-period=180s --retries=5 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["gunicorn", \
-     "-w", "2", \
+     "-w", "1", \
      "-k", "uvicorn.workers.UvicornWorker", \
      "apps.api.main:app", \
      "--bind", "0.0.0.0:8000", \
@@ -94,6 +94,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV NODE_OPTIONS="--max-old-space-size=256"
 
 # Copy standalone server
 COPY --from=web-builder /app/apps/web/.next/standalone ./

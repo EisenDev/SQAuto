@@ -205,6 +205,17 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
+            # ── Configure Swap if missing ──────────────────────────
+            if [ ! -f /swapfile ] && [ "$(free -m | awk '/Swap/ {print $2}')" -eq 0 ]; then
+              echo "Configuring 4GB swapfile to prevent OOM..."
+              sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
+              echo "✅ Swapfile configured."
+            fi
+
             # ── Persist config ────────────────────────────────────
             echo "IMAGE_NAMESPACE=${IMAGE_NAMESPACE}" > .env.deploy
             echo "IMAGE_TAG=${DEPLOY_TAG}" >> .env.deploy
