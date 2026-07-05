@@ -1,13 +1,14 @@
 import os
 import shutil
 import uuid
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Header
 from sqlalchemy.orm import Session
 
 from apps.api import models, schemas
 from apps.api.database import get_db
+from apps.api.deps import verify_project_owner
 from services.comparison.service import SqlDumpComparisonService
 
 router = APIRouter()
@@ -17,8 +18,15 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _validate_sql_dump(file: UploadFile) -> bool:
+    """Accept SQL dumps and Progress OpenEdge exports for comparison."""
     filename = (file.filename or "").lower()
-    return filename.endswith(".sql") or filename.endswith(".sql.gz") or filename.endswith(".bak")
+    return (
+        filename.endswith(".sql")
+        or filename.endswith(".sql.gz")
+        or filename.endswith(".bak")
+        or filename.endswith(".zip")   # Progress .df + .d archive
+        or filename.endswith(".df")    # Progress schema file
+    )
 
 
 def _save_upload(project_id: uuid.UUID, run_id: uuid.UUID, label: str, file: UploadFile) -> str:
@@ -37,12 +45,9 @@ async def upload_comparison_sources(
     source_a: UploadFile = File(...),
     source_b: UploadFile = File(...),
     db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
 ):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if project.project_type != "comparison":
-        raise HTTPException(status_code=400, detail="This project is not configured for SQL dump comparison.")
+    project = verify_project_owner(project_id, db, x_user_id)
     if not _validate_sql_dump(source_a) or not _validate_sql_dump(source_b):
         raise HTTPException(status_code=400, detail="Only .sql, .sql.gz, and .bak files are allowed.")
 
@@ -76,7 +81,13 @@ async def upload_comparison_sources(
 
 
 @router.get("/projects/{project_id}/comparison/runs", response_model=List[schemas.ComparisonRun])
-def list_comparison_runs(project_id: uuid.UUID, limit: int = 10, db: Session = Depends(get_db)):
+def list_comparison_runs(
+    project_id: uuid.UUID, 
+    limit: int = 10, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    verify_project_owner(project_id, db, x_user_id)
     return (
         db.query(models.ComparisonRun)
         .filter(models.ComparisonRun.project_id == project_id)
@@ -87,7 +98,12 @@ def list_comparison_runs(project_id: uuid.UUID, limit: int = 10, db: Session = D
 
 
 @router.get("/projects/{project_id}/comparison/latest", response_model=schemas.ComparisonRun | None)
-def get_latest_comparison_run(project_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_latest_comparison_run(
+    project_id: uuid.UUID, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    verify_project_owner(project_id, db, x_user_id)
     return (
         db.query(models.ComparisonRun)
         .filter(models.ComparisonRun.project_id == project_id)
@@ -97,7 +113,12 @@ def get_latest_comparison_run(project_id: uuid.UUID, db: Session = Depends(get_d
 
 
 @router.get("/projects/{project_id}/comparison/mismatches")
-def get_latest_comparison_mismatches(project_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_latest_comparison_mismatches(
+    project_id: uuid.UUID, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    verify_project_owner(project_id, db, x_user_id)
     run = (
         db.query(models.ComparisonRun)
         .filter(models.ComparisonRun.project_id == project_id)
@@ -122,3 +143,4 @@ def get_latest_comparison_mismatches(project_id: uuid.UUID, db: Session = Depend
         "cells": differences.get("cells") or [],
         "validation": result.get("validation") or {},
     }
+

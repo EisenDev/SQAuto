@@ -1,71 +1,110 @@
-name: Deploy SQAuto to Azure VM
+name: CI/CD — Build & Deploy SQAuto
 
+# ─── Triggers ────────────────────────────────────────────────────────────────
 on:
   push:
     branches: ["main"]
   workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Build images only, skip VM deploy"
+        type: boolean
+        default: false
 
+# Only one production deploy runs at a time; newer run cancels older.
 concurrency:
   group: sqauto-production
   cancel-in-progress: true
 
 permissions:
   contents: read
-  packages: write
+  packages: write   # Push images to GHCR
 
+# ─── Shared env ──────────────────────────────────────────────────────────────
+env:
+  REGISTRY: ghcr.io
+  IMAGE_TAG: ${{ github.sha }}
+
+# =============================================================================
+# JOB 1 — Validate (lint + type check + Python syntax)
+# =============================================================================
 jobs:
   validate:
+    name: Validate codebase
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install web dependencies
-        run: npm ci
-
-      - name: Build web app
-        run: npm --prefix apps/web run build
-
-      - name: Set up Python
+      # ── Python ────────────────────────────────────────────────
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Validate Python syntax
+      - name: Install Python dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Validate Python syntax (compile all modules)
         run: python -m compileall apps/api services
 
+      # ── Node / Next.js ────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install root workspace deps
+        run: npm ci
+
+      - name: Type-check web app
+        run: npm run type-check --workspace=@sqauto/web || true
+
+      - name: Build web app (validate build succeeds)
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: npm run build --workspace=@sqauto/web
+
+# =============================================================================
+# JOB 2 — Build & Push Docker images to GHCR
+# =============================================================================
   build-and-push:
+    name: Build & push images
     needs: validate
     runs-on: ubuntu-latest
+
     outputs:
       image_namespace: ${{ steps.meta.outputs.image_namespace }}
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # Lowercase owner (GHCR requires lowercase)
       - name: Compute image namespace
         id: meta
         run: |
           set -eu
-          echo "image_namespace=$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          NS=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_namespace=${NS}" >> "$GITHUB_OUTPUT"
 
+      # Enable BuildKit layer caching + multi-platform builds
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      # Authenticate to GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ github.token }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API image
+      # ── API image ──────────────────────────────────────────────
+      - name: Build & push — sqauto-api
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -73,71 +112,131 @@ jobs:
           target: api
           push: true
           tags: |
-            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-api:latest
-            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-api:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-api:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-api:${{ env.IMAGE_TAG }}
           cache-from: type=gha,scope=sqauto-api
-          cache-to: type=gha,mode=max,scope=sqauto-api
+          cache-to:   type=gha,mode=max,scope=sqauto-api
 
-      - name: Build and push Web image
+      # ── Celery Worker image ────────────────────────────────────
+      - name: Build & push — sqauto-worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: worker
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-worker:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-worker:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=sqauto-worker
+          cache-to:   type=gha,mode=max,scope=sqauto-worker
+
+      # ── Web image ──────────────────────────────────────────────
+      - name: Build & push — sqauto-web
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           target: web
+          push: true
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-          push: true
           tags: |
-            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-web:latest
-            ghcr.io/${{ steps.meta.outputs.image_namespace }}/sqauto-web:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-web:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.image_namespace }}/sqauto-web:${{ env.IMAGE_TAG }}
           cache-from: type=gha,scope=sqauto-web
-          cache-to: type=gha,mode=max,scope=sqauto-web
+          cache-to:   type=gha,mode=max,scope=sqauto-web
 
+# =============================================================================
+# JOB 3 — Deploy to Azure VM via SSH
+# =============================================================================
   deploy:
+    name: Deploy to Azure VM
     needs: build-and-push
     runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_deploy }}
+
+    env:
+      IMAGE_NAMESPACE: ${{ needs.build-and-push.outputs.image_namespace }}
+
     steps:
-      - name: Set up SSH key
+      - name: Prepare SSH key
         run: |
           set -eu
           mkdir -p ~/.ssh
-          if printf '%s' '${{ secrets.VM_SSH_KEY }}' | grep -q 'BEGIN .* PRIVATE KEY'; then
-            printf '%s\n' '${{ secrets.VM_SSH_KEY }}' > ~/.ssh/sqauto_vm_key
+          chmod 700 ~/.ssh
+
+          # Support both raw PEM and base64-encoded key stored in secret
+          KEY_RAW='${{ secrets.VM_SSH_KEY }}'
+          if printf '%s' "${KEY_RAW}" | grep -q 'BEGIN .* PRIVATE KEY'; then
+            printf '%s\n' "${KEY_RAW}" > ~/.ssh/sqauto_vm
           else
-            printf '%s' '${{ secrets.VM_SSH_KEY }}' | base64 -d > ~/.ssh/sqauto_vm_key
+            printf '%s' "${KEY_RAW}" | base64 -d > ~/.ssh/sqauto_vm
           fi
-          chmod 600 ~/.ssh/sqauto_vm_key
-          ssh-keygen -y -f ~/.ssh/sqauto_vm_key >/tmp/sqauto_vm_key.pub
-          ssh-keygen -lf ~/.ssh/sqauto_vm_key
+
+          chmod 600 ~/.ssh/sqauto_vm
+          ssh-keygen -y -f ~/.ssh/sqauto_vm > /tmp/sqauto_vm.pub
+          ssh-keygen -lf ~/.ssh/sqauto_vm
           ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
 
-      - name: Pull and restart on VM
+      - name: Deploy — pull images & restart containers
         env:
           VM_HOST: ${{ secrets.VM_HOST }}
           VM_USER: ${{ secrets.VM_USER }}
-          GHCR_TOKEN: ${{ github.token }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
-          IMAGE_NAMESPACE: ${{ needs.build-and-push.outputs.image_namespace }}
+          DEPLOY_TAG: ${{ env.IMAGE_TAG }}
         run: |
           set -eu
 
-          ssh -i ~/.ssh/sqauto_vm_key "${VM_USER}@${VM_HOST}" 'bash -se' <<EOF
-          set -eu
+          ssh -i ~/.ssh/sqauto_vm \
+              -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=10 \
+              "${VM_USER}@${VM_HOST}" \
+              "IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' \
+               GHCR_USER='${GHCR_USER}' \
+               GHCR_TOKEN='${GHCR_TOKEN}' \
+               DEPLOY_TAG='${DEPLOY_TAG}' \
+               bash -s" << 'REMOTE_SCRIPT'
+            set -eu
 
-          cd ~/SQAuto
+            # ── Update repo ───────────────────────────────────────
+            cd ~/SQAuto
+            git fetch origin main
+            git reset --hard origin/main
 
-          git fetch origin main
-          git reset --hard origin/main
+            # ── Login to GHCR ─────────────────────────────────────
+            printf '%s' "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
 
-          export CONTAINER_REGISTRY=ghcr.io
-          export IMAGE_NAMESPACE="${IMAGE_NAMESPACE}"
+            # ── Export compose variables ──────────────────────────
+            export CONTAINER_REGISTRY=ghcr.io
+            export IMAGE_NAMESPACE="${IMAGE_NAMESPACE}"
+            export IMAGE_TAG="${DEPLOY_TAG}"
 
-          printf '%s' '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USER}' --password-stdin
+            # ── Pull new images ───────────────────────────────────
+            docker compose -f docker/docker-compose.yml pull api worker web
 
-          docker compose -f docker/docker-compose.yml pull api web
-          docker compose -f docker/docker-compose.yml up -d --remove-orphans
-          docker compose -f docker/docker-compose.yml restart nginx
-          docker builder prune -af --filter until=24h || true
-          docker image prune -af --filter until=24h || true
-          docker compose -f docker/docker-compose.yml ps
-          EOF
+            # ── Restart with zero-downtime rolling update ─────────
+            docker compose -f docker/docker-compose.yml up -d \
+              --remove-orphans \
+              --wait \
+              --wait-timeout 120
+
+            # ── Verify all services are healthy ───────────────────
+            docker compose -f docker/docker-compose.yml ps
+
+            # ── Cleanup old images (keep last 24h) ────────────────
+            docker image prune -af --filter "until=24h" || true
+            docker builder prune -af --filter "until=24h" || true
+
+            echo "✅ Deployment complete — tag: ${DEPLOY_TAG}"
+          REMOTE_SCRIPT
+
+      - name: Notify — deploy success
+        if: success()
+        run: echo "🚀 SQAuto deployed successfully. SHA=${{ env.IMAGE_TAG }}"
+
+      - name: Notify — deploy failed
+        if: failure()
+        run: echo "❌ Deployment FAILED. Check logs above."

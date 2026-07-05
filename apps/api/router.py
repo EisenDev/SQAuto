@@ -21,6 +21,7 @@ from services.dump_restore.service import DumpRestoreService
 from services.schema_profiler.service import SchemaProfilerService
 from apps.api.routers import comparison, debug, organizations, projects, workspace
 from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
+from services.source_adapters.router import detect_source_type
 
 api_router = APIRouter()
 
@@ -100,10 +101,9 @@ async def upload_chunk(
 
 @api_router.post("/upload/finalize", tags=["upload"], summary="Finalize chunked upload and create job")
 async def finalize_upload(request: FinalizeRequest, db: Session = Depends(get_db)):
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == request.projectId).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    # Verify project exists and is owned by the user
+    from apps.api.deps import verify_project_owner
+    project = verify_project_owner(request.projectId, db)
 
     upload_path = os.path.join(CHUNK_DIR, request.uploadId)
     if not os.path.exists(upload_path):
@@ -111,10 +111,15 @@ async def finalize_upload(request: FinalizeRequest, db: Session = Depends(get_db
     
     filename_lower = request.filename.lower()
     is_compressed = filename_lower.endswith('.sql.gz')
-    
-    if not (filename_lower.endswith('.sql') or is_compressed):
+    is_progress = filename_lower.endswith('.df') or filename_lower.endswith('.d') or filename_lower.endswith('.zip')
+
+    ALLOWED_EXTENSIONS = ('.sql', '.sql.gz', '.bak', '.zip', '.df', '.d')
+    if not any(filename_lower.endswith(ext) for ext in ALLOWED_EXTENSIONS):
         shutil.rmtree(upload_path, ignore_errors=True)
-        raise HTTPException(status_code=400, detail="Only .sql and .sql.gz files are allowed")
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Allowed: .sql, .sql.gz, .bak, .zip (Progress), .df (Progress), .d (Progress)"
+        )
 
     unique_name = f"{uuid.uuid4()}_{request.filename}"
     file_path = os.path.join(UPLOAD_DIR, unique_name)
@@ -142,6 +147,7 @@ async def finalize_upload(request: FinalizeRequest, db: Session = Depends(get_db
         is_compressed=is_compressed,
         file_size=file_size,
         status=JobStatus.UPLOADED,
+        source_type=detect_source_type(file_path),
         is_active=(db.query(Job).filter(Job.project_id == request.projectId, Job.is_active == True).count() == 0)
     )
     db.add(job)
@@ -163,15 +169,20 @@ async def upload_dump(
     projectId: uuid.UUID = Form(...),
     db: Session = Depends(get_db)
 ):
-    project = db.query(Project).filter(Project.id == projectId).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    # Verify project exists and is owned by the user
+    from apps.api.deps import verify_project_owner
+    project = verify_project_owner(projectId, db)
 
     filename_lower = file.filename.lower()
     is_compressed = filename_lower.endswith('.sql.gz')
-    
-    if not (filename_lower.endswith('.sql') or is_compressed):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only .sql and .sql.gz files are allowed")
+    is_progress = filename_lower.endswith('.df') or filename_lower.endswith('.d') or filename_lower.endswith('.zip')
+
+    ALLOWED_EXTENSIONS = ('.sql', '.sql.gz', '.bak', '.zip', '.df', '.d')
+    if not any(filename_lower.endswith(ext) for ext in ALLOWED_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported file type. Allowed: .sql, .sql.gz, .bak, .zip (Progress), .df (Progress), .d (Progress)"
+        )
     
     unique_name = f"{uuid.uuid4()}_{file.filename}"
     file_path = os.path.join(UPLOAD_DIR, unique_name)
@@ -191,6 +202,7 @@ async def upload_dump(
         is_compressed=is_compressed,
         file_size=file_size,
         status=JobStatus.UPLOADED,
+        source_type=detect_source_type(file_path),
         is_active=(db.query(Job).filter(Job.project_id == projectId, Job.is_active == True).count() == 0)
     )
     db.add(job)
@@ -209,9 +221,14 @@ async def upload_dump(
 async def job_detail(job_id: str, request: Request, db: Session = Depends(get_db)):
     started_at = time.perf_counter()
     try:
-        job = db.query(Job).filter(Job.id == job_id).first()
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
+        try:
+            job_uuid = uuid.UUID(job_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+        from apps.api.deps import verify_job_owner
+        job = verify_job_owner(job_uuid, db)
+
         payload = {
             "id": str(job.id),
             "projectId": str(job.project_id),
@@ -239,9 +256,13 @@ async def job_detail(job_id: str, request: Request, db: Session = Depends(get_db
 
 @api_router.post("/jobs/{job_id}/activate", tags=["jobs"], summary="Set a job as the active source of truth")
 async def activate_job(job_id: str, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    from apps.api.deps import verify_job_owner
+    job = verify_job_owner(job_uuid, db)
     
     # Deactivate all other jobs for this project
     db.query(Job).filter(Job.project_id == job.project_id).update({"is_active": False})
@@ -253,9 +274,13 @@ async def activate_job(job_id: str, db: Session = Depends(get_db)):
 
 @api_router.post("/projects/{project_id}/reset", tags=["projects"], summary="Reset project data (Clear all jobs)")
 async def reset_project(project_id: str, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        proj_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project ID format")
+
+    from apps.api.deps import verify_project_owner
+    project = verify_project_owner(proj_uuid, db)
     
     # Delete all jobs for this project
     db.query(Job).filter(Job.project_id == project.id).delete()
@@ -264,9 +289,13 @@ async def reset_project(project_id: str, db: Session = Depends(get_db)):
 
 @api_router.post("/jobs/{job_id}/restore", tags=["jobs"], summary="Restore dump into staging database (Background)")
 async def restore_job(job_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    from apps.api.deps import verify_job_owner
+    job = verify_job_owner(job_uuid, db)
     
     file_path = os.path.join(UPLOAD_DIR, job.filename)
     if not os.path.exists(file_path):
@@ -280,9 +309,13 @@ async def restore_job(job_id: str, background_tasks: BackgroundTasks, db: Sessio
 
 @api_router.post("/jobs/{job_id}/profile", tags=["jobs"], summary="Profile schema after restore (Background)")
 async def profile_job(job_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    from apps.api.deps import verify_job_owner
+    job = verify_job_owner(job_uuid, db)
     
     background_tasks.add_task(run_profile_task, job.id, db)
     return {"id": str(job.id), "status": "processing", "message": "Profiling started in background"}
@@ -305,9 +338,13 @@ api_router.include_router(fixes.router, prefix="/fixes", tags=["fixes", "smart_f
 
 @api_router.post("/jobs/{job_id}/layout", tags=["jobs"], summary="Save schema visualizer layout positions")
 async def save_layout(job_id: str, request: dict, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+    from apps.api.deps import verify_job_owner
+    job = verify_job_owner(job_uuid, db)
 
     if not job.profile or "graph" not in job.profile:
         raise HTTPException(status_code=400, detail="Job has no profiling graph to layout")

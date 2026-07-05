@@ -2,18 +2,16 @@
 
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { safeFetch } from '@/lib/api_client';
 import { 
   Plus, ArrowLeft, Rocket, 
   Shield, CheckCircle2, Sparkles,
   Layout, Lock, AlertCircle, Database, GitCompare
 } from 'lucide-react';
 
-type ProjectType = 'individual' | 'comparison';
-
 export default function NewProjectPage() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [projectType, setProjectType] = useState<ProjectType>('individual');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -32,31 +30,24 @@ export default function NewProjectPage() {
     setLoading(true);
     setError(null);
     try {
-      // Create Project using the organizational endpoint
-      const projRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations/${orgId}/projects`, {
+      // Create Project using the organizational endpoint (unified — no type selection)
+      const projRes = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations/${orgId}/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           name, 
-          project_type: projectType,
           password: password || undefined
         }),
       });
       
-      if (!projRes.ok) {
-        const errorData = await projRes.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.detail || 'Unable to create project. Please try again.');
+      if (!projRes.success || !projRes.data) {
+        throw new Error(projRes.error || 'Unable to create project. Please try again.');
       }
 
-      const projData = await projRes.json();
+      const projData = projRes.data;
 
       if (projData.id) {
         router.prefetch(`/dashboard/project/${projData.id}`);
-        if (projectType === 'comparison') {
-          router.prefetch(`/dashboard/project/${projData.id}/comparison`);
-        } else {
-          router.prefetch(`/dashboard/project/${projData.id}/sql`);
-        }
         router.push(`/dashboard/project/${projData.id}`);
       } else {
         throw new Error('Project created but no ID was returned.');

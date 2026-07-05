@@ -3,18 +3,32 @@
  * Minimal API utility layer for calling the SQAuto backend.
  */
 
+import { getSession } from "next-auth/react";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
 /**
  * Generic fetch wrapper with error handling.
  */
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  let session = null;
+  try {
+    session = await getSession();
+  } catch (err) {
+    console.warn("[apiFetch] Failed to get session on client side:", err);
+  }
+  
+  const userId = (session?.user as any)?.id;
+  const headers = new Headers(options?.headers || {});
+  if (userId) {
+    headers.set("X-User-Id", userId);
+  }
+
   const res = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: {
-      ...options?.headers,
-    },
+    headers,
   });
+
   
   const contentType = res.headers.get("content-type");
   if (contentType && contentType.includes("application/json")) {
@@ -766,3 +780,15 @@ export async function restoreJob(jobId: string): Promise<{ job_id: string; statu
 export async function profileJob(jobId: string): Promise<Job> {
   return apiFetch<Job>(`/jobs/${jobId}/profile`);
 }
+
+export async function getTargetTableRows(
+  targetId: string,
+  tableName: string,
+  limit = 50,
+  offset = 0,
+  q = ""
+): Promise<TableRowsResponse> {
+  const search = q ? `&q=${encodeURIComponent(q)}` : "";
+  return apiFetch<TableRowsResponse>(`/migration/targets/${targetId}/tables/${encodeURIComponent(tableName)}/rows?limit=${limit}&offset=${offset}${search}`);
+}
+

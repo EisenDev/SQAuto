@@ -25,6 +25,7 @@ class Organization(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    owner_id = Column(UUID(as_uuid=True), nullable=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -72,6 +73,8 @@ class Job(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     is_active = Column(Boolean, default=False, nullable=False)
+    # Tracks the source database format. Values: "sql", "progress_openedge", future formats.
+    source_type = Column(String, nullable=False, default="sql")
     profile = Column(JSON, nullable=True)
     log = Column(Text, nullable=True)
 

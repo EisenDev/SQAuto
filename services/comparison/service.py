@@ -59,8 +59,13 @@ class SqlDumpComparisonService:
         dialect = detect_dialect_from_file(file_path)
         tables: dict[str, Any] = {}
         warnings: list[str] = []
+        lower = file_path.lower()
 
-        if file_path.lower().endswith(".bak"):
+        if lower.endswith(".df") or (lower.endswith(".zip") and dialect.get("dialect") == "progress_openedge"):
+            progress_data = self._parse_progress_file(file_path)
+            tables = progress_data["tables"]
+            warnings = progress_data["warnings"]
+        elif lower.endswith(".bak"):
             bak_data = self._parse_bak_file(file_path)
             tables = bak_data["tables"]
             warnings = bak_data["warnings"]
@@ -73,7 +78,6 @@ class SqlDumpComparisonService:
                     warnings.append("A CREATE TABLE statement could not be parsed deterministically.")
                     continue
                 tables[parsed["name"]] = parsed
-
             self._parse_insert_rows(sql, tables, warnings)
 
         return {
@@ -85,6 +89,83 @@ class SqlDumpComparisonService:
             "tables": tables,
             "warnings": warnings,
         }
+
+    def _parse_progress_file(self, file_path: str) -> dict[str, Any]:
+        """Parse a Progress OpenEdge .df file (or .zip containing one) for comparison.
+
+        Converts Progress schema into the same table dict format used by
+        _parse_create_table so all comparison logic works unchanged.
+        """
+        import zipfile as zf_mod
+        from services.source_adapters.progress_df_adapter import DFParser, PROGRESS_TYPE_MAP
+
+        tables: dict[str, Any] = {}
+        warnings: list[str] = []
+        df_text: str | None = None
+        d_files: dict[str, str] = {}
+
+        try:
+            lower = file_path.lower()
+            if lower.endswith(".zip"):
+                with zf_mod.ZipFile(file_path, "r") as zf:
+                    for name in zf.namelist():
+                        ext = os.path.splitext(name)[1].lower()
+                        if ext == ".df" and df_text is None:
+                            with zf.open(name) as f:
+                                df_text = f.read().decode("utf-8", errors="ignore")
+                        elif ext == ".d":
+                            dump_name = os.path.splitext(os.path.basename(name))[0].lower()
+                            with zf.open(name) as f:
+                                d_files[dump_name] = f.read().decode("utf-8", errors="ignore")
+            else:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    df_text = f.read()
+        except Exception as e:
+            warnings.append(f"Could not read Progress file: {e}")
+            return {"tables": tables, "warnings": warnings}
+
+        if not df_text:
+            warnings.append("No .df schema file found in Progress archive.")
+            return {"tables": tables, "warnings": warnings}
+
+        try:
+            schema = DFParser().parse(df_text)
+        except Exception as e:
+            warnings.append(f"Progress .df parse error: {e}")
+            return {"tables": tables, "warnings": warnings}
+
+        for tbl_name, tbl_def in schema.items():
+            columns: dict[str, dict] = {}
+            for field in tbl_def.get("fields", []):
+                col_name = field["name"].lower()
+                columns[col_name] = {
+                    "name": col_name,
+                    "type": field["type"].lower(),
+                    "raw": f"{field['name']} {field['progress_type']}",
+                    "nullable": not field.get("mandatory", False),
+                }
+
+            # Parse rows from matching .d file for row-level comparison
+            rows: list[dict] = []
+            dump_name = tbl_def.get("dump_name", tbl_name.lower())
+            d_content = d_files.get(dump_name) or d_files.get(tbl_name.lower())
+            if d_content and columns:
+                from services.source_adapters.progress_df_adapter import DDataParser
+                raw_rows = DDataParser().parse(d_content, len(tbl_def["fields"]))
+                field_names = [f["name"].lower() for f in tbl_def["fields"]]
+                for raw_row in raw_rows[:self.MAX_ROW_DETAILS]:
+                    rows.append(dict(zip(field_names, raw_row)))
+
+            tables[tbl_name.lower()] = {
+                "name": tbl_name.lower(),
+                "columns": columns,
+                "primary_keys": [k.lower() for k in tbl_def.get("primary_keys", [])],
+                "foreign_keys": [],
+                "row_count": len(rows),
+                "rows": rows,
+            }
+
+        return {"tables": tables, "warnings": warnings}
 
     def _parse_bak_file(self, file_path: str) -> dict[str, Any]:
         tables = {}

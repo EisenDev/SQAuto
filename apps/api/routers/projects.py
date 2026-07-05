@@ -1,13 +1,14 @@
 # apps/api/routers/projects.py
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from apps.api.database import get_db
 from apps.api import models, schemas
+from apps.api.deps import verify_org_owner, verify_project_owner
 from apps.api.utils import (
     build_source_status,
     log_endpoint_audit,
@@ -19,11 +20,14 @@ router = APIRouter()
 
 # Projects are tied to an organization
 @router.post("/organizations/{org_id}/projects", response_model=schemas.Project)
-def create_project(org_id: UUID, project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    # Verify org exists
-    org = db.query(models.Organization).filter(models.Organization.id == org_id).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
+def create_project(
+    org_id: UUID, 
+    project: schemas.ProjectCreate, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify org exists and is owned by the user
+    verify_org_owner(org_id, db, x_user_id)
     
     db_project = models.Project(**project.model_dump(), organization_id=org_id)
     db.add(db_project)
@@ -32,21 +36,36 @@ def create_project(org_id: UUID, project: schemas.ProjectCreate, db: Session = D
     return db_project
 
 @router.get("/organizations/{org_id}/projects", response_model=List[schemas.Project])
-def list_org_projects(org_id: UUID, limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
+def list_org_projects(
+    org_id: UUID, 
+    limit: int = 20, 
+    offset: int = 0, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify org exists and is owned by the user
+    verify_org_owner(org_id, db, x_user_id)
     return db.query(models.Project).filter(models.Project.organization_id == org_id).offset(offset).limit(limit).all()
 
 @router.get("/projects/{project_id}", response_model=schemas.Project)
-def get_project(project_id: UUID, db: Session = Depends(get_db)):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def get_project(
+    project_id: UUID, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify project exists and is owned by the user
+    project = verify_project_owner(project_id, db, x_user_id)
     return project
 
 @router.patch("/projects/{project_id}", response_model=schemas.Project)
-def update_project(project_id: UUID, project_update: schemas.ProjectUpdate, db: Session = Depends(get_db)):
-    db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not db_project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def update_project(
+    project_id: UUID, 
+    project_update: schemas.ProjectUpdate, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify project exists and is owned by the user
+    db_project = verify_project_owner(project_id, db, x_user_id)
     
     obj_data = project_update.model_dump(exclude_unset=True)
     for key, value in obj_data.items():
@@ -57,16 +76,28 @@ def update_project(project_id: UUID, project_update: schemas.ProjectUpdate, db: 
     return db_project
 
 @router.delete("/projects/{project_id}")
-def delete_project(project_id: UUID, db: Session = Depends(get_db)):
-    db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not db_project:
-        raise HTTPException(status_code=404, detail="Project not found")
+def delete_project(
+    project_id: UUID, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify project exists and is owned by the user
+    db_project = verify_project_owner(project_id, db, x_user_id)
     db.delete(db_project)
     db.commit()
     return {"status": "success"}
 
 @router.get("/projects/{project_id}/jobs", response_model=List[schemas.JobMinimal])
-def list_project_jobs(project_id: UUID, request: Request, limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
+def list_project_jobs(
+    project_id: UUID, 
+    request: Request, 
+    limit: int = 20, 
+    offset: int = 0, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify project exists and is owned by the user
+    verify_project_owner(project_id, db, x_user_id)
     started_at = time.perf_counter()
     try:
         jobs = (
@@ -91,7 +122,14 @@ def list_project_jobs(project_id: UUID, request: Request, limit: int = 20, offse
 
 
 @router.get("/projects/{project_id}/source-status", response_model=schemas.ProjectSourceStatus)
-def get_project_source_status(project_id: UUID, request: Request, db: Session = Depends(get_db)):
+def get_project_source_status(
+    project_id: UUID, 
+    request: Request, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    # Verify project exists and is owned by the user
+    verify_project_owner(project_id, db, x_user_id)
     started_at = time.perf_counter()
     try:
         job = (
@@ -121,7 +159,10 @@ def get_project_logs(
     limit: int = 10,
     page: int = 1,
     db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
 ):
+    # Verify project exists and is owned by the user
+    verify_project_owner(project_id, db, x_user_id)
     started_at = time.perf_counter()
     limit = max(1, min(limit, 100))
     page = max(1, page)
@@ -151,3 +192,4 @@ def get_project_logs(
     except Exception as exc:
         raise_if_database_resource_exhausted(exc)
         raise
+

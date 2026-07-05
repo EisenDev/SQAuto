@@ -273,8 +273,8 @@ async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDa
       }
     : buildEmptyState(projectId).sourceStatus;
 
-  const isComparisonProject = projectRes.success && projectRes.data?.project_type === "comparison";
-  const comparisonCompleted = isComparisonProject && !!(
+  // For unified projects: comparison completion is always checked regardless of project_type
+  const comparisonCompleted = !!(
     comparisonRes.success &&
     comparisonRes.data &&
     (comparisonRes.data.status === "completed" || comparisonRes.data.result)
@@ -308,8 +308,8 @@ async function fetchProjectWorkspaceData(projectId: string): Promise<WorkspaceDa
       { id: "excel", title: "Excel Export", description: "Workbook package with summary, tables, and QA notes.", format: ".xlsx", ready: sourceStatus.status === "completed" },
     ],
     usingMockData: false,
-    hasAnyJob: isComparisonProject ? comparisonCompleted : (jobs.length > 0 || Boolean(sourceStatus.active_job_id)),
-    hasExtraction: isComparisonProject ? comparisonCompleted : (sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed"),
+    hasAnyJob: (jobs.length > 0 || Boolean(sourceStatus.active_job_id)) || comparisonCompleted,
+    hasExtraction: (sourceStatus.metrics.tables > 0 || sourceStatus.status === "completed") || comparisonCompleted,
     comparisonCompleted,
     loading: false,
     error:

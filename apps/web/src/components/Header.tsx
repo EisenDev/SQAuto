@@ -2,16 +2,36 @@
 
 import React from 'react';
 import { useJob } from '@/components/JobProvider';
-import { Database, Triangle, User, ChevronRight } from 'lucide-react';
+import { Database, User, ChevronRight, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function Header() {
   const { activeJob } = useJob();
   const params = useParams();
   const pathname = usePathname();
+  
   const projectId = params?.projectId as string;
   const [projectData, setProjectData] = React.useState<{ name: string, organization?: { name: string } } | null>(null);
+  
+  const { data: session } = useSession();
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const username = (session?.user as any)?.username || session?.user?.name || "User";
   
   React.useEffect(() => {
     if (!projectId) {
@@ -68,6 +88,10 @@ export default function Header() {
 
   const isLandingPage = pathname === '/' || pathname === '/guide';
 
+  if (pathname === '/login' || pathname === '/signup') {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-brand-border bg-brand-bg/90 backdrop-blur-xl h-14">
       <div className="w-full h-full flex items-center justify-between px-6">
@@ -93,13 +117,13 @@ export default function Header() {
                 Guide
               </Link>
               <Link href="/dashboard/organizations" className="text-xs font-semibold text-text-secondary hover:text-brand-primary transition-colors">
-                Organizations
+                Dashboard
               </Link>
               <Link 
-                href="/dashboard/organizations" 
+                href="/login" 
                 className="premium-btn-primary !px-5 !py-2 text-xs"
               >
-                Launch Dashboard
+                Sign In
               </Link>
             </div>
           </>
@@ -146,16 +170,50 @@ export default function Header() {
             
             {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
-              {/* AI Assistant Logo (Triangle) */}
-              <button className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors group relative" title="AI Assistant">
-                <Triangle className="h-4.5 w-4.5 text-brand-primary fill-brand-primary-light group-hover:fill-brand-primary/20 transition-all rotate-180" />
-                <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 bg-brand-primary rounded-full border border-brand-bg" />
-              </button>
+              {/* Profile Dropdown Container */}
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="h-7 w-7 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center hover:border-brand-primary transition-all focus:outline-none"
+                  title="Profile settings"
+                >
+                  <User className="h-4 w-4 text-text-secondary" />
+                </button>
 
-              {/* Profile Logo (Circle) */}
-              <button className="h-7 w-7 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center hover:border-brand-primary transition-all">
-                <User className="h-4 w-4 text-text-secondary" />
-              </button>
+                {dropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white border border-brand-border/60 rounded-xl shadow-premium z-50 py-1.5 text-xs text-text-primary animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-4 py-2 flex flex-col">
+                      <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Signed in as</span>
+                      <span className="font-bold text-text-primary mt-0.5 truncate max-w-full" title={username}>
+                        {username}
+                      </span>
+                    </div>
+                    
+                    <div className="border-t border-brand-border/60 my-1"></div>
+                    
+                    <Link 
+                      href="/account"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block px-4 py-2 hover:bg-stone-50 text-text-secondary hover:text-text-primary transition-colors font-medium"
+                    >
+                      Account settings
+                    </Link>
+                    
+                    <div className="border-t border-brand-border/60 my-1"></div>
+                    
+                    <button 
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        signOut();
+                      }}
+                      className="w-full flex items-center space-x-2 px-4 py-2 hover:bg-red-50/50 text-[#A32D2D] hover:text-[#822323] transition-colors font-semibold text-left"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}

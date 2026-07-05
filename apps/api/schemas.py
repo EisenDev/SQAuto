@@ -16,8 +16,10 @@ class OrganizationUpdate(OrganizationBase):
 
 class Organization(OrganizationBase):
     id: UUID
+    owner_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    project_count: Optional[int] = None
 
     class Config:
         from_attributes = True

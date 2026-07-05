@@ -5,7 +5,7 @@ Lightweight heuristic-based detection of SQL dump dialect.
 Reads the first portion of a SQL file and uses keyword scoring
 to determine the source database engine.
 
-Supported dialects: PostgreSQL, MySQL, SQL Server, SQLite.
+Supported dialects: PostgreSQL, MySQL, SQL Server, SQLite, Progress OpenEdge.
 """
 
 import logging
@@ -84,6 +84,27 @@ DIALECT_PATTERNS = {
             (r"ENGINE\s*=", -3),
         ]
     },
+    "progress_openedge": {
+        "keywords": [
+            (r"^ADD TABLE\s+\"", 5),
+            (r"^ADD FIELD\s+\".*\"\s+OF\s+\"", 5),
+            (r"^ADD INDEX\s+\".*\"\s+ON\s+\"", 4),
+            (r"^DUMP-NAME", 4),
+            (r"\bAS INTEGER\b", 2),
+            (r"\bAS CHARACTER\b", 3),
+            (r"\bAS LOGICAL\b", 3),
+            (r"\bAS DECIMAL\b", 2),
+            (r"\bAS DATETIME\b", 2),
+            (r"AREA\s+\"Schema Area\"", 3),
+            (r"MAX-WIDTH\s+\d+", 2),
+            (r"MANDATORY", 2),
+        ],
+        "negative": [
+            (r"\bSERIAL\b", -4),
+            (r"AUTO_INCREMENT", -4),
+            (r"MySQL dump", -5),
+        ]
+    },
 }
 
 
@@ -155,21 +176,52 @@ def detect_sql_dialect(sql_text: str) -> dict:
 
 
 def detect_dialect_from_file(file_path: str) -> dict:
-    """Detect SQL dialect from a file on disk (supports .gz).
+    """Detect SQL dialect from a file on disk (supports .gz, .df, .zip).
 
     Reads the first 100KB of the file for analysis.
+    File-extension shortcuts are applied first for certainty.
     """
     import gzip
+    import zipfile
 
     try:
-        if file_path.lower().endswith(".bak"):
+        lower = file_path.lower()
+
+        # Fast extension-based shortcuts
+        if lower.endswith(".bak"):
             return {
                 "dialect": "sqlserver",
                 "confidence": 1.0,
                 "scores": {"sqlserver": 10.0},
                 "indicators": ["file_extension_bak"],
             }
-        opener = gzip.open if file_path.lower().endswith(".gz") else open
+        if lower.endswith(".df") or lower.endswith(".d"):
+            return {
+                "dialect": "progress_openedge",
+                "confidence": 1.0,
+                "scores": {"progress_openedge": 10.0},
+                "indicators": ["file_extension_df_or_d"],
+            }
+        if lower.endswith(".zip"):
+            # Peek inside the ZIP to see if it contains .df files
+            try:
+                with zipfile.ZipFile(file_path, "r") as zf:
+                    for name in zf.namelist():
+                        if name.lower().endswith(".df"):
+                            # Read the .df file for heuristic scoring
+                            with zf.open(name) as f:
+                                sample = f.read(102400).decode("utf-8", errors="ignore")
+                            return detect_sql_dialect(sample)
+            except Exception as zip_err:
+                logger.warning(f"ZIP inspection failed for {file_path}: {zip_err}")
+            return {
+                "dialect": "unknown",
+                "confidence": 0.0,
+                "scores": {},
+                "indicators": ["zip_no_df_found"],
+            }
+
+        opener = gzip.open if lower.endswith(".gz") else open
         with opener(file_path, "rt", encoding="utf-8", errors="ignore") as f:
             sample = f.read(102400)
         return detect_sql_dialect(sample)

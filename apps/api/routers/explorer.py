@@ -1,25 +1,40 @@
 # apps/api/routers/explorer.py
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
+from typing import Optional
+from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from apps.api.database import get_db, staging_engine as engine
 from apps.api.models import Job
+from apps.api.deps import verify_job_owner
 
 router = APIRouter()
 logger = logging.getLogger("sqauto.explorer")
 
 @router.get("/{job_id}/table/{table_name}/data", summary="Fetch sample live data from Staging")
-def get_table_data(job_id: str, table_name: str, limit: int = 50, offset: int = 0, q: str = None, db: Session = Depends(get_db)):
+def get_table_data(
+    job_id: str, 
+    table_name: str, 
+    limit: int = 50, 
+    offset: int = 0, 
+    q: str = None, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """
     Connects to the staging environment and retrieves raw rows for a mapped table.
     Supports industrial-scale pagination and global keyword search.
     """
     logger.info(f"Explorer Probe: Job {job_id} | Table {table_name} | Q: {q} | Offset: {offset}")
 
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job record not found.")
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+        
+    job = verify_job_owner(job_uuid, db, x_user_id)
+
 
     # 1. Status Validation
     if job.status.value not in ["completed", "analyzing", "needs_review", "restoring"]:

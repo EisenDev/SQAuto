@@ -86,8 +86,8 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
               <Upload className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-stone-900 tracking-tight">SQL Ingestion</h2>
-              <p className="text-stone-500 text-xs font-medium">Initialize the migration staging area.</p>
+              <h2 className="text-xl font-bold text-stone-900 tracking-tight">Source Ingestion</h2>
+              <p className="text-stone-500 text-xs font-medium">Initialize the staging area from SQL dumps or Progress OpenEdge.</p>
             </div>
           </div>
 
@@ -100,7 +100,7 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
               >
                 <input 
                   type="file" 
-                  accept=".sql,.gz" 
+                  accept=".sql,.gz,.zip,.df,.d" 
                   onChange={handleFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                 />
@@ -116,8 +116,8 @@ export default function SqlUploadCard({ projectId, onSuccess }: SqlUploadCardPro
                     </div>
                   ) : (
                     <div>
-                      <p className="text-lg font-medium text-stone-700">Click or drag to upload SQL dump</p>
-                      <p className="text-stone-500 text-sm mt-1 font-medium">Supports .sql or .sql.gz (compressed recommended)</p>
+                      <p className="text-lg font-medium text-stone-700">Click or drag to upload dump file</p>
+                      <p className="text-stone-500 text-sm mt-1 font-medium">Supports SQL (.sql, .sql.gz, .bak) or Progress OpenEdge (.df, .zip)</p>
                     </div>
                   )}
                 </div>

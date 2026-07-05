@@ -108,6 +108,15 @@ class SchemaProfilerService:
 
         # Incremental Update to Database with metadata
         if job:
+            prev_metadata = (job.profile or {}).get("metadata", {})
+            flavor = prev_metadata.get("flavor") or job.source_type
+            if not flavor or flavor == "sql":
+                from services.dump_restore.service import DumpRestoreService
+                from configs.settings import settings
+                import os
+                file_path = os.path.join(settings.UPLOAD_DIR, job.filename)
+                flavor = DumpRestoreService().detect_flavor(file_path)
+
             ai_insights = [
                 f"Successfully traversed and initialized {len(schema_info)} tables.",
                 f"Counted a total of {total_rows:,} rows scaling across {round(total_size_bytes / (1024 * 1024), 2)} MB uncompressed data.",
@@ -134,7 +143,9 @@ class SchemaProfilerService:
                     "duplicate_count": 0, # Placeholder
                     "status": "COMPLETED",
                     "schema_summary": f"{len(schema_info)} tables profiled",
-                    "diagnostics_summary": "Profiling completed and cached for workspace reuse."
+                    "diagnostics_summary": "Profiling completed and cached for workspace reuse.",
+                    "flavor": flavor,
+                    "source_type": job.source_type or "sql"
                 },
                 "ai_insights": ai_insights
             }

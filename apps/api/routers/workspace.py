@@ -62,9 +62,18 @@ def _job_status_value(job: Job) -> str:
 
 
 def _get_job_or_404(job_id: str, db: Session) -> Job:
-    job = db.query(Job).filter(Job.id == job_id).first()
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID format")
+    job = db.query(Job).filter(Job.id == job_uuid).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+        
+    if job.project_id:
+        from apps.api.deps import verify_project_owner
+        verify_project_owner(job.project_id, db)
+        
     return job
 
 
@@ -281,6 +290,14 @@ def _build_graph_from_tables(job: Job) -> dict:
 
 @router.get("/projects/{project_id}/active-job")
 def get_project_active_job(project_id: str, request: Request, db: Session = Depends(get_db)):
+    try:
+        proj_uuid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project ID format")
+
+    from apps.api.deps import verify_project_owner
+    verify_project_owner(proj_uuid, db)
+
     started_at = time.perf_counter()
     try:
         job = (

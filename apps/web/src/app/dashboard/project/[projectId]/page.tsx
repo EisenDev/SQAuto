@@ -129,14 +129,24 @@ export default function ProjectDashboardPage() {
         <PageHeader
           title={workspace.project.name}
           description={workspace.project.description || "Unified database migration, schema integrity audit, and translation workspace."}
-          badge={<StatusBadge status={workspace.sourceStatus.status || "idle"} />}
+          badge={
+            <div className="flex items-center gap-3">
+              <StatusBadge status={workspace.sourceStatus.status || "idle"} />
+              {!workspace.sourceStatus.active_job_id && (
+                <button className={workspaceActions.secondary} onClick={refreshDashboard}>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
+              )}
+            </div>
+          }
           actions={
-            <>
-              <button className={workspaceActions.secondary} onClick={refreshDashboard}>
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </button>
-              {workspace.sourceStatus.active_job_id && (
+            workspace.sourceStatus.active_job_id ? (
+              <>
+                <button className={workspaceActions.secondary} onClick={refreshDashboard}>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </button>
                 <button
                   className={workspaceActions.primary}
                   onClick={() => router.push(`/dashboard/project/${projectId}/simulation`)}
@@ -144,8 +154,8 @@ export default function ProjectDashboardPage() {
                   <PlayCircle className="h-4 w-4" />
                   Simulation Sandbox
                 </button>
-              )}
-            </>
+              </>
+            ) : undefined
           }
         />
 
@@ -155,7 +165,19 @@ export default function ProjectDashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard 
             title="Migration Status" 
-            value={(workspace.sourceStatus.status || "idle").replace(/_/g, " ")} 
+            value={
+              (() => {
+                const statusVal = workspace.sourceStatus.status || "idle";
+                const displayValue = statusVal.replace(/_/g, " ");
+                if (statusVal === "idle") {
+                  return <span className="text-text-muted capitalize">{displayValue}</span>;
+                } else if (statusVal === "completed") {
+                  return <span className="text-brand-primary capitalize">{displayValue}</span>;
+                } else {
+                  return <span className="capitalize">{displayValue}</span>;
+                }
+              })()
+            }
             hint={workspace.sourceStatus.filename || "No source dump uploaded"} 
             tone="teal" 
           />
@@ -200,7 +222,7 @@ export default function ProjectDashboardPage() {
         </div>
 
         {/* Activity & Comparison Grid */}
-        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr] !mt-6">
           <div className="space-y-6">
             <SectionCard title="Activity Timeline" description="Recent workspace events and source transitions">
               {workspace.timeline.length > 0 ? (
@@ -220,7 +242,9 @@ export default function ProjectDashboardPage() {
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No data available yet" description="Upload a SQL source to start building a project activity timeline." />
+                <div className="text-[13px] text-text-muted">
+                  No activity yet — upload a SQL source to begin.
+                </div>
               )}
             </SectionCard>
 
@@ -293,7 +317,9 @@ export default function ProjectDashboardPage() {
                   rows={workspace.recentJobs}
                 />
               ) : (
-                <EmptyState title="No staging history" description="Recent job statuses appear here after your first upload." />
+                <div className="text-[13px] text-text-muted">
+                  No staging jobs recorded yet.
+                </div>
               )}
             </SectionCard>
           </div>

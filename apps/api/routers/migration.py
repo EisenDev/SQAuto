@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -24,6 +24,7 @@ from apps.api.models import (
     MigrationRunStatus, MigrationLog, MigrationLogLevel,
     MigrationPlan
 )
+from apps.api.deps import verify_project_owner, verify_job_owner
 from services.migration_engine.service import MigrationEngineService
 from services.migration_engine.execution_engine import ExecutionEngineService
 from services.migration_engine.target_connection import backend_runs_in_container, is_metadata_database_target
@@ -145,12 +146,19 @@ def serialize_log(l: MigrationLog) -> dict:
 # ============================================================
 
 @router.post("/targets", summary="Register a target database connection")
-def create_target(request: TargetCreateRequest, db: Session = Depends(get_db)):
+def create_target(request: TargetCreateRequest, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None)):
     """Save a target database connection configuration.
     Password is stored but NEVER returned in responses.
     """
     if not request.name.strip():
         raise HTTPException(status_code=400, detail={"error_type": "invalid_target_configuration", "message": "Target connection name is required.", "fields": ["name"]})
+    
+    if request.project_id:
+        try:
+            verify_project_owner(uuid.UUID(request.project_id), db, x_user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project ID format")
+
     try:
         settings = engine_service.get_target_connection_settings(request.dict(), caller="save_target")
     except ValueError as exc:
@@ -195,13 +203,25 @@ def test_target_connection(request: TargetTestRequest):
 
 
 @router.post("/targets/{target_id}/test", summary="Test a saved target connection")
-def test_saved_target_connection(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+def test_saved_target_connection(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None)):
+    try:
+        target_uuid = uuid.UUID(target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid)
     if project_id:
-        query = query.filter(MigrationTarget.project_id == project_id)
+        try:
+            query = query.filter(MigrationTarget.project_id == uuid.UUID(project_id))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project ID format")
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
+        
+    if target.project_id:
+        verify_project_owner(target.project_id, db, x_user_id)
+        
     return engine_service.precheck_connection(target, caller="test_connection", target_id=str(target.id))
 
 
@@ -217,11 +237,16 @@ def get_connection_hints():
 
 
 @router.get("/targets", summary="List saved target connections")
-def list_targets(project_id: Optional[str] = None, db: Session = Depends(get_db)):
+def list_targets(project_id: Optional[str] = None, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None)):
     """List all saved target connections. Passwords are excluded."""
     query = db.query(MigrationTarget).filter(MigrationTarget.is_active == True, MigrationTarget.deleted_at.is_(None))
     if project_id:
-        query = query.filter(MigrationTarget.project_id == project_id)
+        try:
+            proj_uuid = uuid.UUID(project_id)
+            verify_project_owner(proj_uuid, db, x_user_id)
+            query = query.filter(MigrationTarget.project_id == proj_uuid)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project ID format")
     targets = query.order_by(MigrationTarget.created_at.desc()).all()
     target_ids = [t.id for t in targets]
     history_counts = {}
@@ -253,16 +278,27 @@ def list_targets(project_id: Optional[str] = None, db: Session = Depends(get_db)
 
 
 @router.patch("/targets/{target_id}", summary="Update a saved target connection")
-def update_target(target_id: str, request: TargetUpdateRequest, project_id: Optional[str] = None, db: Session = Depends(get_db)):
+def update_target(target_id: str, request: TargetUpdateRequest, project_id: Optional[str] = None, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None)):
     """Update a saved target connection.
     If password is empty or not provided, it keeps the existing password.
     """
-    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+    try:
+        target_uuid = uuid.UUID(target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid)
     if project_id:
-        query = query.filter(MigrationTarget.project_id == project_id)
+        try:
+            query = query.filter(MigrationTarget.project_id == uuid.UUID(project_id))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project ID format")
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
+        
+    if target.project_id:
+        verify_project_owner(target.project_id, db, x_user_id)
         
     update_data = request.dict(exclude_unset=True)
     if "password" in update_data:
@@ -305,14 +341,26 @@ def update_target(target_id: str, request: TargetUpdateRequest, project_id: Opti
 
 
 @router.delete("/targets/{target_id}", summary="Delete a saved target connection")
-def delete_target(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db)):
+def delete_target(target_id: str, project_id: Optional[str] = None, db: Session = Depends(get_db), x_user_id: Optional[str] = Header(None)):
     """Delete a saved target connection by ID."""
-    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_id)
+    try:
+        target_uuid = uuid.UUID(target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
+    query = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid)
     if project_id:
-        query = query.filter(MigrationTarget.project_id == project_id)
+        try:
+            query = query.filter(MigrationTarget.project_id == uuid.UUID(project_id))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project ID format")
     target = query.first()
     if not target:
         raise HTTPException(status_code=404, detail="Target not found")
+        
+    if target.project_id:
+        verify_project_owner(target.project_id, db, x_user_id)
+        
     history_count = db.query(func.count(MigrationRun.id)).filter(MigrationRun.target_id == target.id).scalar() or 0
     if history_count > 0:
         target.is_active = False
@@ -365,19 +413,32 @@ def _execute_dry_run(run_id, target_config):
 
 
 @router.post("/runs/dry-run", summary="Start a dry-run migration validation")
-def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def start_dry_run(
+    request: DryRunRequest, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Start a dry-run migration validation.
     Compares staging schema against target schema. READ-ONLY against target.
     """
-    # Validate source job exists
-    job = db.query(Job).filter(Job.id == request.source_job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Source job not found")
+    try:
+        job_uuid = uuid.UUID(request.source_job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid source job ID format")
+
+    # Validate source job exists and user owns it
+    job = verify_job_owner(job_uuid, db, x_user_id)
     if job.status.value != "completed":
         raise HTTPException(status_code=400, detail="Source job must be completed before dry-run")
     
+    try:
+        target_uuid = uuid.UUID(request.target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
     # Validate target exists
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
     if target.project_id and job.project_id and str(target.project_id) != str(job.project_id):
@@ -386,8 +447,8 @@ def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db:
     # Create migration run record
     run = MigrationRun(
         project_id=job.project_id,
-        source_job_id=request.source_job_id,
-        target_id=request.target_id,
+        source_job_id=job_uuid,
+        target_id=target_uuid,
         mode=MigrationRunMode.DRY_RUN,
         status=MigrationRunStatus.PENDING,
     )
@@ -412,13 +473,25 @@ def start_dry_run(request: DryRunRequest, background_tasks: BackgroundTasks, db:
 
 
 @router.get("/runs", summary="List migration runs for a specific job")
-def list_runs(source_job_id: str, request: Request, db: Session = Depends(get_db)):
+def list_runs(
+    source_job_id: str, 
+    request: Request, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """List all migration runs for a specific job, ordered by most recent first."""
     if not source_job_id:
         return []
+    try:
+        job_uuid = uuid.UUID(source_job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid source job ID format")
+
+    # Validate source job ownership
+    verify_job_owner(job_uuid, db, x_user_id)
     started_at = time.perf_counter()
     try:
-        runs = db.query(MigrationRun).filter(MigrationRun.source_job_id == source_job_id).order_by(MigrationRun.created_at.desc()).all()
+        runs = db.query(MigrationRun).filter(MigrationRun.source_job_id == job_uuid).order_by(MigrationRun.created_at.desc()).all()
         payload = [serialize_run(r) for r in runs]
         log_endpoint_audit(
             path=str(request.url.path),
@@ -434,28 +507,56 @@ def list_runs(source_job_id: str, request: Request, db: Session = Depends(get_db
 
 
 @router.get("/runs/{run_id}", summary="Get migration run details")
-def get_run(run_id: str, db: Session = Depends(get_db)):
+def get_run(
+    run_id: str, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Get a single migration run with its summary."""
-    run = db.query(MigrationRun).filter(MigrationRun.id == run_id).first()
+    try:
+        run_uuid = uuid.UUID(run_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid run ID format")
+
+    run = db.query(MigrationRun).filter(MigrationRun.id == run_uuid).first()
     if not run:
         raise HTTPException(status_code=404, detail="Migration run not found")
+        
+    if run.project_id:
+        verify_project_owner(run.project_id, db, x_user_id)
+        
     return serialize_run(run)
 
 
 @router.get("/runs/{run_id}/logs", summary="Get logs for a migration run")
-def get_run_logs(run_id: str, request: Request, limit: int = 10, page: int = 1, db: Session = Depends(get_db)):
+def get_run_logs(
+    run_id: str, 
+    request: Request, 
+    limit: int = 10, 
+    page: int = 1, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Get paginated log entries for a specific migration run."""
+    try:
+        run_uuid = uuid.UUID(run_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid run ID format")
+
     started_at = time.perf_counter()
     limit = max(1, min(limit, 100))
     page = max(1, page)
     try:
-        run = db.query(MigrationRun).filter(MigrationRun.id == run_id).first()
+        run = db.query(MigrationRun).filter(MigrationRun.id == run_uuid).first()
         if not run:
             raise HTTPException(status_code=404, detail="Migration run not found")
 
+        if run.project_id:
+            verify_project_owner(run.project_id, db, x_user_id)
+
         logs = (
             db.query(MigrationLog)
-            .filter(MigrationLog.migration_run_id == run_id)
+            .filter(MigrationLog.migration_run_id == run_uuid)
             .order_by(MigrationLog.created_at.asc())
             .offset((page - 1) * limit)
             .limit(limit)
@@ -480,9 +581,21 @@ def get_run_logs(run_id: str, request: Request, limit: int = 10, page: int = 1, 
 # ============================================================
 
 @router.post("/plan", summary="Generate a migration plan")
-def generate_migration_plan(request: MigrationPlanRequest, db: Session = Depends(get_db)):
+def generate_migration_plan(
+    request: MigrationPlanRequest, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Generate a data intelligence backed migration plan."""
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    try:
+        job_uuid = uuid.UUID(request.source_job_id)
+        target_uuid = uuid.UUID(request.target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID or target ID format")
+
+    verify_job_owner(job_uuid, db, x_user_id)
+
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
         
@@ -491,12 +604,24 @@ def generate_migration_plan(request: MigrationPlanRequest, db: Session = Depends
 
 
 @router.get("/plan/{plan_id}", summary="Get saved migration plan")
-def get_migration_plan(plan_id: str, db: Session = Depends(get_db)):
+def get_migration_plan(
+    plan_id: str, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Fetch an existing migration plan artifact."""
-    plan = db.query(MigrationPlan).filter(MigrationPlan.id == plan_id).first()
+    try:
+        plan_uuid = uuid.UUID(plan_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid plan ID format")
+
+    plan = db.query(MigrationPlan).filter(MigrationPlan.id == plan_uuid).first()
     if not plan:
         raise HTTPException(status_code=404, detail="Migration plan not found")
         
+    if plan.project_id:
+        verify_project_owner(plan.project_id, db, x_user_id)
+
     return {
         "id": str(plan.id),
         "source_job_id": str(plan.source_job_id),
@@ -526,16 +651,25 @@ def _execute_migration_bg(run_id, target_config, mode):
 
 
 @router.post("/execute", summary="Execute controlled migration (preview or commit)")
-def start_execution(request: MigrationExecuteRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def start_execution(
+    request: MigrationExecuteRequest, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Start either a transaction-backed preview or actual commit execution."""
     if request.mode not in ["preview", "execute"]:
         raise HTTPException(status_code=400, detail="Mode must be 'preview' or 'execute'")
         
-    job = db.query(Job).filter(Job.id == request.source_job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Source job not found")
+    try:
+        job_uuid = uuid.UUID(request.source_job_id)
+        target_uuid = uuid.UUID(request.target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID or target ID format")
+
+    job = verify_job_owner(job_uuid, db, x_user_id)
         
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
         
@@ -543,8 +677,8 @@ def start_execution(request: MigrationExecuteRequest, background_tasks: Backgrou
     
     run = MigrationRun(
         project_id=job.project_id,
-        source_job_id=request.source_job_id,
-        target_id=request.target_id,
+        source_job_id=job_uuid,
+        target_id=target_uuid,
         mode=run_mode,
         status=MigrationRunStatus.PENDING,
     )
@@ -573,18 +707,26 @@ class MappingSuggestRequest(BaseModel):
 
 
 @router.post("/mapping/suggest", summary="Suggest Schema Mappings")
-def suggest_mappings(request: MappingSuggestRequest, db: Session = Depends(get_db)):
+def suggest_mappings(
+    request: MappingSuggestRequest, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """
     Generates intelligent mapping suggestions linking source columns to destination structure.
     Currently returns dummy schema data to the mapping suggester engine for the MVP.
     """
     from services.smart_fix.mapping_suggester import suggest_schema_mappings
     
-    job = db.query(Job).filter(Job.id == request.source_job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Source job not found")
+    try:
+        job_uuid = uuid.UUID(request.source_job_id)
+        target_uuid = uuid.UUID(request.target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job ID or target ID format")
 
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    job = verify_job_owner(job_uuid, db, x_user_id)
+
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
 
@@ -605,3 +747,96 @@ def suggest_mappings(request: MappingSuggestRequest, db: Session = Depends(get_d
 
     results = suggest_schema_mappings(source_mock, target_mock)
     return {"suggestions": results}
+
+
+@router.get("/targets/{target_id}/tables/{table_name}/rows", summary="Fetch table rows from a target database connection")
+def get_target_table_rows(
+    target_id: str,
+    table_name: str,
+    q: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
+    try:
+        target_uuid = uuid.UUID(target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target connection not found")
+
+    if target.project_id:
+        verify_project_owner(target.project_id, db, x_user_id)
+
+    try:
+        from sqlalchemy import create_engine, text, inspect
+        from services.migration_engine.target_connection import build_target_connection_url
+
+        target_config = {
+            "host": target.host,
+            "port": target.port,
+            "database_name": target.database_name,
+            "username": target.username,
+            "password": target.password,
+            "ssl_mode": target.ssl_mode,
+            "db_type": target.db_type
+        }
+        url = build_target_connection_url(target_config)
+        target_engine = create_engine(url, connect_args={"connect_timeout": 10})
+
+        schema = "public"
+        with target_engine.connect() as conn:
+            # Check if table exists first
+            inspector = inspect(target_engine)
+            tables = inspector.get_table_names(schema=schema)
+            if table_name not in tables:
+                target_engine.dispose()
+                raise HTTPException(status_code=404, detail="Table not found in target database")
+
+            # Get columns
+            columns_info = inspector.get_columns(table_name, schema=schema)
+            columns = [col["name"] for col in columns_info]
+
+            # Build where clause
+            where_clause = ""
+            params = {"limit": limit, "offset": offset}
+            if q:
+                search_terms = []
+                for idx, col in enumerate(columns):
+                    p_name = f"q_{idx}"
+                    search_terms.append(f'"{col}"::text ILIKE :{p_name}')
+                    params[p_name] = f"%{q}%"
+                where_clause = f"WHERE {' OR '.join(search_terms)}"
+
+            # Get total count
+            count_query = text(f'SELECT COUNT(*) FROM {schema}."{table_name}" {where_clause}')
+            total = conn.execute(count_query, params).scalar() or 0
+
+            # Get data rows
+            data_query = text(f'SELECT * FROM {schema}."{table_name}" {where_clause} LIMIT :limit OFFSET :offset')
+            result = conn.execute(data_query, params)
+            rows = [dict(zip(columns, row)) for row in result.fetchall()]
+
+            target_engine.dispose()
+
+            return {
+                "columns": [{"name": col["name"], "type": str(col["type"]), "nullable": col.get("nullable", True), "primary": col.get("primary", False)} for col in columns_info],
+                "rows": rows,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch rows from target database: {e}")
+        # Mask password in error message if present
+        err_msg = str(e)
+        if target.password:
+            err_msg = err_msg.replace(target.password, "***")
+        raise HTTPException(status_code=500, detail=f"Database communication error: {err_msg}")
+
+

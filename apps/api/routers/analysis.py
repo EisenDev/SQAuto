@@ -10,13 +10,15 @@ SAFETY: All operations are READ-ONLY. No writes to staging or target.
 import os
 import logging
 import time
+import uuid
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Header
 from sqlalchemy.orm import Session
 
 from apps.api.database import get_db, SessionLocal
 from apps.api.models import Job, MigrationTarget, MigrationRun
+from apps.api.deps import verify_job_owner, verify_project_owner
 from apps.api.utils import log_endpoint_audit, raise_if_database_resource_exhausted
 
 router = APIRouter()
@@ -46,15 +48,23 @@ class EnhancedReconRequest(BaseModel):
 # ============================================================
 
 @router.post("/integrity", summary="Run data integrity checks on staging")
-def run_integrity(request: IntegrityRequest, http_request: Request, db: Session = Depends(get_db)):
+def run_integrity(
+    request: IntegrityRequest, 
+    http_request: Request, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Run data integrity checks against the staging database.
 
     Detects: duplicate PKs, missing PKs, orphan FKs, high-NULL columns.
     All queries are SELECT-only with LIMIT clauses.
     """
-    job = db.query(Job).filter(Job.id == request.source_job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    try:
+        job_uuid = uuid.UUID(request.source_job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid source job ID format")
+
+    job = verify_job_owner(job_uuid, db, x_user_id)
     if job.status.value != "completed":
         raise HTTPException(status_code=400, detail="Job must be completed before integrity check")
 
@@ -81,7 +91,11 @@ def run_integrity(request: IntegrityRequest, http_request: Request, db: Session 
 # ============================================================
 
 @router.post("/dialect", summary="Detect SQL dialect from text or job file")
-def detect_dialect(request: DialectDetectRequest, db: Session = Depends(get_db)):
+def detect_dialect(
+    request: DialectDetectRequest, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Detect the SQL dialect of uploaded content.
 
     Either provide raw sql_text, or a job_id to analyze the uploaded file.
@@ -92,9 +106,12 @@ def detect_dialect(request: DialectDetectRequest, db: Session = Depends(get_db))
         return detect_sql_dialect(request.sql_text)
 
     if request.job_id:
-        job = db.query(Job).filter(Job.id == request.job_id).first()
-        if not job:
-            raise HTTPException(status_code=404, detail="Job not found")
+        try:
+            job_uuid = uuid.UUID(request.job_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid job ID format")
+
+        job = verify_job_owner(job_uuid, db, x_user_id)
 
         # Locate the uploaded file
         upload_dir = os.path.abspath(os.path.join(os.getcwd(), "uploads"))
@@ -112,15 +129,27 @@ def detect_dialect(request: DialectDetectRequest, db: Session = Depends(get_db))
 # ============================================================
 
 @router.post("/reconciliation/enhanced", summary="Run enhanced reconciliation for a single table")
-def run_enhanced_recon(request: EnhancedReconRequest, db: Session = Depends(get_db)):
+def run_enhanced_recon(
+    request: EnhancedReconRequest, 
+    db: Session = Depends(get_db),
+    x_user_id: Optional[str] = Header(None)
+):
     """Run enhanced reconciliation against a target for a specific table.
 
     Detects missing IDs, extra IDs, and sample mismatches.
     READ-ONLY against target database.
     """
-    target = db.query(MigrationTarget).filter(MigrationTarget.id == request.target_id).first()
+    try:
+        target_uuid = uuid.UUID(request.target_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid target ID format")
+
+    target = db.query(MigrationTarget).filter(MigrationTarget.id == target_uuid).first()
     if not target:
         raise HTTPException(status_code=404, detail="Target connection not found")
+
+    if target.project_id:
+        verify_project_owner(target.project_id, db, x_user_id)
 
     from services.data_intelligence.reconciliation_engine import run_enhanced_reconciliation
 

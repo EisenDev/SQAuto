@@ -24,10 +24,18 @@ class DumpRestoreService:
     """
 
     def detect_flavor(self, file_path: str) -> str:
-        """Heuristic to detect the SQL dump flavor, supporting gzip."""
+        """Heuristic to detect the SQL dump flavor, supporting gzip and Progress."""
+        ext = file_path.lower()
+        # Progress OpenEdge native files
+        if ext.endswith(".df") or ext.endswith(".d"):
+            return "progress_openedge"
+        if ext.endswith(".zip"):
+            from services.source_adapters.router import _zip_contains_progress
+            if _zip_contains_progress(file_path):
+                return "progress_openedge"
         try:
             import gzip
-            opener = gzip.open if file_path.lower().endswith(".gz") else open
+            opener = gzip.open if ext.endswith(".gz") else open
             with opener(file_path, "rt", encoding="utf-8", errors="ignore") as f:
                 head = f.read(4096)
                 if "-- MySQL dump" in head or "/*!40101 SET @OLD_CHARACTER_SET_CLIENT" in head:
@@ -38,17 +46,26 @@ class DumpRestoreService:
                     return "sqlite"
         except Exception as e:
             logger.warning(f"Flavor detection failed: {e}")
-        return "postgres" # Default to postgres
+        return "postgres"  # Default to postgres
 
     def restore(self, *, job_id, file_path: str, db_session: Session) -> None:
-        """Universal restore with Deadlock-Free streaming and industrial trace logging.
+        """Universal restore — routes to the appropriate source adapter.
+
+        Non-SQL formats (.df, .d, .zip with Progress data) are delegated to
+        ProgressDFAdapter. All SQL formats continue through the existing psql path.
         """
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Dump file not found: {file_path}")
 
         flavor = self.detect_flavor(file_path)
         is_gz = file_path.lower().endswith(".gz")
-        logger.info(f"Detected SQL flavor: {flavor} (Compressed: {is_gz}) for job {job_id}")
+        logger.info(f"Detected source flavor: {flavor} (Compressed: {is_gz}) for job {job_id}")
+
+        # --- Route non-SQL formats to their dedicated adapters ---
+        if flavor == "progress_openedge":
+            from services.source_adapters.progress_df_adapter import ProgressDFAdapter
+            ProgressDFAdapter().restore(job_id=job_id, file_path=file_path, db_session=db_session)
+            return
 
         db_url = settings.STAGING_DATABASE_URL
         if "+psycopg" in db_url:

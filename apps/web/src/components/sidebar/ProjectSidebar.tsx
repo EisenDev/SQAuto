@@ -9,6 +9,26 @@ import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useJob } from '@/components/JobProvider';
 import { safeFetch } from '@/lib/api_client';
 
+const ArrowsDiffIcon = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={props.className}
+  >
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M11 16h10" />
+    <path d="M19 13l3 3l-3 3" />
+    <path d="M13 8h-10" />
+    <path d="M5 5l-3 3l3 3" />
+  </svg>
+);
+
+
 interface SidebarItemProps {
   icon: React.ElementType;
   label: string;
@@ -71,16 +91,14 @@ export const ProjectSidebar = () => {
     safeFetch(`${API_URL}/projects/${normalizedProjectId}`).then((res) => {
       if (res.success && res.data?.project_type) {
         setProjectType(res.data.project_type);
-        
-        if (res.data.project_type === 'comparison') {
-          safeFetch(`${API_URL}/projects/${normalizedProjectId}/comparison/latest`).then((compRes) => {
-            if (compRes.success && compRes.data && (compRes.data.status === 'completed' || compRes.data.result)) {
-              setComparisonCompleted(true);
-            } else {
-              setComparisonCompleted(false);
-            }
-          });
-        }
+      }
+    });
+    // Always check comparison status regardless of project_type (unified product)
+    safeFetch(`${API_URL}/projects/${normalizedProjectId}/comparison/latest`).then((compRes) => {
+      if (compRes.success && compRes.data && (compRes.data.status === 'completed' || compRes.data.result)) {
+        setComparisonCompleted(true);
+      } else {
+        setComparisonCompleted(false);
       }
     });
   }, [projectId, pathname]);
@@ -94,6 +112,7 @@ export const ProjectSidebar = () => {
     if (pathname.includes('/comparison')) return 'comparison';
     if (pathname.endsWith('/sql')) return 'upload';
     if (pathname.includes('/diagnostics')) return 'diagnostics';
+    if (pathname.includes('/reconciliation')) return 'reconciliation';
     if (pathname.includes('/explorer')) return 'explorer';
     if (pathname.includes('/visualizer')) return 'visualizer';
     if (pathname.includes('/quality')) return 'quality';
@@ -115,6 +134,7 @@ export const ProjectSidebar = () => {
       comparison: `/dashboard/project/${normalizedProjectId}/comparison`,
       'comparison-mismatches': `/dashboard/project/${normalizedProjectId}/comparison/mismatches`,
       diagnostics: `/dashboard/project/${normalizedProjectId}/diagnostics`,
+      reconciliation: `/dashboard/project/${normalizedProjectId}/reconciliation`,
       explorer: `/dashboard/project/${normalizedProjectId}/explorer`,
       visualizer: `/dashboard/project/${normalizedProjectId}/visualizer`,
       quality: `/dashboard/project/${normalizedProjectId}/quality`,
@@ -189,6 +209,14 @@ export const ProjectSidebar = () => {
           label={isHovered ? "Truth Explorer" : ""} 
           id="explorer" 
           active={getActiveTab() === 'explorer'} 
+          disabled={isAnalysisDisabled}
+          onClick={handleNav} 
+        />
+        <SidebarItem 
+          icon={ArrowsDiffIcon} 
+          label={isHovered ? "Reconciliation" : ""} 
+          id="reconciliation" 
+          active={getActiveTab() === 'reconciliation'} 
           disabled={isAnalysisDisabled}
           onClick={handleNav} 
         />

@@ -4,6 +4,8 @@
  * when the server returns non-JSON responses (like 500 HTML errors).
  */
 
+import { getSession } from "next-auth/react";
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data: T | null;
@@ -13,6 +15,20 @@ export interface ApiResponse<T = any> {
 
 export async function safeFetch<T = any>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
+    let session = null;
+    try {
+      session = await getSession();
+    } catch (err) {
+      console.warn("[safeFetch] Failed to get session on client side:", err);
+    }
+    
+    const userId = (session?.user as any)?.id;
+    if (userId) {
+      const headers = new Headers(options.headers || {});
+      headers.set("X-User-Id", userId);
+      options.headers = headers;
+    }
+
     const response = await fetch(url, options);
     const status = response.status;
     const contentType = response.headers.get("content-type");
@@ -57,3 +73,4 @@ export async function safeFetch<T = any>(url: string, options: RequestInit = {})
     };
   }
 }
+
