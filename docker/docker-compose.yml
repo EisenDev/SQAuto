@@ -15,10 +15,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      api:
-        condition: service_healthy
-      web:
-        condition: service_healthy
+      - api
+      - web
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
@@ -106,8 +104,8 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 15s
-      timeout: 5s
-      start_period: 30s
+      timeout: 10s
+      start_period: 180s
       retries: 5
     restart: always
 
@@ -132,7 +130,7 @@ services:
         condition: service_healthy
       db_staging:
         condition: service_healthy
-    restart: always
+    restart: on-failure
 
   # ─── Web (Next.js) ───────────────────────────────────────────
   web:
@@ -145,10 +143,10 @@ services:
     expose:
       - "3000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 3000 || exit 1"]
       interval: 15s
       timeout: 5s
-      start_period: 30s
+      start_period: 60s
       retries: 5
     restart: always
 

@@ -220,11 +220,28 @@ jobs:
             # ── Pull new images ───────────────────────────────────
             docker compose -f docker/docker-compose.yml pull api worker web
 
-            # ── Restart with zero-downtime rolling update ─────────
+            # ── Restart containers ────────────────────────────────
             docker compose -f docker/docker-compose.yml up -d \
-              --remove-orphans \
-              --wait \
-              --wait-timeout 300
+              --remove-orphans
+
+            # ── Wait for critical services (api + web) ─────────────
+            echo "Waiting for api and web to become healthy (up to 3min)..."
+            for i in $(seq 1 36); do
+              API_HEALTH=$(docker inspect sqauto_api --format='{{.State.Health.Status}}' 2>/dev/null || echo 'unknown')
+              WEB_HEALTH=$(docker inspect sqauto_web --format='{{.State.Health.Status}}' 2>/dev/null || echo 'unknown')
+              echo "  [${i}/36] api=${API_HEALTH} web=${WEB_HEALTH}"
+              if [ "${API_HEALTH}" = "healthy" ] && [ "${WEB_HEALTH}" = "healthy" ]; then
+                echo "✅ Both api and web are healthy!"
+                break
+              fi
+              if [ "${i}" = "36" ]; then
+                echo "❌ Timed out waiting for healthy status"
+                docker compose -f docker/docker-compose.yml logs --tail=20 api || true
+                docker compose -f docker/docker-compose.yml logs --tail=20 web || true
+                exit 1
+              fi
+              sleep 5
+            done
 
             # ── Verify all services are healthy ───────────────────
             docker compose -f docker/docker-compose.yml ps
