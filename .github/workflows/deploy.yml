@@ -176,7 +176,7 @@ jobs:
           chmod 600 ~/.ssh/sqauto_vm
           ssh-keygen -y -f ~/.ssh/sqauto_vm > /tmp/sqauto_vm.pub
           ssh-keygen -lf ~/.ssh/sqauto_vm
-          ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts
+          ssh-keyscan -H '${{ secrets.VM_HOST }}' >> ~/.ssh/known_hosts || true
 
       - name: Deploy — pull images & restart containers
         env:
@@ -190,6 +190,7 @@ jobs:
 
           ssh -i ~/.ssh/sqauto_vm \
               -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=10 \
               "${VM_USER}@${VM_HOST}" \
