@@ -40,24 +40,6 @@ services:
       timeout: 3s
       retries: 5
 
-  # ─── Metadata Database ───────────────────────────────────────
-  db_meta:
-    image: postgres:15-alpine
-    container_name: sqauto_db_meta
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_META_PASSWORD:-postgres}
-      POSTGRES_DB: sqauto
-    ports:
-      - "${SQAUTO_DB_PORT:-55432}:5432"
-    volumes:
-      - meta_data:/var/lib/postgresql/data
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sqauto"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # ─── Staging Database ────────────────────────────────────────
   db_staging:
@@ -85,8 +67,6 @@ services:
     env_file: ../.env
     environment:
       REDIS_URL: redis://redis:6379/0
-      METADATA_DATABASE_URL: postgresql+psycopg://postgres:${DB_META_PASSWORD:-postgres}@db_meta:5432/sqauto
-      DATABASE_URL: postgresql+psycopg://postgres:${DB_META_PASSWORD:-postgres}@db_meta:5432/sqauto
       STAGING_DATABASE_URL: postgresql+psycopg://postgres:${DB_STAGING_PASSWORD:-postgres}@db_staging:5432/staging_db
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -96,8 +76,6 @@ services:
       - uploads:/app/uploads
     depends_on:
       redis:
-        condition: service_healthy
-      db_meta:
         condition: service_healthy
       db_staging:
         condition: service_healthy
@@ -116,8 +94,6 @@ services:
     env_file: ../.env
     environment:
       REDIS_URL: redis://redis:6379/0
-      METADATA_DATABASE_URL: postgresql+psycopg://postgres:${DB_META_PASSWORD:-postgres}@db_meta:5432/sqauto
-      DATABASE_URL: postgresql+psycopg://postgres:${DB_META_PASSWORD:-postgres}@db_meta:5432/sqauto
       STAGING_DATABASE_URL: postgresql+psycopg://postgres:${DB_STAGING_PASSWORD:-postgres}@db_staging:5432/staging_db
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -125,8 +101,6 @@ services:
       - uploads:/app/uploads
     depends_on:
       redis:
-        condition: service_healthy
-      db_meta:
         condition: service_healthy
       db_staging:
         condition: service_healthy
@@ -154,5 +128,4 @@ services:
 volumes:
   uploads:
   redis_data:
-  meta_data:
   staging_data:
