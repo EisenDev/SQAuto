@@ -114,6 +114,7 @@ services:
     environment:
       HOSTNAME: 0.0.0.0
       PORT: "3000"
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
     expose:
       - "3000"
     healthcheck:
