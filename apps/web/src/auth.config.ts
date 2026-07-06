@@ -4,6 +4,34 @@ import CredentialsProvider from "next-auth/providers/credentials"
 export const authConfig = {
   secret: process.env.AUTH_SECRET || "BPzBK2X54QAuW0KEfUlDBVPuxaIPn9YtXXtqKwmztZ4=",
   trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+    callbackUrl: {
+      name: "next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+    csrfToken: {
+      name: "next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+  },
   session: {
     strategy: "jwt",
   },
