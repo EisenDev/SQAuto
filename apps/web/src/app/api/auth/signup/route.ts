@@ -6,6 +6,9 @@ import bcrypt from "bcryptjs"
 const connectionString = process.env.DATABASE_URL?.replace('postgresql+psycopg', 'postgresql') || process.env.DATABASE_URL;
 const pool = new Pool({
   connectionString,
+  ssl: connectionString?.includes('sslmode=require') || connectionString?.includes('supabase')
+    ? { rejectUnauthorized: false }
+    : undefined,
 })
 
 export async function POST(req: Request) {

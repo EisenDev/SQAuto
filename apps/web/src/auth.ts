@@ -31,6 +31,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             const { Pool } = await import("pg");
             pool = new Pool({
               connectionString,
+              ssl: connectionString?.includes('sslmode=require') || connectionString?.includes('supabase')
+                ? { rejectUnauthorized: false }
+                : undefined,
             });
           }
 
