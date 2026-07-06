@@ -5,13 +5,16 @@ import { decode } from "next-auth/jwt"
 export async function middleware(req: NextRequest) {
   const secret = process.env.AUTH_SECRET || "BPzBK2X54QAuW0KEfUlDBVPuxaIPn9YtXXtqKwmztZ4="
   
-  const sessionToken = 
-    req.cookies.get("authjs.session-token")?.value || 
-    req.cookies.get("__Secure-authjs.session-token")?.value
-    
-  const salt = req.cookies.get("__Secure-authjs.session-token") 
-    ? "__Secure-authjs.session-token" 
-    : "authjs.session-token"
+  // Detect which session cookie is present (next-auth or authjs, secure or non-secure)
+  const sessionCookieName = 
+    (req.cookies.has("__Secure-authjs.session-token") && "__Secure-authjs.session-token") ||
+    (req.cookies.has("authjs.session-token") && "authjs.session-token") ||
+    (req.cookies.has("__Secure-next-auth.session-token") && "__Secure-next-auth.session-token") ||
+    (req.cookies.has("next-auth.session-token") && "next-auth.session-token") ||
+    "next-auth.session-token"; // fallback
+
+  const sessionToken = req.cookies.get(sessionCookieName)?.value
+  const salt = sessionCookieName
 
   let decoded = null
   if (sessionToken) {
