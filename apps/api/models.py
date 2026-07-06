@@ -15,9 +15,18 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from apps.api.database import Base
 
-# ============================================================
-# Product Hierarchy Models
-# ============================================================
+class User(Base):
+    """User account model for web authentication."""
+    __tablename__ = "users"
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
 
 class Organization(Base):
     """Top-level container for multiple projects."""

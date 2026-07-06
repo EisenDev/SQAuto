@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from apps.api.database import Base, engine
 from apps.api.router import api_router
+from apps.api.models import User
 from apps.api.utils import database_resource_exhausted_response, is_database_resource_exhausted_message
 from apps.api.deps import x_user_id_ctx
 
