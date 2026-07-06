@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
       // Insert into users table
       const insertRes = await client.query(
-        "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username",
+        "INSERT INTO users (id, username, password_hash) VALUES (gen_random_uuid(), $1, $2) RETURNING id, username",
         [username, passwordHash]
       )
 
