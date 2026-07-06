@@ -107,8 +107,7 @@ COPY --from=web-builder /app/apps/web/public ./apps/web/public
 
 EXPOSE 3000
 
-# Use TCP check — node:alpine has nc; wget on / can return empty for Next.js
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
-    CMD nc -z localhost 3000 || exit 1
+    CMD wget -qO- http://127.0.0.1:3000/ || exit 1
 
 CMD ["node", "apps/web/server.js"]
