@@ -236,6 +236,9 @@ jobs:
             docker compose -f docker/docker-compose.yml up -d \
               --remove-orphans
 
+            # ── Restart Nginx to clear DNS caching of backend IPs ──
+            docker compose -f docker/docker-compose.yml restart nginx
+
             # ── Wait for critical services (api + web) ─────────────
             echo "Waiting for api and web to become healthy (up to 3min)..."
             for i in $(seq 1 36); do
